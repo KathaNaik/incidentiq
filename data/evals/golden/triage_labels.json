@@ -1,0 +1,182 @@
+{
+  "dataset": "incidentiq-triage-golden",
+  "synthetic": true,
+  "note": "Expected labels, kept in a separate file from the case text so triage input and ground truth are never loaded as one object. `expected_service_id: null` means a correct system should decline to name a service rather than guess.",
+  "records": [
+    {
+      "case_id": "G01",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "availability",
+      "expected_priority": "high",
+      "note": "Whole tenant blocked from signing in, but scoped to one customer."
+    },
+    {
+      "case_id": "G02",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "data_quality",
+      "expected_priority": "medium",
+      "note": "Figures disagree; no outage."
+    },
+    {
+      "case_id": "G03",
+      "expected_service_id": "svc-connector",
+      "expected_issue_type": "availability",
+      "expected_priority": "high",
+      "note": "Sync has not moved in six hours for a paying customer."
+    },
+    {
+      "case_id": "G04",
+      "expected_service_id": "svc-connector",
+      "expected_issue_type": "availability",
+      "expected_priority": "critical",
+      "note": "All customers, customer facing, production."
+    },
+    {
+      "case_id": "G05",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "availability",
+      "expected_priority": "low",
+      "note": "One user, one machine, self-recovering."
+    },
+    {
+      "case_id": "G06",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "performance",
+      "expected_priority": "medium",
+      "note": "Degraded daily workflow, still usable."
+    },
+    {
+      "case_id": "G07",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "permissions",
+      "expected_priority": "medium",
+      "note": "403 for one new member; the console is the analytics surface."
+    },
+    {
+      "case_id": "G08",
+      "expected_service_id": null,
+      "expected_issue_type": "data_quality",
+      "expected_priority": "medium",
+      "note": "Symptom is in the report, cause is likely the connector. A system should not commit to one."
+    },
+    {
+      "case_id": "G09",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "integration",
+      "expected_priority": "medium",
+      "note": "Credential lifetime in a machine-to-machine handoff."
+    },
+    {
+      "case_id": "G10",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "availability",
+      "expected_priority": "medium",
+      "note": "Terse. Nothing indicates scope either way."
+    },
+    {
+      "case_id": "G11",
+      "expected_service_id": "svc-connector",
+      "expected_issue_type": "availability",
+      "expected_priority": "medium",
+      "note": "Terse. Gateway timeout on webhooks, scope unknown."
+    },
+    {
+      "case_id": "G12",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "unknown",
+      "expected_priority": "low",
+      "note": "Says urgent, describes a cosmetic defect with a workaround. Cosmetic is not in our taxonomy."
+    },
+    {
+      "case_id": "G13",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "integration",
+      "expected_priority": "high",
+      "note": "Expired certificate in the IdP handshake; two teams blocked."
+    },
+    {
+      "case_id": "G14",
+      "expected_service_id": "svc-connector",
+      "expected_issue_type": "availability",
+      "expected_priority": "medium",
+      "note": "Genuinely unclear scope; medium is the honest answer."
+    },
+    {
+      "case_id": "G15",
+      "expected_service_id": "svc-connector",
+      "expected_issue_type": "permissions",
+      "expected_priority": "high",
+      "note": "Denied write blocks syncs for every customer on the cluster."
+    },
+    {
+      "case_id": "G16",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "configuration",
+      "expected_priority": "low",
+      "note": "A how-to question."
+    },
+    {
+      "case_id": "G17",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "permissions",
+      "expected_priority": "medium",
+      "note": "The word dashboard dominates, but the defect is a role grant."
+    },
+    {
+      "case_id": "G18",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "data_quality",
+      "expected_priority": "high",
+      "note": "Every user is reading stale figures and the UI claims they are fresh."
+    },
+    {
+      "case_id": "G19",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "performance",
+      "expected_priority": "high",
+      "note": "Slow, not down, but it affects everyone."
+    },
+    {
+      "case_id": "G20",
+      "expected_service_id": "svc-auth",
+      "expected_issue_type": "integration",
+      "expected_priority": "medium",
+      "note": "Says sync repeatedly, but this is identity provisioning, not the data connector."
+    },
+    {
+      "case_id": "G21",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "permissions",
+      "expected_priority": "low",
+      "note": "One user, explicit low urgency."
+    },
+    {
+      "case_id": "G22",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "availability",
+      "expected_priority": "critical",
+      "note": "Total loss of the product surface for every customer."
+    },
+    {
+      "case_id": "G23",
+      "expected_service_id": null,
+      "expected_issue_type": "unknown",
+      "expected_priority": "low",
+      "note": "Billing is not a Northstar service. The right answer is to decline."
+    },
+    {
+      "case_id": "G24",
+      "expected_service_id": "svc-connector",
+      "expected_issue_type": "availability",
+      "expected_priority": "low",
+      "note": "Mentions production only to rule it out; sandbox-only impact."
+    },
+    {
+      "case_id": "G25",
+      "expected_service_id": "svc-analytics",
+      "expected_issue_type": "permissions",
+      "expected_priority": "medium",
+      "note": "Longer narrative; the operative detail is a missing grant after migration."
+    }
+  ]
+}

@@ -1,0 +1,194 @@
+{
+  "suite": "golden",
+  "version": "deterministic-v1",
+  "generated_at": "2026-08-26T10:40:28.408976Z",
+  "case_count": 25,
+  "metrics": [
+    {
+      "name": "service",
+      "correct": 23,
+      "total": 25,
+      "accuracy": 0.92,
+      "abstained": 2,
+      "majority_baseline": null
+    },
+    {
+      "name": "issue_type",
+      "correct": 20,
+      "total": 25,
+      "accuracy": 0.8,
+      "abstained": 1,
+      "majority_baseline": null
+    },
+    {
+      "name": "priority",
+      "correct": 22,
+      "total": 25,
+      "accuracy": 0.88,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [
+    {
+      "expected": "service:(abstained)",
+      "predicted": "svc-connector",
+      "count": 1
+    },
+    {
+      "expected": "service:svc-analytics",
+      "predicted": "(abstained)",
+      "count": 1
+    },
+    {
+      "expected": "issue_type:availability",
+      "predicted": "unknown",
+      "count": 3
+    },
+    {
+      "expected": "issue_type:integration",
+      "predicted": "(abstained)",
+      "count": 1
+    },
+    {
+      "expected": "issue_type:permissions",
+      "predicted": "unknown",
+      "count": 1
+    },
+    {
+      "expected": "priority:high",
+      "predicted": "medium",
+      "count": 1
+    },
+    {
+      "expected": "priority:low",
+      "predicted": "medium",
+      "count": 1
+    },
+    {
+      "expected": "priority:medium",
+      "predicted": "low",
+      "count": 1
+    }
+  ],
+  "failures": [
+    {
+      "case_id": "G01",
+      "metric": "issue_type",
+      "expected": "availability",
+      "predicted": "unknown",
+      "status": "unknown",
+      "explanation": "No issue vocabulary matched.",
+      "signals": [],
+      "text": "Nobody on our team can log in through SSO — Every user in our workspace is bounced back to the login page after authenticating with our identity provider. It started about twenty minutes ago and affects the entire team."
+    },
+    {
+      "case_id": "G03",
+      "metric": "priority",
+      "expected": "high",
+      "predicted": "medium",
+      "status": "default",
+      "explanation": "No urgency, scope, or impact phrases matched; defaulted to medium.",
+      "signals": [],
+      "text": "Warehouse connector stuck in syncing state — Our Snowflake connector has been syncing for six hours and no new rows have arrived. Cancelling and restarting the sync leaves it in the same state."
+    },
+    {
+      "case_id": "G05",
+      "metric": "issue_type",
+      "expected": "availability",
+      "predicted": "unknown",
+      "status": "unknown",
+      "explanation": "No issue vocabulary matched.",
+      "signals": [],
+      "text": "My laptop keeps logging me out of the console — Only me, and only on my laptop. Signing in again works fine and it happens maybe once a day. No rush on this one."
+    },
+    {
+      "case_id": "G06",
+      "metric": "priority",
+      "expected": "medium",
+      "predicted": "low",
+      "status": "classified",
+      "explanation": "Score 1.5 [degradation +1.5 (from +1 'intermittently' (description), +1.5 'slow' (title))] falls in the low band.",
+      "signals": [
+        "degradation 'intermittently' (+1, description) -> priority",
+        "degradation 'slow' (+1.5, title) -> priority"
+      ],
+      "text": "Dashboards are slow to load in the afternoon — Loading the executive dashboard takes twenty to thirty seconds after 3pm. It is usable but sluggish, and it happens intermittently rather than every time."
+    },
+    {
+      "case_id": "G07",
+      "metric": "service",
+      "expected": "svc-analytics",
+      "predicted": null,
+      "status": "unknown",
+      "explanation": "No service vocabulary matched.",
+      "signals": [],
+      "text": "New analyst cannot see the finance workspace — An analyst was added to the finance workspace yesterday but gets a 403 when opening it. Other members of the same workspace see it normally."
+    },
+    {
+      "case_id": "G08",
+      "metric": "service",
+      "expected": null,
+      "predicted": "svc-connector",
+      "status": "classified",
+      "explanation": "Connector API scored 7.5; next closest Analytics Dashboard (3.0).",
+      "signals": [
+        "service_term 'report' (+3, title) -> service:svc-analytics",
+        "service_term 'connector' (+3, description) -> service:svc-connector",
+        "service_term 'sync' (+4.5, title) -> service:svc-connector"
+      ],
+      "text": "Report shows duplicate rows after the last sync — Every account appears twice in the weekly report since yesterday's connector run, so the totals are double counted."
+    },
+    {
+      "case_id": "G09",
+      "metric": "issue_type",
+      "expected": "integration",
+      "predicted": null,
+      "status": "ambiguous",
+      "explanation": "availability (3.0) and integration (3.0) are within 0.0 — too close to separate.",
+      "signals": [
+        "issue_term 'stops working' (+3, description) -> issue_type:availability",
+        "issue_term 'expiring' (+3, title) -> issue_type:integration"
+      ],
+      "text": "API token for the scheduled export keeps expiring — Our scheduled export authenticates with an API token and stops working every few days with a 401. Reissuing the token fixes it until the next time."
+    },
+    {
+      "case_id": "G22",
+      "metric": "issue_type",
+      "expected": "availability",
+      "predicted": "unknown",
+      "status": "unknown",
+      "explanation": "No issue vocabulary matched.",
+      "signals": [],
+      "text": "All dashboards blank and saved reports missing for every customer — Nothing renders at all and saved reports have disappeared from the list. This is production and customer facing."
+    },
+    {
+      "case_id": "G24",
+      "metric": "priority",
+      "expected": "low",
+      "predicted": "medium",
+      "status": "classified",
+      "explanation": "Score 3.5 [degradation +1.5 (from +1.5 'intermittent' (title)); urgency +2 (from +2 'production' (description))] falls in the medium band.",
+      "signals": [
+        "urgency 'production' (+2, description) -> priority",
+        "degradation 'intermittent' (+1.5, title) -> priority"
+      ],
+      "text": "Intermittent 500s on the connector, but only in our sandbox — We see 500 errors on maybe one in ten calls. This is sandbox only — production is completely fine and no customer is affected."
+    },
+    {
+      "case_id": "G25",
+      "metric": "issue_type",
+      "expected": "permissions",
+      "predicted": "unknown",
+      "status": "unknown",
+      "explanation": "No issue vocabulary matched.",
+      "signals": [],
+      "text": "Weekly executive report empty after workspace migration — We migrated our team to a new workspace on Friday. Since then the weekly executive report renders with no rows for the whole team, although the underlying data is visible if we open the saved report directly. We suspect the migration did not carry over whatever grant the report needs."
+    }
+  ],
+  "notes": [
+    "Authored by us for IncidentIQ; not derived from any external dataset.",
+    "Development set: triage rules are iterated against these cases.",
+    "Expected service null means a correct system declines to name one."
+  ]
+}

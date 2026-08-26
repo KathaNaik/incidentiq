@@ -71,12 +71,17 @@ def test_the_feature_module_does_not_import_the_label_module() -> None:
     assert not any("labels" in module for module in imported), imported
 
 
-def test_the_runtime_api_does_not_import_ingestion() -> None:
-    """External evaluation data must not be reachable from a serving code path."""
+@pytest.mark.parametrize("package", ["ingestion", "evaluation"])
+def test_the_runtime_api_does_not_import_offline_packages(package: str) -> None:
+    """Neither external data nor ground truth may be reachable from a serving path.
+
+    `evaluation` reads label files; the API serves evaluation *artifacts* instead, and
+    declares its own schema for them.
+    """
     offenders = []
     for path in sorted((API_ROOT / "app").rglob("*.py")):
         imported = _imported_modules(ast.parse(path.read_text(encoding="utf-8")))
-        if any(module.split(".")[0] == "ingestion" for module in imported):
+        if any(module.split(".")[0] == package for module in imported):
             offenders.append(str(path.relative_to(API_ROOT)))
 
     assert offenders == []

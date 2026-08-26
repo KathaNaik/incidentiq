@@ -15,6 +15,20 @@ Evaluation is part of the product. A capability without a metric is not done.
 | Recommendation grounding | unsupported recommendation rate |
 | Abstention | abstention behavior on insufficient-evidence cases |
 
+## Current baseline
+
+`deterministic-v1` (phrase rules, no model) — see `apps/api/evaluation/`, run with
+`uv run python scripts/evaluate_triage.py`.
+
+| Suite | Metric | Result |
+|---|---|---|
+| Authored golden (25 cases, dev set) | service / issue type / priority | 92% / 80% / 88% |
+| Polaris (23,994 cases, held out) | priority | 43.1%, against a 58.8% majority-class baseline |
+
+The external number is below the majority class. That is the honest state of the
+baseline and the concrete opening for LLM-assisted triage — not something to close by
+retuning rules against the benchmark.
+
 ## Harness expectations
 
 - `EvalCase` / `EvalRun` persist inputs, outputs, metric values, and the model/prompt

@@ -6,6 +6,7 @@ becomes a stored field by accident.
 """
 
 from collections.abc import Sequence
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -43,6 +44,51 @@ class IncidentSummary(Incident):
         return cls.model_validate(
             {**incident.model_dump(), "ticket_count": ticket_count}
         )
+
+
+class EvalMetric(BaseModel):
+    name: str
+    correct: int
+    total: int
+    accuracy: float
+    abstained: int
+    majority_baseline: float | None = None
+
+
+class EvalConfusionCell(BaseModel):
+    expected: str
+    predicted: str
+    count: int
+
+
+class EvalFailure(BaseModel):
+    case_id: str
+    metric: str
+    expected: str | None
+    predicted: str | None
+    status: str
+    explanation: str
+    signals: tuple[str, ...]
+    text: str | None = None
+
+
+class EvalReportResponse(BaseModel):
+    """The API's view of an evaluation artifact produced by the offline harness.
+
+    Deliberately a separate declaration from `evaluation.models.EvalReport`: the runtime
+    API does not import the evaluation package, which reads ground truth. A test
+    validates the committed artifact against this model so the two cannot drift apart
+    unnoticed.
+    """
+
+    suite: str
+    version: str
+    generated_at: datetime
+    case_count: int
+    metrics: tuple[EvalMetric, ...]
+    confusion: tuple[EvalConfusionCell, ...]
+    failures: tuple[EvalFailure, ...]
+    notes: tuple[str, ...] = ()
 
 
 class IncidentDetail(Incident):

@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # only source of records the API serves.
     fixtures_dir: Path = REPO_ROOT / "data" / "demo" / "northstar_cloud"
 
+    # Committed evaluation artifacts produced by the offline harness. The API reads
+    # them; it never runs an evaluation itself.
+    evals_dir: Path = REPO_ROOT / "data" / "evals" / "triage"
+
 
 @lru_cache
 def get_settings() -> Settings:

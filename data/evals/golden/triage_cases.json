@@ -1,0 +1,131 @@
+{
+  "dataset": "incidentiq-triage-golden",
+  "synthetic": true,
+  "records": [
+    {
+      "id": "G01",
+      "title": "Nobody on our team can log in through SSO",
+      "description": "Every user in our workspace is bounced back to the login page after authenticating with our identity provider. It started about twenty minutes ago and affects the entire team."
+    },
+    {
+      "id": "G02",
+      "title": "Dashboard totals do not match the export",
+      "description": "The revenue tile shows 41,200 but the CSV export of the same saved report totals 39,880 for the same date range. One of them is wrong and we quote these figures to customers."
+    },
+    {
+      "id": "G03",
+      "title": "Warehouse connector stuck in syncing state",
+      "description": "Our Snowflake connector has been syncing for six hours and no new rows have arrived. Cancelling and restarting the sync leaves it in the same state."
+    },
+    {
+      "id": "G04",
+      "title": "Connector API is down for all customers",
+      "description": "Every manual resync returns a 503 and the connector service is unavailable. This is customer facing and blocking three onboarding projects in production."
+    },
+    {
+      "id": "G05",
+      "title": "My laptop keeps logging me out of the console",
+      "description": "Only me, and only on my laptop. Signing in again works fine and it happens maybe once a day. No rush on this one."
+    },
+    {
+      "id": "G06",
+      "title": "Dashboards are slow to load in the afternoon",
+      "description": "Loading the executive dashboard takes twenty to thirty seconds after 3pm. It is usable but sluggish, and it happens intermittently rather than every time."
+    },
+    {
+      "id": "G07",
+      "title": "New analyst cannot see the finance workspace",
+      "description": "An analyst was added to the finance workspace yesterday but gets a 403 when opening it. Other members of the same workspace see it normally."
+    },
+    {
+      "id": "G08",
+      "title": "Report shows duplicate rows after the last sync",
+      "description": "Every account appears twice in the weekly report since yesterday's connector run, so the totals are double counted."
+    },
+    {
+      "id": "G09",
+      "title": "API token for the scheduled export keeps expiring",
+      "description": "Our scheduled export authenticates with an API token and stops working every few days with a 401. Reissuing the token fixes it until the next time."
+    },
+    {
+      "id": "G10",
+      "title": "login broken",
+      "description": ""
+    },
+    {
+      "id": "G11",
+      "title": "webhook 504",
+      "description": ""
+    },
+    {
+      "id": "G12",
+      "title": "Urgent: minor cosmetic issue on the dashboard",
+      "description": "Marking this urgent because our VP asked, but it is a chart legend overlapping the axis label. No functional impact and a workaround exists."
+    },
+    {
+      "id": "G13",
+      "title": "SSO stopped working after our certificate rotation",
+      "description": "We rotated the signing certificate on our identity provider last night as part of a scheduled change. Since then every SAML assertion is rejected and members of two teams cannot sign in. We have re-uploaded the metadata on our side and confirmed the new certificate is valid until 2028. The old certificate expired at midnight, so we suspect Northstar is still pinned to it."
+    },
+    {
+      "id": "G14",
+      "title": "Sync failures started this morning",
+      "description": "Some syncs are failing and others complete normally. We are not sure yet how many customers are affected."
+    },
+    {
+      "id": "G15",
+      "title": "Connector cannot write to the warehouse: permission denied",
+      "description": "The service account gets permission denied when writing to the analytics schema, so the sync fails immediately for all customers on the shared cluster."
+    },
+    {
+      "id": "G16",
+      "title": "How do I configure the retention setting for exports?",
+      "description": "We would like exports kept for 90 days instead of 30. Where is that configured?"
+    },
+    {
+      "id": "G17",
+      "title": "Dashboard is empty for the new marketing team",
+      "description": "The dashboard loads fine for me but shows nothing for anyone on the marketing team. I think they were added with the wrong role."
+    },
+    {
+      "id": "G18",
+      "title": "Numbers are a day behind on every dashboard",
+      "description": "All users see yesterday's figures. The freshness indicator still claims the data is current, which is how we noticed."
+    },
+    {
+      "id": "G19",
+      "title": "Sign in takes almost a minute",
+      "description": "Authentication eventually succeeds but the sign in step is very slow for everyone since this morning."
+    },
+    {
+      "id": "G20",
+      "title": "Okta group sync stopped after their maintenance",
+      "description": "Our identity provider ran maintenance last night and group membership no longer flows into Northstar. Users keep their old roles until we edit them by hand."
+    },
+    {
+      "id": "G21",
+      "title": "Export button greyed out for one user",
+      "description": "Just one user on the growth plan cannot click export. Everyone else on the account can. Low urgency."
+    },
+    {
+      "id": "G22",
+      "title": "All dashboards blank and saved reports missing for every customer",
+      "description": "Nothing renders at all and saved reports have disappeared from the list. This is production and customer facing."
+    },
+    {
+      "id": "G23",
+      "title": "Question about our invoice",
+      "description": "We appear to have been charged twice this month. Who do we talk to about that?"
+    },
+    {
+      "id": "G24",
+      "title": "Intermittent 500s on the connector, but only in our sandbox",
+      "description": "We see 500 errors on maybe one in ten calls. This is sandbox only — production is completely fine and no customer is affected."
+    },
+    {
+      "id": "G25",
+      "title": "Weekly executive report empty after workspace migration",
+      "description": "We migrated our team to a new workspace on Friday. Since then the weekly executive report renders with no rows for the whole team, although the underlying data is visible if we open the saved report directly. We suspect the migration did not carry over whatever grant the report needs."
+    }
+  ]
+}

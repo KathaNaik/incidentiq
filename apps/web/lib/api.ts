@@ -59,6 +59,67 @@ export type IncidentSummary = Incident & {
   ticket_count: number;
 };
 
+export type PredictionStatus = "classified" | "ambiguous" | "unknown" | "default";
+
+export type TriageSignal = {
+  signal_type: string;
+  matched_text: string;
+  normalized_value: string;
+  weight: number;
+  source_field: "title" | "description";
+  /** "service:svc-auth", "issue_type:availability", or "priority". */
+  target: string;
+};
+
+export type TriagePrediction = {
+  value: string | null;
+  status: PredictionStatus;
+  score: number;
+  margin: number;
+  candidates: { value: string; score: number }[];
+  explanation: string;
+};
+
+export type TriageResult = {
+  ticket_id: string | null;
+  version: string;
+  service: TriagePrediction;
+  issue_type: TriagePrediction;
+  priority: TriagePrediction;
+  signals: TriageSignal[];
+};
+
+export type EvalMetric = {
+  name: string;
+  correct: number;
+  total: number;
+  accuracy: number;
+  abstained: number;
+  majority_baseline: number | null;
+};
+
+export type EvalFailure = {
+  case_id: string;
+  metric: string;
+  expected: string | null;
+  predicted: string | null;
+  status: string;
+  explanation: string;
+  signals: string[];
+  text: string | null;
+};
+
+export type EvalReport = {
+  suite: string;
+  version: string;
+  generated_at: string;
+  case_count: number;
+  metrics: EvalMetric[];
+  confusion: { expected: string; predicted: string; count: number }[];
+  failures: EvalFailure[];
+  notes: string[];
+};
+
 /** Either the data or the reason it is unavailable — never a plausible-looking blank. */
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -106,6 +167,18 @@ export async function fetchTickets(): Promise<Ticket[]> {
 
 export async function fetchIncidents(): Promise<IncidentSummary[]> {
   return getJson<IncidentSummary[]>("/incidents");
+}
+
+export async function fetchTicket(ticketId: string): Promise<Ticket> {
+  return getJson<Ticket>(`/tickets/${encodeURIComponent(ticketId)}`);
+}
+
+export async function fetchTicketTriage(ticketId: string): Promise<TriageResult> {
+  return getJson<TriageResult>(`/tickets/${encodeURIComponent(ticketId)}/triage`);
+}
+
+export async function fetchTriageEvaluation(): Promise<EvalReport> {
+  return getJson<EvalReport>("/evals/triage");
 }
 
 /** Runs a loader, turning an unreachable API into a value the page can render. */

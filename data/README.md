@@ -5,6 +5,8 @@ Three kinds of data live here, and they never mix.
 | Directory | Contents | Committed? |
 |---|---|---|
 | `demo/northstar_cloud/` | Northstar Cloud fixtures — original synthetic data we authored, served by the API | Yes |
+| `evals/golden/` | Authored triage golden set — cases and expected labels, in separate files | Yes |
+| `evals/triage/` | Evaluation artifacts for the golden suite, served by `GET /evals/triage` | Yes |
 | `raw/itsm/`, `raw/polaris/` | Datasets downloaded from Hugging Face | **No — gitignored** |
 | `processed/itsm/`, `processed/polaris/` | Normalized JSONL derived from `raw/` | **No — gitignored** |
 
@@ -42,6 +44,22 @@ raw/polaris/polaris_tickets_v2.parquet
 ground truth (`event_id`, `event_type`, `topic`, `priority`, `routing`, `sentiment`) used
 only for scoring. Nothing that builds runtime features, embedding text, or prompts may
 read it. See [../docs/DATA_SOURCES.md](../docs/DATA_SOURCES.md).
+
+## Evaluation data
+
+`evals/golden/` holds the authored triage golden set. Case text and expected labels are
+in **separate files** — the same discipline applied to Polaris, so nothing can hand a
+classifier the answer by passing it the case.
+
+Evaluation artifacts are split by what they are derived from:
+
+| Report | Location | Committed? |
+|---|---|---|
+| Golden suite | `evals/triage/golden-<version>.json` | Yes — every case is ours |
+| External benchmark | `processed/evals/polaris-<version>.json` | **No** — derived from a CC BY-SA corpus, and it stays local |
+
+The external report deliberately carries no ticket text, only ids, labels, and the rules
+that fired.
 
 ## Northstar independence
 

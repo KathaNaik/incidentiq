@@ -6,11 +6,11 @@ IncidentIQ turns fragmented technical support tickets plus operational context i
 correlated incident, an evidence-backed root-cause hypothesis, and a recommended
 remediation that a human approves before anything runs.
 
-**Status:** early. The domain model (services, tickets, incidents, and the links between
-incidents and tickets) is defined and served over a read-only API, backed by synthetic
-Northstar Cloud fixtures. None of the AI capabilities — triage, correlation,
-investigation, remediation, evaluation — are implemented yet, and no external dataset has
-been ingested.
+**Status:** early. The domain model is defined and served over a read-only API backed by
+synthetic Northstar Cloud fixtures, the two external datasets are ingested offline, and
+ticket triage has a measured deterministic baseline (`deterministic-v1`) with an
+evaluation harness. No LLM is involved anywhere yet; correlation, investigation and
+remediation are not implemented.
 
 ## Repository layout
 
@@ -55,6 +55,9 @@ Read-only endpoints:
 | `GET /tickets/{id}` | one ticket plus the incident it belongs to (404 if unknown) |
 | `GET /incidents` | incidents, most recently detected first, with ticket counts |
 | `GET /incidents/{id}` | one incident with its linked tickets (404 if unknown) |
+| `POST /triage` | deterministic triage of supplied ticket text |
+| `GET /tickets/{id}/triage` | deterministic triage of a stored ticket (404 if unknown) |
+| `GET /evals/triage` | the committed triage evaluation artifact |
 
 Records come from the fixture directory in `data/demo/northstar_cloud`, loaded and
 validated at startup. There is no database yet.
@@ -111,6 +114,24 @@ uv run python scripts/download_polaris.py && uv run python scripts/preprocess_po
 
 Polaris ground truth is written to a separate `labels.jsonl`, structurally isolated from
 the features. Details in [data/README.md](data/README.md).
+
+## Triage baseline and evaluation
+
+`deterministic-v1` classifies service, issue type, and priority from ticket text using
+weighted phrase rules — no model, no embeddings. Rules live in
+[apps/api/app/triage/rules.py](apps/api/app/triage/rules.py) as data; the engine only
+scores them.
+
+```bash
+cd apps/api
+uv run python scripts/evaluate_triage.py --suite golden    # authored dev set, committed
+uv run python scripts/evaluate_triage.py --suite polaris   # external benchmark, local only
+```
+
+**Dev/test split.** The 25 authored golden cases in `data/evals/golden/` are the
+development set: rules are iterated against them. Polaris is held out — it is run to
+measure, not to tune. Retuning rules against its labels would turn a benchmark into
+training data, so the numbers it produces are reported as they come.
 
 ## Data and licensing
 

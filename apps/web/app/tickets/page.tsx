@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
 import { load, fetchServices, fetchTickets, type TicketPriority } from "@/lib/api";
@@ -47,7 +49,12 @@ export default async function TicketsPage() {
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs text-neutral-500">{ticket.id}</span>
-              <span className="font-medium">{ticket.title}</span>
+              <Link
+                href={`/tickets/${ticket.id}`}
+                className="font-medium underline decoration-neutral-300 underline-offset-2 hover:decoration-current dark:decoration-neutral-700"
+              >
+                {ticket.title}
+              </Link>
             </div>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
               {ticket.description}

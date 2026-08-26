@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
-from app.routers import dataset, health, incidents, services, tickets
+from app.routers import dataset, evals, health, incidents, services, tickets, triage
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -24,7 +24,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=list(settings.cors_allow_origins),
-            allow_methods=["GET"],
+            # POST is needed for /triage, which classifies text the caller supplies.
+            allow_methods=["GET", "POST"],
             allow_headers=["*"],
         )
 
@@ -33,6 +34,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(services.router)
     app.include_router(tickets.router)
     app.include_router(incidents.router)
+    app.include_router(triage.router)
+    app.include_router(evals.router)
     return app
 
 
