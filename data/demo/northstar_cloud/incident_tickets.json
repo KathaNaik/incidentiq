@@ -1,0 +1,14 @@
+{
+  "dataset": "northstar-cloud",
+  "synthetic": true,
+  "records": [
+    { "incident_id": "INC-1042", "ticket_id": "TKT-4101" },
+    { "incident_id": "INC-1042", "ticket_id": "TKT-4102" },
+    { "incident_id": "INC-1042", "ticket_id": "TKT-4103" },
+    { "incident_id": "INC-1042", "ticket_id": "TKT-4104" },
+    { "incident_id": "INC-1042", "ticket_id": "TKT-4105" },
+    { "incident_id": "INC-1043", "ticket_id": "TKT-4111" },
+    { "incident_id": "INC-1043", "ticket_id": "TKT-4112" },
+    { "incident_id": "INC-1043", "ticket_id": "TKT-4113" }
+  ]
+}

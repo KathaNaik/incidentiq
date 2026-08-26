@@ -1,0 +1,24 @@
+{
+  "dataset": "northstar-cloud",
+  "synthetic": true,
+  "records": [
+    {
+      "id": "INC-1042",
+      "title": "Single sign-on failures across the Northstar console",
+      "status": "monitoring",
+      "severity": "sev1",
+      "detected_at": "2026-08-24T09:05:00Z",
+      "created_at": "2026-08-24T09:07:00Z",
+      "affected_service_ids": ["svc-auth"]
+    },
+    {
+      "id": "INC-1043",
+      "title": "Connector sync backlog delaying dashboard data",
+      "status": "investigating",
+      "severity": "sev2",
+      "detected_at": "2026-08-25T13:10:00Z",
+      "created_at": "2026-08-25T13:15:00Z",
+      "affected_service_ids": ["svc-connector", "svc-analytics"]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+"""IncidentIQ domain model."""

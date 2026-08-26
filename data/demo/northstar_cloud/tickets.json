@@ -1,0 +1,114 @@
+{
+  "dataset": "northstar-cloud",
+  "synthetic": true,
+  "records": [
+    {
+      "id": "TKT-4101",
+      "title": "SSO sign-in returns \"invalid assertion\" for the whole team",
+      "description": "Customer reports that nobody on their workspace can sign in through their identity provider since about 09:00 UTC. The console shows \"invalid assertion\" immediately after the redirect back from the IdP. Direct password sign-in still works for their two local accounts.",
+      "created_at": "2026-08-24T09:08:00Z",
+      "status": "in_progress",
+      "reported_by": "tier1-support",
+      "priority": "high",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4102",
+      "title": "Cannot log in to Northstar console via Okta",
+      "description": "Three separate customers on the same account plan opened chats within ten minutes of each other. All are redirected to their IdP, authenticate successfully there, and land back on the Northstar login page with no error banner.",
+      "created_at": "2026-08-24T09:14:00Z",
+      "status": "in_progress",
+      "reported_by": "customer-success",
+      "priority": "high",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4103",
+      "title": "Login loop after redirect from identity provider",
+      "description": "Reporter is bounced between the console and their IdP repeatedly and never reaches the workspace. Clearing cookies does not help. Reproduced on two browsers and one incognito window.",
+      "created_at": "2026-08-24T09:19:00Z",
+      "status": "in_progress",
+      "reported_by": "tier1-support",
+      "priority": "critical",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4104",
+      "title": "API tokens rejected with 401 after re-auth",
+      "description": "A field engineer regenerated an API token for a customer integration and every request now returns 401 with \"session not recognised\". The same token works against the staging environment.",
+      "created_at": "2026-08-24T09:31:00Z",
+      "status": "open",
+      "reported_by": "field-engineering",
+      "priority": "high",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4105",
+      "title": "Synthetic check failing: console login",
+      "description": "Automated login probe has failed 14 consecutive runs from two regions. The probe authenticates against the shared test workspace and asserts that the dashboard shell renders; it is timing out at the post-redirect step.",
+      "created_at": "2026-08-24T09:44:00Z",
+      "status": "resolved",
+      "reported_by": "synthetic-monitor",
+      "priority": "critical",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4108",
+      "title": "CSV export from saved report stops at 10,000 rows",
+      "description": "Customer exports a saved report covering a full quarter and the downloaded file always ends at exactly 10,000 rows with no warning. The report itself paginates past that in the console. Longstanding behaviour, not a new regression.",
+      "created_at": "2026-08-24T16:12:00Z",
+      "status": "in_progress",
+      "reported_by": "customer-success",
+      "priority": "medium",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4109",
+      "title": "Password reset email took 40 minutes to arrive",
+      "description": "A single user requested a password reset and received the email roughly 40 minutes later. They had already been let back in by an admin. Delivery logs show the message was accepted by the downstream mail provider promptly.",
+      "created_at": "2026-08-25T08:47:00Z",
+      "status": "resolved",
+      "reported_by": "tier1-support",
+      "priority": "low",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4111",
+      "title": "Warehouse connector stuck at \"syncing\" for four hours",
+      "description": "Customer's nightly warehouse sync started at 09:00 UTC and is still reported as in progress. No rows have landed since yesterday. Cancelling and restarting the sync leaves it in the same state.",
+      "created_at": "2026-08-25T13:22:00Z",
+      "status": "in_progress",
+      "reported_by": "customer-success",
+      "priority": "high",
+      "service_id": "svc-connector"
+    },
+    {
+      "id": "TKT-4112",
+      "title": "Dashboard numbers are a day behind",
+      "description": "Two customers report that revenue tiles on their dashboards match yesterday's figures. The freshness indicator on the dashboard still claims the data is current, which is what prompted the ticket.",
+      "created_at": "2026-08-25T14:05:00Z",
+      "status": "in_progress",
+      "reported_by": "tier1-support",
+      "priority": "medium",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4113",
+      "title": "Connector API returning 504 on manual resync",
+      "description": "Triggering a manual resync from the connector settings page returns a gateway timeout after roughly 60 seconds. Reproduced for two different customers on separate warehouse types.",
+      "created_at": "2026-08-25T14:37:00Z",
+      "status": "open",
+      "reported_by": "field-engineering",
+      "priority": "high",
+      "service_id": "svc-connector"
+    },
+    {
+      "id": "TKT-4114",
+      "title": "Console feels slow when switching workspaces",
+      "description": "Reporter says moving between two workspaces takes \"several seconds\" and sometimes shows an empty page before loading. No error message, no time of day noted, and no other users on the account have complained.",
+      "created_at": "2026-08-25T16:03:00Z",
+      "status": "open",
+      "reported_by": "customer-success"
+    }
+  ]
+}

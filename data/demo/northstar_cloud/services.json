@@ -1,0 +1,21 @@
+{
+  "dataset": "northstar-cloud",
+  "synthetic": true,
+  "records": [
+    {
+      "id": "svc-auth",
+      "name": "Authentication",
+      "description": "Console and API sign-in, session issuance, SAML/OIDC single sign-on, and API token exchange."
+    },
+    {
+      "id": "svc-analytics",
+      "name": "Analytics Dashboard",
+      "description": "Interactive dashboards, saved reports, and scheduled exports in the Northstar console."
+    },
+    {
+      "id": "svc-connector",
+      "name": "Connector API",
+      "description": "Scheduled and on-demand syncs that pull customer warehouse data into Northstar."
+    }
+  ]
+}
