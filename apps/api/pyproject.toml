@@ -7,6 +7,10 @@ dependencies = [
     "fastapi>=0.115",
     "pydantic-settings>=2.5",
     "uvicorn[standard]>=0.30",
+    # Offline ingestion of the external datasets. Kept in the main dependency set so a
+    # plain `uv sync` is enough to reproduce a download — no hidden setup step.
+    "huggingface-hub>=0.26",
+    "pyarrow>=18",
 ]
 
 [dependency-groups]

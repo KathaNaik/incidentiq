@@ -16,11 +16,15 @@ been ingested.
 
 ```
 apps/
-  api/     FastAPI backend (Python, uv)
-  web/     Next.js frontend (TypeScript, Tailwind, npm)
+  api/       FastAPI backend (Python, uv)
+    ingestion/  offline adapters for the external datasets
+    scripts/    download and preprocess commands
+  web/       Next.js frontend (TypeScript, Tailwind, npm)
 data/
-  demo/    Northstar Cloud fixtures — synthetic, authored for this project
-docs/      DATA_SOURCES.md: dataset licenses and attribution
+  demo/      Northstar Cloud fixtures — synthetic, authored for this project
+  raw/       downloaded datasets — gitignored
+  processed/ normalized datasets — gitignored
+docs/        DATA_SOURCES.md: dataset licenses and attribution
 ```
 
 ## Prerequisites
@@ -93,6 +97,20 @@ cd apps/web && npm run build      # production build
 
 CORS is open to the local Next.js dev server only. Any deployed environment must set
 `INCIDENTIQ_CORS_ALLOW_ORIGINS` explicitly.
+
+## External datasets
+
+Two public datasets are downloaded and normalized offline for later retrieval and
+evaluation work. They are not served by the API and not committed:
+
+```bash
+cd apps/api
+uv run python scripts/download_itsm.py && uv run python scripts/preprocess_itsm.py
+uv run python scripts/download_polaris.py && uv run python scripts/preprocess_polaris.py
+```
+
+Polaris ground truth is written to a separate `labels.jsonl`, structurally isolated from
+the features. Details in [data/README.md](data/README.md).
 
 ## Data and licensing
 

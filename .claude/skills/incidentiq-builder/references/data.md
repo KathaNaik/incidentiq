@@ -38,8 +38,8 @@ Hard rules for this repository:
 
 - **Do not commit the raw Polaris dataset.** Raw and processed dataset directories are
   gitignored.
-- Obtain it through a reproducible download/ingestion script (`scripts/download_polaris.py`),
-  never a manual copy checked into the tree.
+- Obtain it through a reproducible download/ingestion script
+  (`apps/api/scripts/download_polaris.py`), never a manual copy checked into the tree.
 - Attribution and the CC BY-SA 4.0 license notice live in `docs/DATA_SOURCES.md`.
 - Never present Polaris data as IncidentIQ's own synthetic data, and never relabel Polaris
   records as Northstar Cloud.
@@ -77,11 +77,13 @@ Ground-truth fields — event IDs, cluster/outage labels, resolution labels, roo
 labels, and the Polaris `event_id` / `event_type` / `topic` / `priority` fields when used as
 labels — **must never reach model inputs or runtime features.**
 
-Practical enforcement:
+Practical enforcement (implemented in `apps/api/ingestion/polaris/`):
 - Split ingestion into a *runtime feature view* and a *label view*; runtime code may only
-  read the feature view.
-- Strip label columns at the ingestion boundary, not at the prompt.
-- Add a test that fails if a label field appears in any runtime feature payload or prompt.
+  read the feature view. Separate models, separate modules, separate output files.
+- Strip label columns at the ingestion boundary, not at the prompt. The feature model
+  forbids extra fields, so it cannot be built from a raw row at all.
+- Tests derive the label set from the label model and assert none of it reaches serialized
+  features; another asserts the runtime `app` package never imports `ingestion`.
 
 ## Demo organization: Northstar Cloud
 
