@@ -1,0 +1,18 @@
+# Downloaded and derived datasets — never committed.
+# See docs/DATA_SOURCES.md: Polaris (CC BY-SA 4.0) must not be redistributed via this repo.
+data/raw/
+data/processed/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+
+# macOS
+.DS_Store
