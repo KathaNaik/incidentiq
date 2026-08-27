@@ -25,6 +25,7 @@ the external benchmark.
 from app.triage.models import IssueType
 
 CORRELATION_VERSION = "deterministic-correlation-v1"
+SEMANTIC_CORRELATION_VERSION = "semantic-correlation-v1"
 
 # --- component weights (content weights sum to 1.0) -------------------------------
 W_TIME = 0.35
@@ -32,6 +33,29 @@ W_SERVICE = 0.40
 W_ISSUE = 0.15
 W_LEXICAL = 0.25
 W_ENTITY = 0.20
+
+# With semantic similarity available, weight moves off lexical overlap and service —
+# but lexical keeps real influence, because exact term overlap (an error code quoted in
+# prose, a product noun) is evidence the embedding blurs together. Identifiers keep
+# their full weight: they were the strongest non-temporal evidence in the deterministic
+# baseline and nothing about embeddings changes that. Sums to 1.0, like the
+# deterministic set.
+#
+# Five weightings spanning lexical-heavy to semantic-heavy scored *identically* on the
+# authored golden set — 26 tickets cannot separate them — so this one is chosen on the
+# reasoning above rather than by fitting. Polaris was not consulted.
+W_SERVICE_SEMANTIC = 0.32
+W_ISSUE_SEMANTIC = 0.12
+W_LEXICAL_SEMANTIC = 0.18
+W_ENTITY_SEMANTIC = 0.18
+W_SEMANTIC = 0.20
+
+# Raw cosine is rescaled onto [0, 1] between these bounds. This model scores two
+# unrelated support tickets around 0.6, so without a floor every pair would receive a
+# large constant bonus. Set on the authored golden set; see the milestone report for the
+# distribution that motivated them.
+SEMANTIC_FLOOR = 0.72
+SEMANTIC_CEILING = 0.90
 
 # --- time decay --------------------------------------------------------------------
 # Half-life in minutes: 0 min -> 1.00, 20 -> 0.50, 40 -> 0.25, 60 -> 0.13, 120 -> 0.02.

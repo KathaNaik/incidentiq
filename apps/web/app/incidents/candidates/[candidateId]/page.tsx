@@ -3,19 +3,28 @@ import { notFound } from "next/navigation";
 
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
-import { load, fetchCandidates, fetchServices, fetchTickets } from "@/lib/api";
+import {
+  load,
+  fetchCandidates,
+  fetchServices,
+  fetchTickets,
+  type CorrelationMode,
+} from "@/lib/api";
 import { formatTimestamp, serviceLabel, serviceNames } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function CandidatePage({
   params,
+  searchParams,
 }: PageProps<"/incidents/candidates/[candidateId]">) {
-  const { candidateId } = await params;
+  const [{ candidateId }, query] = await Promise.all([params, searchParams]);
+  const mode: CorrelationMode =
+    query.mode === "semantic" ? "semantic" : "deterministic";
 
   const result = await load(async () => {
     const [correlation, tickets, services] = await Promise.all([
-      fetchCandidates(),
+      fetchCandidates(mode),
       fetchTickets(),
       fetchServices(),
     ]);
@@ -52,9 +61,12 @@ export default async function CandidatePage({
           <span className="font-mono text-xs text-neutral-500">{candidate.id}</span>
         </div>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Proposed by the <strong>deterministic correlation baseline</strong> (
-          {result.data.correlation.version}) — phrase and metadata rules, no model. This
-          is a proposal for a human to confirm, not a declared incident.
+          Proposed by the <strong>{mode} correlation baseline</strong> (
+          {result.data.correlation.version}) —{" "}
+          {mode === "semantic"
+            ? "metadata rules plus embedding similarity, with the same guardrails"
+            : "phrase and metadata rules, no model"}
+          . This is a proposal for a human to confirm, not a declared incident.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={candidate.confidence === "high" ? "danger" : "warn"}>

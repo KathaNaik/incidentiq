@@ -40,8 +40,10 @@ from app.correlation.rules import (
     CONTENT_LINK_MIN,
     CORRELATION_VERSION,
     LINK_THRESHOLD,
+    SEMANTIC_CORRELATION_VERSION,
     TIME_LINK_MIN,
 )
+from app.correlation.semantic import SemanticSimilarity
 
 
 @dataclass
@@ -58,11 +60,27 @@ class _OpenCandidate:
         return min(member.ticket.created_at for member in self.members)
 
 
-def correlate(tickets: Sequence[CorrelationTicket]) -> CorrelationResult:
-    """Groups tickets into candidate incidents."""
+def correlate(
+    tickets: Sequence[CorrelationTicket],
+    similarity: SemanticSimilarity | None = None,
+) -> CorrelationResult:
+    """Groups tickets into candidate incidents.
+
+    Called without `similarity` this is the deterministic baseline, unchanged. Passing a
+    `SemanticSimilarity` adds embedding similarity as one more signal and stamps the
+    result with the semantic version — the candidate generation, the linkage rule and
+    every guardrail are identical, so a difference in the metrics is attributable to the
+    signal rather than to a different algorithm.
+    """
     ordered = sorted(tickets, key=lambda ticket: (ticket.created_at, ticket.id))
     corpus = Corpus()
     candidates: list[_OpenCandidate] = []
+
+    if similarity is not None:
+        # Embedded once, up front. Vectors depend only on a ticket's own text, so this
+        # gives no ticket knowledge of any other — the incremental discipline is about
+        # what influences a *grouping decision*, and that still only sees the past.
+        similarity.prepare(ordered)
 
     for ticket in ordered:
         features = prepare(ticket)
@@ -74,7 +92,10 @@ def correlate(tickets: Sequence[CorrelationTicket]) -> CorrelationResult:
         for candidate in candidates:
             if _idle_minutes(candidate, ticket.created_at) > CANDIDATE_IDLE_MINUTES:
                 continue
-            scores = [score_pair(features, member, corpus) for member in candidate.members]
+            scores = [
+                score_pair(features, member, corpus, similarity)
+                for member in candidate.members
+            ]
             if not _attaches(scores):
                 continue
             blended = min(score.score for score in scores)
@@ -88,7 +109,7 @@ def correlate(tickets: Sequence[CorrelationTicket]) -> CorrelationResult:
             candidate.members.append(features)
             candidate.pairs.extend(scores)
 
-    return _build_result(candidates)
+    return _build_result(candidates, similarity is not None)
 
 
 def _idle_minutes(candidate: _OpenCandidate, now: datetime) -> float:
@@ -104,7 +125,9 @@ def _attaches(scores: list[PairwiseScore]) -> bool:
     return min(score.score for score in scores) >= LINK_THRESHOLD
 
 
-def _build_result(candidates: list[_OpenCandidate]) -> CorrelationResult:
+def _build_result(
+    candidates: list[_OpenCandidate], semantic: bool
+) -> CorrelationResult:
     grouped: list[CandidateIncident] = []
     standalone: list[str] = []
 
@@ -125,7 +148,7 @@ def _build_result(candidates: list[_OpenCandidate]) -> CorrelationResult:
         grouped.append(_to_candidate(candidate, cohesion))
 
     return CorrelationResult(
-        version=CORRELATION_VERSION,
+        version=SEMANTIC_CORRELATION_VERSION if semantic else CORRELATION_VERSION,
         ticket_count=sum(len(c.members) for c in candidates),
         candidates=tuple(grouped),
         standalone_ticket_ids=tuple(sorted(standalone)),

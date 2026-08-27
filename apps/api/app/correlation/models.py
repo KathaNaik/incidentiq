@@ -18,6 +18,8 @@ class Component(StrEnum):
     ISSUE_TYPE = "issue_type"
     LEXICAL = "lexical"
     ENTITY = "entity"
+    # Present only in the semantic version; the deterministic baseline never emits it.
+    SEMANTIC = "semantic"
 
 
 class Direction(StrEnum):

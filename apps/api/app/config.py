@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     evals_dir: Path = REPO_ROOT / "data" / "evals" / "triage"
     correlation_evals_dir: Path = REPO_ROOT / "data" / "evals" / "correlation"
 
+    # Embedding vectors, cached so repeated evaluations reuse identical numbers.
+    # Gitignored: derived from ticket text, including licensed corpora.
+    embeddings_cache_dir: Path = REPO_ROOT / "data" / "processed" / "embeddings"
+
 
 @lru_cache
 def get_settings() -> Settings:

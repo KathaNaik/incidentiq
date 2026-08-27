@@ -91,6 +91,40 @@ class EvalReportResponse(BaseModel):
     notes: tuple[str, ...] = ()
 
 
+class MetricDeltaResponse(BaseModel):
+    name: str
+    baseline: float
+    candidate: float
+    delta: float
+
+
+class SliceExampleResponse(BaseModel):
+    kind: str
+    ticket_a: str
+    ticket_b: str
+    explanation: str
+    signals: tuple[str, ...]
+    text: str | None = None
+
+
+class VersionComparisonResponse(BaseModel):
+    """Two correlation versions measured on the same inputs.
+
+    Declared here rather than imported from the evaluation package, for the same reason
+    as `EvalReportResponse`: the runtime API does not import code that reads ground
+    truth. A test validates the committed artifact against this model.
+    """
+
+    suite: str
+    baseline_version: str
+    candidate_version: str
+    generated_at: datetime
+    ticket_count: int
+    metrics: tuple[MetricDeltaResponse, ...]
+    slices: tuple[SliceExampleResponse, ...]
+    notes: tuple[str, ...] = ()
+
+
 class IncidentDetail(Incident):
     """An incident with the tickets it explains."""
 

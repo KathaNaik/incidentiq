@@ -1,7 +1,7 @@
 {
   "suite": "golden",
-  "version": "deterministic-correlation-v1",
-  "generated_at": "2026-08-27T10:09:33.605022Z",
+  "version": "semantic-correlation-v1",
+  "generated_at": "2026-08-27T10:09:34.147822Z",
   "case_count": 33,
   "metrics": [
     {
@@ -67,13 +67,14 @@
       "expected": "different incidents",
       "predicted": "cand-CG32",
       "status": "medium",
-      "explanation": "grouped at 0.6907 (content 0.6252, time 0.8123)",
+      "explanation": "grouped at 0.7277 (content 0.6821, time 0.8123)",
       "signals": [
         "time +0.8123: reported 6 minutes apart",
         "service +1: same service: svc-connector",
         "issue_type +0: issue type unknown for at least one ticket",
         "lexical +0.9008: 11 shared terms, weighted overlap 0.90",
-        "entity +0: no shared identifiers or symptoms"
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +1: embedding similarity 1.0 (cosine 0.971)"
       ],
       "text": "A: Connector run aborted with ERR_SYNC_907 — The scheduled warehouse sync failed partway through and reported ERR_SYNC_907.\nB: Connector run aborted with ERR_SYNC_412 — The scheduled warehouse sync failed partway through and reported ERR_SYNC_412."
     },
@@ -110,20 +111,20 @@
       "text": "A: Dashboards blank again — Same as this morning. Nothing renders in any dashboard.\nB: Analytics not loading — All dashboards are empty for the team again."
     },
     {
-      "case_id": "CG19+CG21",
+      "case_id": "CG19+CG22",
       "metric": "missed_correlation",
       "expected": "EV-AUTH-SSO",
       "predicted": null,
       "status": "standalone",
-      "explanation": "scored 0.6344 (content 0.4907, time 0.9013, 3 min apart)",
+      "explanation": "scored 0.5477 (content 0.4618, time 0.7071, 10 min apart)",
       "signals": [
-        "time +0.9013: reported 3 minutes apart",
+        "time +0.7071: reported 10 minutes apart",
         "service +1: same service: svc-auth",
         "issue_type +0: issue type unknown for at least one ticket",
-        "lexical +0.3627: 4 shared terms, weighted overlap 0.36",
+        "lexical +0.2473: 3 shared terms, weighted overlap 0.25",
         "entity +0: no shared identifiers or symptoms"
       ],
-      "text": "A: Cannot sign in to the console — SSO returns an invalid assertion for the whole team since about 14:00.\nB: SSO login fails with invalid assertion — Every attempt to log in through single sign on comes back with invalid assertion."
+      "text": "A: Cannot sign in to the console — SSO returns an invalid assertion for the whole team since about 14:00.\nB: Nobody can log in through Okta — All users are bounced back to the sign in page with an invalid assertion error."
     },
     {
       "case_id": "CG27+CG28",
@@ -145,6 +146,7 @@
   "notes": [
     "Authored for IncidentIQ; not derived from any external dataset.",
     "Development set: correlation weights and thresholds are tuned here.",
-    "Precision is preferred over recall — a false merge is the costlier error."
+    "Precision is preferred over recall — a false merge is the costlier error.",
+    "Semantic signal from fastembed:BAAI/bge-small-en-v1.5."
   ]
 }

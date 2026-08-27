@@ -3,22 +3,48 @@
   "synthetic": true,
   "note": "Ground truth for the correlation golden set, kept in a separate file from the ticket text so correlation can never be handed the answer. expected_event_id null means the ticket belongs to no incident and should be left standalone.",
   "scenarios": {
-    "A": "EV-ANALYTICS-OUTAGE — one outage, six reports in varied language",
-    "B": "CG07/CG08/CG09 — the word 'dashboard' in common, three unrelated causes",
-    "C": "EV-ANALYTICS-OUTAGE-PM — same service as A, hours later, a separate incident",
-    "D": "EV-CONNECTOR-ERR412 — the same error code quoted by three reporters",
-    "E": "CG16 — a permissions problem sitting inside the connector incident's window",
-    "F": "CG17/CG18 — two vague tickets with nothing specific in common",
-    "G": "CG20 — a dashboard failure during the SSO incident, on a different service"
+    "A": "EV-ANALYTICS-OUTAGE \u2014 one outage, six reports in varied language",
+    "B": "CG07/CG08/CG09 \u2014 the word 'dashboard' in common, three unrelated causes",
+    "C": "EV-ANALYTICS-OUTAGE-PM \u2014 same service as A, hours later, a separate incident",
+    "D": "EV-CONNECTOR-ERR412 \u2014 the same error code quoted by three reporters",
+    "E": "CG16 \u2014 a permissions problem sitting inside the connector incident's window",
+    "F": "CG17/CG18 \u2014 two vague tickets with nothing specific in common",
+    "G": "CG20 \u2014 a dashboard failure during the SSO incident, on a different service",
+    "H": "EV-REPORTING-BLANK \u2014 one incident described three ways with almost no shared vocabulary",
+    "I": "CG30/CG31 \u2014 identical text five hours apart, two separate incidents",
+    "J": "CG32/CG33 \u2014 near-identical text, conflicting error identifiers"
   },
   "records": [
-    { "case_id": "CG01", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
-    { "case_id": "CG02", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
-    { "case_id": "CG03", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
-    { "case_id": "CG04", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
-    { "case_id": "CG05", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
-    { "case_id": "CG06", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
-
+    {
+      "case_id": "CG01",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE",
+      "scenario": "A"
+    },
+    {
+      "case_id": "CG02",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE",
+      "scenario": "A"
+    },
+    {
+      "case_id": "CG03",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE",
+      "scenario": "A"
+    },
+    {
+      "case_id": "CG04",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE",
+      "scenario": "A"
+    },
+    {
+      "case_id": "CG05",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE",
+      "scenario": "A"
+    },
+    {
+      "case_id": "CG06",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE",
+      "scenario": "A"
+    },
     {
       "case_id": "CG07",
       "expected_event_id": null,
@@ -29,7 +55,7 @@
       "case_id": "CG08",
       "expected_event_id": null,
       "scenario": "B",
-      "note": "Slow but working — a different problem from either."
+      "note": "Slow but working \u2014 a different problem from either."
     },
     {
       "case_id": "CG09",
@@ -37,22 +63,42 @@
       "scenario": "B",
       "note": "Duplicate rows in an export; shares only the word dashboard."
     },
-
-    { "case_id": "CG10", "expected_event_id": "EV-ANALYTICS-OUTAGE-PM", "scenario": "C" },
-    { "case_id": "CG11", "expected_event_id": "EV-ANALYTICS-OUTAGE-PM", "scenario": "C" },
-    { "case_id": "CG12", "expected_event_id": "EV-ANALYTICS-OUTAGE-PM", "scenario": "C" },
-
-    { "case_id": "CG13", "expected_event_id": "EV-CONNECTOR-ERR412", "scenario": "D" },
-    { "case_id": "CG14", "expected_event_id": "EV-CONNECTOR-ERR412", "scenario": "D" },
-    { "case_id": "CG15", "expected_event_id": "EV-CONNECTOR-ERR412", "scenario": "D" },
-
+    {
+      "case_id": "CG10",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE-PM",
+      "scenario": "C"
+    },
+    {
+      "case_id": "CG11",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE-PM",
+      "scenario": "C"
+    },
+    {
+      "case_id": "CG12",
+      "expected_event_id": "EV-ANALYTICS-OUTAGE-PM",
+      "scenario": "C"
+    },
+    {
+      "case_id": "CG13",
+      "expected_event_id": "EV-CONNECTOR-ERR412",
+      "scenario": "D"
+    },
+    {
+      "case_id": "CG14",
+      "expected_event_id": "EV-CONNECTOR-ERR412",
+      "scenario": "D"
+    },
+    {
+      "case_id": "CG15",
+      "expected_event_id": "EV-CONNECTOR-ERR412",
+      "scenario": "D"
+    },
     {
       "case_id": "CG16",
       "expected_event_id": null,
       "scenario": "E",
       "note": "Same service and inside the incident window, but a revoked grant is not the sync failure."
     },
-
     {
       "case_id": "CG17",
       "expected_event_id": null,
@@ -65,20 +111,85 @@
       "scenario": "F",
       "note": "As above. Two tickets saying nothing specific are not evidence of an incident."
     },
-
-    { "case_id": "CG19", "expected_event_id": "EV-AUTH-SSO", "scenario": "G" },
-    { "case_id": "CG21", "expected_event_id": "EV-AUTH-SSO", "scenario": "G" },
-    { "case_id": "CG22", "expected_event_id": "EV-AUTH-SSO", "scenario": "G" },
+    {
+      "case_id": "CG19",
+      "expected_event_id": "EV-AUTH-SSO",
+      "scenario": "G"
+    },
+    {
+      "case_id": "CG21",
+      "expected_event_id": "EV-AUTH-SSO",
+      "scenario": "G"
+    },
+    {
+      "case_id": "CG22",
+      "expected_event_id": "EV-AUTH-SSO",
+      "scenario": "G"
+    },
     {
       "case_id": "CG20",
       "expected_event_id": null,
       "scenario": "G",
       "note": "Arrives mid-SSO-incident but names a different service."
     },
-
-    { "case_id": "CG23", "expected_event_id": null, "scenario": "singleton" },
-    { "case_id": "CG24", "expected_event_id": null, "scenario": "singleton" },
-    { "case_id": "CG25", "expected_event_id": null, "scenario": "singleton" },
-    { "case_id": "CG26", "expected_event_id": null, "scenario": "singleton" }
+    {
+      "case_id": "CG23",
+      "expected_event_id": null,
+      "scenario": "singleton"
+    },
+    {
+      "case_id": "CG24",
+      "expected_event_id": null,
+      "scenario": "singleton"
+    },
+    {
+      "case_id": "CG25",
+      "expected_event_id": null,
+      "scenario": "singleton"
+    },
+    {
+      "case_id": "CG26",
+      "expected_event_id": null,
+      "scenario": "singleton"
+    },
+    {
+      "case_id": "CG27",
+      "expected_event_id": "EV-REPORTING-BLANK",
+      "scenario": "H"
+    },
+    {
+      "case_id": "CG28",
+      "expected_event_id": "EV-REPORTING-BLANK",
+      "scenario": "H"
+    },
+    {
+      "case_id": "CG29",
+      "expected_event_id": "EV-REPORTING-BLANK",
+      "scenario": "H"
+    },
+    {
+      "case_id": "CG30",
+      "expected_event_id": null,
+      "scenario": "I",
+      "note": "Same words as CG31, five hours earlier. Time is what separates them."
+    },
+    {
+      "case_id": "CG31",
+      "expected_event_id": null,
+      "scenario": "I",
+      "note": "A later, unrelated recurrence. Identical text must not be enough to merge."
+    },
+    {
+      "case_id": "CG32",
+      "expected_event_id": null,
+      "scenario": "J",
+      "note": "Reads almost identically to CG33 but names a different error code."
+    },
+    {
+      "case_id": "CG33",
+      "expected_event_id": null,
+      "scenario": "J",
+      "note": "Different fault from CG32; the codes are the only thing that says so."
+    }
   ]
 }

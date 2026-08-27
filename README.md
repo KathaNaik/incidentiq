@@ -8,9 +8,10 @@ remediation that a human approves before anything runs.
 
 **Status:** early. The domain model is defined and served over a read-only API backed by
 synthetic Northstar Cloud fixtures, the two external datasets are ingested offline, and
-triage and incident correlation both have measured deterministic baselines with an
-evaluation harness. No LLM is involved anywhere yet; investigation and remediation are
-not implemented.
+triage and incident correlation both have measured baselines with an evaluation harness.
+Correlation has a second version that adds embedding similarity, measured against the
+deterministic one on identical inputs. No LLM reasoning is involved anywhere;
+investigation and remediation are not implemented.
 
 ## Repository layout
 
@@ -61,6 +62,10 @@ Read-only endpoints:
 | `GET /correlation/candidates` | candidate incidents across the stored ticket set |
 | `GET /evals/triage` | the committed triage evaluation artifact |
 | `GET /evals/correlation` | the committed correlation evaluation artifact |
+| `GET /evals/correlation/comparison` | deterministic versus semantic, with per-slice examples |
+
+Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
+and `/evals/correlation` takes `?version=`. The version is stamped on every response.
 
 Records come from the fixture directory in `data/demo/northstar_cloud`, loaded and
 validated at startup. There is no database yet.
@@ -99,6 +104,7 @@ cd apps/web && npm run build      # production build
 | `INCIDENTIQ_ENVIRONMENT` | api | `local` | `local` / `test` / `production` |
 | `INCIDENTIQ_CORS_ALLOW_ORIGINS` | api | `["http://localhost:3000"]` | Browser origins allowed to call the API (JSON list) |
 | `INCIDENTIQ_FIXTURES_DIR` | api | `data/demo/northstar_cloud` | Fixture dataset the API serves |
+| `INCIDENTIQ_EMBEDDINGS_CACHE_DIR` | api | `data/processed/embeddings` | Where ticket vectors are cached |
 | `NEXT_PUBLIC_API_BASE_URL` | web | `http://localhost:8001` | Backend base URL used by the browser |
 
 CORS is open to the local Next.js dev server only. Any deployed environment must set
@@ -128,6 +134,9 @@ Two deterministic baselines, both rule-driven with no model or embeddings anywhe
   incidents using time decay, service and issue agreement, IDF-weighted word overlap and
   shared identifiers. Weights and thresholds in
   [app/correlation/rules.py](apps/api/app/correlation/rules.py).
+- **`semantic-correlation-v1`** — the same correlation with one extra signal: cosine
+  similarity between ticket embeddings. Same candidate generation, same guardrails, so
+  the two are directly comparable. Opt-in everywhere; deterministic stays the default.
 
 Correlation is incremental: tickets are processed in arrival order and compared only
 against still-active candidates, so the evaluation measures what a running system could
@@ -139,7 +148,25 @@ uv run python scripts/evaluate_triage.py --suite golden          # authored dev 
 uv run python scripts/evaluate_correlation.py --suite golden     # authored dev set, committed
 uv run python scripts/evaluate_triage.py --suite polaris         # external benchmark, local only
 uv run python scripts/evaluate_correlation.py --suite polaris    # external benchmark, local only
+
+# Semantic correlation, and the baseline-versus-semantic comparison:
+uv sync --group semantic
+uv run --group semantic python scripts/evaluate_correlation.py --suite golden --mode both
 ```
+
+### Embeddings
+
+`semantic-correlation-v1` embeds ticket title and description with
+`BAAI/bge-small-en-v1.5` running locally through fastembed (ONNX, CPU, no PyTorch). No
+API key and no per-call cost, which is what makes the comparison reproducible on any
+machine; the model downloads once on first use. Vectors are cached under
+`data/processed/embeddings/` — gitignored, keyed by provider and model so vectors from
+one model can never be reused by another.
+
+The embedding is **one signal among five**. It cannot merge tickets across a service
+conflict or a time gap on its own, and when the provider is unavailable the semantic
+endpoints fail with a configuration error rather than quietly returning baseline
+results.
 
 **Dev/test split.** The authored golden sets in `data/evals/golden/` (triage) and
 `data/evals/correlation/` (correlation) are the development sets: rules are iterated

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/badge";
-import type { CandidateIncident } from "@/lib/api";
+import type { CandidateIncident, CorrelationMode } from "@/lib/api";
 import { formatTimestamp } from "@/lib/format";
 
 const CONFIDENCE_TONE = {
@@ -17,9 +17,11 @@ const CONFIDENCE_TONE = {
 export function CandidateCard({
   candidate,
   serviceNames,
+  mode = "deterministic",
 }: {
   candidate: CandidateIncident;
   serviceNames: Map<string, string>;
+  mode?: CorrelationMode;
 }) {
   return (
     <li className="rounded border border-neutral-300 p-4 dark:border-neutral-700">
@@ -55,7 +57,10 @@ export function CandidateCard({
       </ul>
 
       <p className="mt-3 text-sm">
-        <Link className="underline" href={`/incidents/candidates/${candidate.id}`}>
+        <Link
+          className="underline"
+          href={`/incidents/candidates/${candidate.id}${mode === "semantic" ? "?mode=semantic" : ""}`}
+        >
           View candidate
         </Link>
       </p>

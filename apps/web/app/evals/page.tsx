@@ -1,7 +1,9 @@
 import { ApiError } from "@/components/api-error";
 import { EvalReportSection } from "@/components/eval-report";
+import { VersionComparisonSection } from "@/components/version-comparison";
 import {
   load,
+  fetchCorrelationComparison,
   fetchCorrelationEvaluation,
   fetchTriageEvaluation,
   type EvalReport,
@@ -10,9 +12,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function EvalsPage() {
-  const [triage, correlation] = await Promise.all([
+  const [triage, correlation, comparison] = await Promise.all([
     load(fetchTriageEvaluation),
-    load(fetchCorrelationEvaluation),
+    load(() => fetchCorrelationEvaluation("deterministic")),
+    load(fetchCorrelationComparison),
   ]);
 
   return (
@@ -30,6 +33,8 @@ export default async function EvalsPage() {
         description="Tickets grouped into candidate incidents by time, service, issue type, weighted word overlap and shared identifiers. Precision is preferred over recall: a false merge invents an incident that is not happening."
         result={correlation}
       />
+
+      {comparison.ok && <VersionComparisonSection comparison={comparison.data} />}
     </div>
   );
 }

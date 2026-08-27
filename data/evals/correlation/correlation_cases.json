@@ -45,7 +45,6 @@
       "description": "Nothing loads in analytics at all. Dashboards stopped working for everyone.",
       "reported_by": "synthetic-monitor"
     },
-
     {
       "id": "CG26",
       "created_at": "2026-08-24T10:15:00Z",
@@ -53,7 +52,6 @@
       "description": "The connector sync is taking noticeably longer than usual but it does finish.",
       "reported_by": "customer-success"
     },
-
     {
       "id": "CG07",
       "created_at": "2026-08-24T11:05:00Z",
@@ -75,7 +73,6 @@
       "description": "The exported file from the dashboard lists every account twice, so the totals are double counted.",
       "reported_by": "field-engineering"
     },
-
     {
       "id": "CG13",
       "created_at": "2026-08-24T12:02:00Z",
@@ -104,7 +101,6 @@
       "description": "Still getting ERR_SYNC_412 from the connector on every attempt.",
       "reported_by": "tier1-support"
     },
-
     {
       "id": "CG17",
       "created_at": "2026-08-24T13:10:00Z",
@@ -119,7 +115,6 @@
       "description": "We are having trouble with our connector.",
       "reported_by": "tier1-support"
     },
-
     {
       "id": "CG19",
       "created_at": "2026-08-24T14:02:00Z",
@@ -148,7 +143,6 @@
       "description": "All users are bounced back to the sign in page with an invalid assertion error.",
       "reported_by": "synthetic-monitor"
     },
-
     {
       "id": "CG10",
       "created_at": "2026-08-24T15:40:00Z",
@@ -170,7 +164,6 @@
       "description": "Every saved report is empty and the analytics view will not load.",
       "reported_by": "field-engineering"
     },
-
     {
       "id": "CG23",
       "created_at": "2026-08-24T16:20:00Z",
@@ -191,6 +184,55 @@
       "title": "Feature request: dark mode for dashboards",
       "description": "It would be nice to have a dark theme for the analytics views.",
       "reported_by": "customer-success"
+    },
+    {
+      "id": "CG27",
+      "created_at": "2026-08-24T18:05:00Z",
+      "title": "Charts render as empty boxes",
+      "description": "Every visual on our overview page draws an outline with nothing inside it.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG28",
+      "created_at": "2026-08-24T18:11:00Z",
+      "title": "Nothing shows up in our reporting view",
+      "description": "Opened the weekly summary and all the figures have vanished.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG29",
+      "created_at": "2026-08-24T18:19:00Z",
+      "title": "Metrics disappeared from the executive overview",
+      "description": "The numbers our leadership reviews are simply gone since this evening.",
+      "reported_by": "field-engineering"
+    },
+    {
+      "id": "CG30",
+      "created_at": "2026-08-24T19:30:00Z",
+      "title": "OAuth sign-in unavailable",
+      "description": "Single sign on is refusing every attempt for our workspace.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG31",
+      "created_at": "2026-08-25T00:30:00Z",
+      "title": "OAuth sign-in unavailable",
+      "description": "Single sign on is refusing every attempt for our workspace.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG32",
+      "created_at": "2026-08-24T20:10:00Z",
+      "title": "Connector run aborted with ERR_SYNC_412",
+      "description": "The scheduled warehouse sync failed partway through and reported ERR_SYNC_412.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG33",
+      "created_at": "2026-08-24T20:16:00Z",
+      "title": "Connector run aborted with ERR_SYNC_907",
+      "description": "The scheduled warehouse sync failed partway through and reported ERR_SYNC_907.",
+      "reported_by": "field-engineering"
     }
   ]
 }

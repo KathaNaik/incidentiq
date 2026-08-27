@@ -177,6 +177,14 @@ docs/
 The scripts live inside `apps/api` because that is the Python project; running them from
 the repository root would need `PYTHONPATH` juggling to import the ingestion package.
 
+## Derived artifacts
+
+Semantic correlation caches ticket embeddings under `data/processed/embeddings/`. Those
+vectors are derived from ticket text — including the CC BY-SA corpus — so the directory
+is gitignored along with the rest of `processed/`. Vectors are keyed by provider and
+model identity (`fastembed:BAAI/bge-small-en-v1.5`), so a cache written by one model can
+never be read by another.
+
 ## Adding a new data source
 
 Do not introduce another dataset without first: identifying its license, confirming it

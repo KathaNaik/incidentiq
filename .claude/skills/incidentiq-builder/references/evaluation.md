@@ -30,8 +30,23 @@ Both rule-driven, no model. See `apps/api/evaluation/`.
 
 | Suite | Metric | Result |
 |---|---|---|
-| Authored golden (26 tickets, dev set) | precision / recall / false-merge | 100% / 29% / 0% |
+| Authored golden (33 tickets, dev set) | precision / recall / false-merge | 87.5% / 25.9% / 16.7% |
 | Polaris outages (held out) | precision / recall / false-merge | 79% / 0.2% / 31% |
+
+**`semantic-correlation-v1`** — the same correlation plus embedding similarity
+(`fastembed:BAAI/bge-small-en-v1.5`, one signal among five). On the authored golden set
+it scores **identically** to the deterministic baseline on every metric: it recovers one
+true SSO pair the rules missed and loses a different one to the reduced lexical weight.
+The guardrails hold — identical text five hours apart is still kept apart.
+
+Two findings worth carrying forward:
+
+- This model rates *same-incident* ticket pairs at 0.65–0.90 cosine and *unrelated* pairs
+  at 0.43–0.89. The bands overlap, which is why a calibration floor is needed and why
+  paraphrased reports with no shared vocabulary still fall below it.
+- Neither version separates two tickets whose text is near-identical but whose **error
+  codes differ**: the entity signal rewards shared identifiers and says nothing about
+  conflicting ones. That is the clearest next fix, and it is deterministic work.
 
 Both external numbers are poor, in different ways, and both are the honest state of the
 baselines rather than something to close by retuning against the benchmark. Polaris

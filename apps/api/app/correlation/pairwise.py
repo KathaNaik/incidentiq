@@ -31,11 +31,17 @@ from app.correlation.rules import (
     TIME_HALF_LIFE_MINUTES,
     UNKNOWN_SERVICE_SCORE,
     W_ENTITY,
+    W_ENTITY_SEMANTIC,
     W_ISSUE,
+    W_ISSUE_SEMANTIC,
     W_LEXICAL,
+    W_LEXICAL_SEMANTIC,
+    W_SEMANTIC,
     W_SERVICE,
+    W_SERVICE_SEMANTIC,
     W_TIME,
 )
+from app.correlation.semantic import SemanticSimilarity
 from app.triage import TriageInput, triage
 from app.triage.models import IssueType, SignalType
 from app.triage.normalize import normalize
@@ -137,16 +143,37 @@ def time_score(minutes_apart: float) -> float:
     return 0.5 ** (abs(minutes_apart) / TIME_HALF_LIFE_MINUTES)
 
 
-def score_pair(a: TicketFeatures, b: TicketFeatures, corpus: Corpus) -> PairwiseScore:
+def score_pair(
+    a: TicketFeatures,
+    b: TicketFeatures,
+    corpus: Corpus,
+    similarity: SemanticSimilarity | None = None,
+) -> PairwiseScore:
+    """Scores one pair.
+
+    With `similarity` omitted this is exactly the deterministic baseline — same weights,
+    same output. Passing a provider adds one more signal and shifts the content weights
+    to the semantic set; nothing else about the scoring changes, which is what makes the
+    two versions comparable.
+    """
     minutes = abs((a.ticket.created_at - b.ticket.created_at).total_seconds()) / 60.0
 
     time_component = _time_signal(minutes)
-    content_signals = (
-        _service_signal(a, b),
-        _issue_signal(a, b),
-        _lexical_signal(a, b, corpus),
-        _entity_signal(a, b),
-    )
+    if similarity is None:
+        content_signals = (
+            _service_signal(a, b, W_SERVICE),
+            _issue_signal(a, b, W_ISSUE),
+            _lexical_signal(a, b, corpus, W_LEXICAL),
+            _entity_signal(a, b, W_ENTITY),
+        )
+    else:
+        content_signals = (
+            _service_signal(a, b, W_SERVICE_SEMANTIC),
+            _issue_signal(a, b, W_ISSUE_SEMANTIC),
+            _lexical_signal(a, b, corpus, W_LEXICAL_SEMANTIC),
+            _entity_signal(a, b, W_ENTITY_SEMANTIC),
+            _semantic_signal(a, b, similarity),
+        )
 
     content = round(
         sum(signal.score * signal.weight for signal in content_signals), 4
@@ -194,41 +221,45 @@ def _time_signal(minutes: float) -> CorrelationSignal:
     return _signal(Component.TIME, score, W_TIME, detail)
 
 
-def _service_signal(a: TicketFeatures, b: TicketFeatures) -> CorrelationSignal:
+def _service_signal(
+    a: TicketFeatures, b: TicketFeatures, weight: float
+) -> CorrelationSignal:
     if a.service_id is None or b.service_id is None:
         return _signal(
             Component.SERVICE,
             UNKNOWN_SERVICE_SCORE,
-            W_SERVICE,
+            weight,
             "service unknown for at least one ticket",
         )
     if a.service_id == b.service_id:
         return _signal(
             Component.SERVICE,
             SAME_SERVICE_SCORE,
-            W_SERVICE,
+            weight,
             f"same service: {a.service_id}",
             (a.service_id,),
         )
     return _signal(
         Component.SERVICE,
         DIFFERENT_SERVICE_SCORE,
-        W_SERVICE,
+        weight,
         f"different services: {a.service_id} vs {b.service_id}",
         (a.service_id, b.service_id),
     )
 
 
-def _issue_signal(a: TicketFeatures, b: TicketFeatures) -> CorrelationSignal:
+def _issue_signal(
+    a: TicketFeatures, b: TicketFeatures, weight: float
+) -> CorrelationSignal:
     if a.issue_type is None or b.issue_type is None:
         return _signal(
-            Component.ISSUE_TYPE, 0.0, W_ISSUE, "issue type unknown for at least one ticket"
+            Component.ISSUE_TYPE, 0.0, weight, "issue type unknown for at least one ticket"
         )
     if a.issue_type == b.issue_type:
         return _signal(
             Component.ISSUE_TYPE,
             SAME_ISSUE_SCORE,
-            W_ISSUE,
+            weight,
             f"same issue type: {a.issue_type}",
             (a.issue_type,),
         )
@@ -238,7 +269,7 @@ def _issue_signal(a: TicketFeatures, b: TicketFeatures) -> CorrelationSignal:
         return _signal(
             Component.ISSUE_TYPE,
             CONTRADICTORY_ISSUE_SCORE,
-            W_ISSUE,
+            weight,
             f"{a.issue_type} and {b.issue_type} are usually different problems",
             (a.issue_type, b.issue_type),
         )
@@ -246,21 +277,21 @@ def _issue_signal(a: TicketFeatures, b: TicketFeatures) -> CorrelationSignal:
         return _signal(
             Component.ISSUE_TYPE,
             COMPATIBLE_ISSUE_SCORE,
-            W_ISSUE,
+            weight,
             f"{a.issue_type} and {b.issue_type} can share a cause",
             (a.issue_type, b.issue_type),
         )
     return _signal(
         Component.ISSUE_TYPE,
         0.0,
-        W_ISSUE,
+        weight,
         f"unrelated issue types: {a.issue_type}, {b.issue_type}",
         (a.issue_type, b.issue_type),
     )
 
 
 def _lexical_signal(
-    a: TicketFeatures, b: TicketFeatures, corpus: Corpus
+    a: TicketFeatures, b: TicketFeatures, corpus: Corpus, weight: float
 ) -> CorrelationSignal:
     """Cosine similarity over IDF-weighted token sets.
 
@@ -271,7 +302,7 @@ def _lexical_signal(
     """
     shared = a.tokens & b.tokens
     if not a.tokens or not b.tokens:
-        return _signal(Component.LEXICAL, 0.0, W_LEXICAL, "no comparable text")
+        return _signal(Component.LEXICAL, 0.0, weight, "no comparable text")
 
     def norm(tokens: frozenset[str]) -> float:
         return math.sqrt(sum(corpus.idf(token) ** 2 for token in tokens))
@@ -286,16 +317,18 @@ def _lexical_signal(
         if shared
         else "no shared terms"
     )
-    return _signal(Component.LEXICAL, score, W_LEXICAL, detail, top)
+    return _signal(Component.LEXICAL, score, weight, detail, top)
 
 
-def _entity_signal(a: TicketFeatures, b: TicketFeatures) -> CorrelationSignal:
+def _entity_signal(
+    a: TicketFeatures, b: TicketFeatures, weight: float
+) -> CorrelationSignal:
     shared_identifiers = a.identifiers & b.identifiers
     if shared_identifiers:
         return _signal(
             Component.ENTITY,
             SHARED_IDENTIFIER_SCORE,
-            W_ENTITY,
+            weight,
             f"shared identifier: {', '.join(sorted(shared_identifiers))}",
             tuple(sorted(shared_identifiers)),
         )
@@ -305,9 +338,28 @@ def _entity_signal(a: TicketFeatures, b: TicketFeatures) -> CorrelationSignal:
         return _signal(
             Component.ENTITY,
             SHARED_SYMPTOM_SCORE,
-            W_ENTITY,
+            weight,
             f"shared symptoms: {', '.join(sorted(shared_symptoms))}",
             tuple(sorted(shared_symptoms)),
         )
 
-    return _signal(Component.ENTITY, 0.0, W_ENTITY, "no shared identifiers or symptoms")
+    return _signal(Component.ENTITY, 0.0, weight, "no shared identifiers or symptoms")
+
+
+def _semantic_signal(
+    a: TicketFeatures, b: TicketFeatures, similarity: SemanticSimilarity
+) -> CorrelationSignal:
+    """Calibrated embedding similarity, reported alongside the raw cosine.
+
+    Both numbers are shown because the calibration is a decision we made, not a
+    property of the model, and an operator reading an explanation should be able to see
+    what the model actually said.
+    """
+    score, raw = similarity.score(a.ticket.id, b.ticket.id)
+    return _signal(
+        Component.SEMANTIC,
+        score,
+        W_SEMANTIC,
+        f"embedding similarity {score} (cosine {raw:.3f})",
+        (similarity.identity,),
+    )

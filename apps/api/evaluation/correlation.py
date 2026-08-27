@@ -23,8 +23,9 @@ from datetime import UTC, datetime
 from itertools import combinations
 from pathlib import Path
 
-from app.correlation import CORRELATION_VERSION, CorrelationTicket, correlate
+from app.correlation import CorrelationTicket, correlate
 from app.correlation.models import CorrelationResult
+from app.correlation.semantic import SemanticSimilarity
 from app.correlation.pairwise import Corpus, prepare, score_pair
 from evaluation.models import CaseFailure, ConfusionCell, EvalReport, MetricSummary
 from ingestion.errors import IngestionError
@@ -72,9 +73,9 @@ def _payload(path: Path) -> dict:
     return payload
 
 
-def run_golden(directory: Path) -> EvalReport:
+def run_golden(directory: Path, similarity: SemanticSimilarity | None = None) -> EvalReport:
     tickets = load_golden_cases(directory)
-    result = correlate(tickets)
+    result = correlate(tickets, similarity)
 
     labels = load_golden_labels(directory)
     missing = {ticket.id for ticket in tickets} - set(labels)
@@ -95,11 +96,17 @@ def run_golden(directory: Path) -> EvalReport:
             "Authored for IncidentIQ; not derived from any external dataset.",
             "Development set: correlation weights and thresholds are tuned here.",
             "Precision is preferred over recall — a false merge is the costlier error.",
-        ),
+        )
+        + _provider_note(similarity),
     )
 
 
-def run_polaris(directory: Path, *, limit: int | None = None) -> EvalReport:
+def run_polaris(
+    directory: Path,
+    *,
+    limit: int | None = None,
+    similarity: SemanticSimilarity | None = None,
+) -> EvalReport:
     features = list(read_jsonl(directory / FEATURES_FILE, PolarisFeatureRecord))
     if limit is not None:
         features = features[:limit]
@@ -114,7 +121,7 @@ def run_polaris(directory: Path, *, limit: int | None = None) -> EvalReport:
         for feature in features
     )
     # Inference is complete before a single label is read.
-    result = correlate(tickets)
+    result = correlate(tickets, similarity)
 
     in_scope = {ticket.id for ticket in tickets}
     records = [
@@ -145,7 +152,8 @@ def run_polaris(directory: Path, *, limit: int | None = None) -> EvalReport:
             "True grouping means same outage event. Polaris also labels multi-month "
             "product launch cohorts; those are topical, not incidents.",
             _looser_definition_note(result, any_event_labels),
-        ),
+        )
+        + _provider_note(similarity),
     )
     return report
 
@@ -167,7 +175,7 @@ def _pair_stats(result: CorrelationResult, labels: dict[str, str | None]) -> dic
         for candidate in result.candidates
         for pair in combinations(candidate.ticket_ids, 2)
     ]
-    true_positive = sum(1 for a, b in predicted_pairs if _same_event(labels, a, b))
+    true_positive = sum(1 for a, b in predicted_pairs if same_event(labels, a, b))
 
     grouped = Counter(
         event for event in (labels.get(t) for t in labels) if event is not None
@@ -189,7 +197,7 @@ def _pair_stats(result: CorrelationResult, labels: dict[str, str | None]) -> dic
     }
 
 
-def _same_event(labels: dict[str, str | None], a: str, b: str) -> bool:
+def same_event(labels: dict[str, str | None], a: str, b: str) -> bool:
     event_a = labels.get(a)
     return event_a is not None and event_a == labels.get(b)
 
@@ -292,7 +300,7 @@ def _score(
 
     return EvalReport(
         suite=suite,
-        version=CORRELATION_VERSION,
+        version=result.version,
         generated_at=datetime.now(UTC),
         case_count=result.ticket_count,
         metrics=metrics,
@@ -311,7 +319,7 @@ def _false_merges(
     failures: list[CaseFailure] = []
     for candidate in result.candidates:
         for pair in candidate.member_pairs:
-            if _same_event(labels, pair.ticket_a, pair.ticket_b):
+            if same_event(labels, pair.ticket_a, pair.ticket_b):
                 continue
             failures.append(
                 CaseFailure(
@@ -402,3 +410,9 @@ def _pair_text(text: dict[str, str] | None, a: str, b: str) -> str | None:
     if text is None:
         return None
     return f"A: {text.get(a, '')}\nB: {text.get(b, '')}"
+
+
+def _provider_note(similarity: SemanticSimilarity | None) -> tuple[str, ...]:
+    if similarity is None:
+        return ()
+    return (f"Semantic signal from {similarity.identity}.",)

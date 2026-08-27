@@ -1,0 +1,187 @@
+{
+  "suite": "golden",
+  "baseline_version": "deterministic-correlation-v1",
+  "candidate_version": "semantic-correlation-v1",
+  "generated_at": "2026-08-27T10:09:34.254827Z",
+  "ticket_count": 33,
+  "metrics": [
+    {
+      "name": "pairwise_precision",
+      "baseline": 0.875,
+      "candidate": 0.875,
+      "delta": 0.0
+    },
+    {
+      "name": "pairwise_recall",
+      "baseline": 0.2593,
+      "candidate": 0.2593,
+      "delta": 0.0
+    },
+    {
+      "name": "pairwise_f1",
+      "baseline": 0.4,
+      "candidate": 0.4,
+      "delta": 0.0
+    },
+    {
+      "name": "false_merge_rate",
+      "baseline": 0.1667,
+      "candidate": 0.1667,
+      "delta": 0.0
+    },
+    {
+      "name": "singleton_accuracy",
+      "baseline": 0.8667,
+      "candidate": 0.8667,
+      "delta": 0.0
+    },
+    {
+      "name": "event_recovery_rate",
+      "baseline": 0.6,
+      "candidate": 0.6,
+      "delta": 0.0
+    }
+  ],
+  "slices": [
+    {
+      "kind": "conflict_guardrail",
+      "ticket_a": "CG17",
+      "ticket_b": "CG18",
+      "explanation": "semantic 0.5949, blended 0.4865, content 0.4599, time 0.5359, 18 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0.5359: reported 18 minutes apart",
+        "service +1: same service: svc-connector",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.1162: 1 shared terms, weighted overlap 0.12",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.5949: embedding similarity 0.5949 (cosine 0.827)"
+      ],
+      "text": "A: Something is off with the connector — Not sure what exactly. It feels wrong today.\nB: Connector issue — We are having trouble with our connector."
+    },
+    {
+      "kind": "semantic_regression",
+      "ticket_a": "CG21",
+      "ticket_b": "CG22",
+      "explanation": "semantic 0.3717, blended 0.5812, content 0.4716, time 0.7846, 7 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0.7846: reported 7 minutes apart",
+        "service +1: same service: svc-auth",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.4294: 6 shared terms, weighted overlap 0.43",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.3717: embedding similarity 0.3717 (cosine 0.787)"
+      ],
+      "text": "A: SSO login fails with invalid assertion — Every attempt to log in through single sign on comes back with invalid assertion.\nB: Nobody can log in through Okta — All users are bounced back to the sign in page with an invalid assertion error."
+    },
+    {
+      "kind": "semantic_win",
+      "ticket_a": "CG19",
+      "ticket_b": "CG21",
+      "explanation": "semantic 0.7882, blended 0.6683, content 0.5429, time 0.9013, 3 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0.9013: reported 3 minutes apart",
+        "service +1: same service: svc-auth",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.3627: 4 shared terms, weighted overlap 0.36",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.7882: embedding similarity 0.7882 (cosine 0.862)"
+      ],
+      "text": "A: Cannot sign in to the console — SSO returns an invalid assertion for the whole team since about 14:00.\nB: SSO login fails with invalid assertion — Every attempt to log in through single sign on comes back with invalid assertion."
+    },
+    {
+      "kind": "time_guardrail",
+      "ticket_a": "CG01",
+      "ticket_b": "CG08",
+      "explanation": "semantic 0.5543, blended 0.3329, content 0.5062, time 0.011, 130 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0.011: reported 2.2 hours apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0.5: availability and performance can share a cause",
+        "lexical +0.085: 2 shared terms, weighted overlap 0.08",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.5543: embedding similarity 0.5543 (cosine 0.820)"
+      ],
+      "text": "A: Dashboards stopped loading — Every dashboard shows a spinner and never renders. It started a few minutes ago.\nB: Dashboard is slow to render — The dashboard eventually appears but takes about thirty seconds. It is sluggish rather than broken."
+    },
+    {
+      "kind": "time_guardrail",
+      "ticket_a": "CG01",
+      "ticket_b": "CG10",
+      "explanation": "semantic 0.8309, blended 0.3326, content 0.5117, time 0.0, 398 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0: reported 6.6 hours apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.1418: 2 shared terms, weighted overlap 0.14",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.8309: embedding similarity 0.8309 (cosine 0.870)"
+      ],
+      "text": "A: Dashboards stopped loading — Every dashboard shows a spinner and never renders. It started a few minutes ago.\nB: Dashboards blank again — Same as this morning. Nothing renders in any dashboard."
+    },
+    {
+      "kind": "time_guardrail",
+      "ticket_a": "CG02",
+      "ticket_b": "CG11",
+      "explanation": "semantic 0.9366, blended 0.3555, content 0.5469, time 0.0, 400 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0: reported 6.7 hours apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.2201: 2 shared terms, weighted overlap 0.22",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.9366: embedding similarity 0.9366 (cosine 0.889)"
+      ],
+      "text": "A: Analytics page is blank — The analytics workspace comes up empty for the whole team.\nB: Analytics not loading — All dashboards are empty for the team again."
+    },
+    {
+      "kind": "time_guardrail",
+      "ticket_a": "CG02",
+      "ticket_b": "CG12",
+      "explanation": "semantic 0.6536, blended 0.3145, content 0.4839, time 0.0, 408 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0: reported 6.8 hours apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.1841: 2 shared terms, weighted overlap 0.18",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.6536: embedding similarity 0.6536 (cosine 0.838)"
+      ],
+      "text": "A: Analytics page is blank — The analytics workspace comes up empty for the whole team.\nB: No data in any report — Every saved report is empty and the analytics view will not load."
+    },
+    {
+      "kind": "time_guardrail",
+      "ticket_a": "CG03",
+      "ticket_b": "CG12",
+      "explanation": "semantic 0.7055, blended 0.3459, content 0.5321, time 0.0, 404 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0: reported 6.7 hours apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.3942: 4 shared terms, weighted overlap 0.39",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.7055: embedding similarity 0.7055 (cosine 0.847)"
+      ],
+      "text": "A: Reports are not showing any metrics — Saved reports open but every tile is empty. Nothing renders.\nB: No data in any report — Every saved report is empty and the analytics view will not load."
+    },
+    {
+      "kind": "time_guardrail",
+      "ticket_a": "CG05",
+      "ticket_b": "CG10",
+      "explanation": "semantic 0.7076, blended 0.3223, content 0.4959, time 0.0, 374 min apart (link threshold 0.6)",
+      "signals": [
+        "time +0: reported 6.2 hours apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.1909: 2 shared terms, weighted overlap 0.19",
+        "entity +0: no shared identifiers or symptoms",
+        "semantic +0.7076: embedding similarity 0.7076 (cosine 0.847)"
+      ],
+      "text": "A: Dashboard tiles empty since about 09:00 — All widgets are blank across the workspace and the analytics view will not load.\nB: Dashboards blank again — Same as this morning. Nothing renders in any dashboard."
+    }
+  ],
+  "notes": [
+    "Both versions ran on the same authored tickets with the same labels, thresholds and candidate generation.",
+    "Semantic signal from fastembed:BAAI/bge-small-en-v1.5.",
+    "Guardrail slices are pairs the embedding rated similar that were kept apart anyway — by the time decay or by a service/issue conflict."
+  ]
+}

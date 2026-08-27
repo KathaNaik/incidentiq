@@ -5,13 +5,52 @@ that outlives the rules that produced it is a stale claim about the system's sta
 an operator confirms one, *that* becomes an Incident — which is a later milestone.
 """
 
-from fastapi import APIRouter
+from enum import StrEnum
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
 
+from app.config import Settings, get_settings
 from app.correlation import CorrelationResult, CorrelationTicket, correlate
+from app.correlation.semantic import SemanticSimilarity, default_similarity
 from app.dependencies import RepositoryDep
+from app.embeddings import EmbeddingError
 
 router = APIRouter(tags=["correlation"])
+
+
+class Mode(StrEnum):
+    """Which correlation version to run.
+
+    Deterministic is the default everywhere: semantic is opt-in, so no caller silently
+    changes behaviour, and the version is stamped on every response either way.
+    """
+
+    DETERMINISTIC = "deterministic"
+    SEMANTIC = "semantic"
+
+
+ModeQuery = Annotated[Mode, Query(description="correlation version to run")]
+
+
+def _similarity(mode: Mode, settings: Settings) -> SemanticSimilarity | None:
+    if mode is Mode.DETERMINISTIC:
+        return None
+    return default_similarity(settings.embeddings_cache_dir)
+
+
+def _run(
+    tickets: list[CorrelationTicket], mode: Mode, settings: Settings
+) -> CorrelationResult:
+    try:
+        return correlate(tickets, _similarity(mode, settings))
+    except EmbeddingError as error:
+        # Never degrade to the deterministic answer while claiming the semantic
+        # version — an unavailable provider is a configuration problem, not a result.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
 
 
 class CorrelationRequest(BaseModel):
@@ -27,12 +66,20 @@ class CorrelationRequest(BaseModel):
 
 
 @router.post("/correlation/analyze", response_model=CorrelationResult)
-def analyze(request: CorrelationRequest) -> CorrelationResult:
-    return correlate(request.tickets)
+def analyze(
+    request: CorrelationRequest,
+    settings: Annotated[Settings, Depends(get_settings)],
+    mode: ModeQuery = Mode.DETERMINISTIC,
+) -> CorrelationResult:
+    return _run(request.tickets, mode, settings)
 
 
 @router.get("/correlation/candidates", response_model=CorrelationResult)
-def candidates(repository: RepositoryDep) -> CorrelationResult:
+def candidates(
+    repository: RepositoryDep,
+    settings: Annotated[Settings, Depends(get_settings)],
+    mode: ModeQuery = Mode.DETERMINISTIC,
+) -> CorrelationResult:
     """Candidate incidents across the stored ticket set.
 
     Runs the same code path as `/correlation/analyze` over the Northstar tickets. The
@@ -50,4 +97,4 @@ def candidates(repository: RepositoryDep) -> CorrelationResult:
         )
         for ticket in repository.list_tickets()
     ]
-    return correlate(tickets)
+    return _run(tickets, mode, settings)

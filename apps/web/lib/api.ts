@@ -90,7 +90,7 @@ export type TriageResult = {
 };
 
 export type CorrelationSignal = {
-  component: "time" | "service" | "issue_type" | "lexical" | "entity";
+  component: "time" | "service" | "issue_type" | "lexical" | "entity" | "semantic";
   direction: "supporting" | "conflicting" | "neutral";
   score: number;
   weight: number;
@@ -130,6 +130,35 @@ export type CorrelationResult = {
   ticket_count: number;
   candidates: CandidateIncident[];
   standalone_ticket_ids: string[];
+};
+
+export type CorrelationMode = "deterministic" | "semantic";
+
+export type MetricDelta = {
+  name: string;
+  baseline: number;
+  candidate: number;
+  delta: number;
+};
+
+export type SliceExample = {
+  kind: string;
+  ticket_a: string;
+  ticket_b: string;
+  explanation: string;
+  signals: string[];
+  text: string | null;
+};
+
+export type VersionComparison = {
+  suite: string;
+  baseline_version: string;
+  candidate_version: string;
+  generated_at: string;
+  ticket_count: number;
+  metrics: MetricDelta[];
+  slices: SliceExample[];
+  notes: string[];
 };
 
 export type EvalMetric = {
@@ -224,12 +253,20 @@ export async function fetchTriageEvaluation(): Promise<EvalReport> {
   return getJson<EvalReport>("/evals/triage");
 }
 
-export async function fetchCorrelationEvaluation(): Promise<EvalReport> {
-  return getJson<EvalReport>("/evals/correlation");
+export async function fetchCorrelationEvaluation(
+  version: CorrelationMode = "deterministic",
+): Promise<EvalReport> {
+  return getJson<EvalReport>(`/evals/correlation?version=${version}`);
 }
 
-export async function fetchCandidates(): Promise<CorrelationResult> {
-  return getJson<CorrelationResult>("/correlation/candidates");
+export async function fetchCandidates(
+  mode: CorrelationMode = "deterministic",
+): Promise<CorrelationResult> {
+  return getJson<CorrelationResult>(`/correlation/candidates?mode=${mode}`);
+}
+
+export async function fetchCorrelationComparison(): Promise<VersionComparison> {
+  return getJson<VersionComparison>("/evals/correlation/comparison");
 }
 
 /** Runs a loader, turning an unreachable API into a value the page can render. */

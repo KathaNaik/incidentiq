@@ -1,7 +1,15 @@
+import Link from "next/link";
+
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
 import { CandidateCard } from "@/components/candidate-card";
-import { load, fetchCandidates, fetchIncidents, fetchServices } from "@/lib/api";
+import {
+  load,
+  fetchCandidates,
+  fetchIncidents,
+  fetchServices,
+  type CorrelationMode,
+} from "@/lib/api";
 import {
   formatTimestamp,
   incidentSeverityLabel,
@@ -12,12 +20,17 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function IncidentsPage() {
+export default async function IncidentsPage({
+  searchParams,
+}: PageProps<"/incidents">) {
+  const params = await searchParams;
+  const mode: CorrelationMode = params.mode === "semantic" ? "semantic" : "deterministic";
+
   const result = await load(async () => {
     const [incidents, services, correlation] = await Promise.all([
       fetchIncidents(),
       fetchServices(),
-      fetchCandidates(),
+      fetchCandidates(mode),
     ]);
     return { incidents, services, correlation };
   });
@@ -41,17 +54,35 @@ export default async function IncidentsPage() {
       <section className="space-y-3">
         <div>
           <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
-            Potential incidents — deterministic correlation baseline
+            Potential incidents — {mode} correlation baseline
           </h2>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            Groupings the baseline proposes from the ticket stream using time, service,
-            issue type, weighted word overlap and shared identifiers. Rules only, no
-            model. Nothing here is an incident until a person says so.{" "}
+            Groupings proposed from the ticket stream using time, service, issue type and
+            shared identifiers
+            {mode === "semantic"
+              ? ", plus embedding similarity. The embedding is one signal among five — it cannot merge across a service conflict or a time gap on its own."
+              : " — rules only, no model."}{" "}
+            Nothing here is an incident until a person says so.{" "}
             <span className="text-neutral-500">
               {correlation.candidates.length} candidates from {correlation.ticket_count}{" "}
               tickets · {correlation.version}
             </span>
           </p>
+          <div className="mt-2 flex gap-2 text-sm">
+            {(["deterministic", "semantic"] as const).map((option) => (
+              <Link
+                key={option}
+                href={option === "deterministic" ? "/incidents" : "/incidents?mode=semantic"}
+                className={`rounded border px-2 py-1 text-xs ${
+                  mode === option
+                    ? "border-neutral-500 font-medium"
+                    : "border-neutral-300 text-neutral-600 dark:border-neutral-700 dark:text-neutral-400"
+                }`}
+              >
+                {option}
+              </Link>
+            ))}
+          </div>
         </div>
         {correlation.candidates.length === 0 ? (
           <p className="rounded border border-dashed border-neutral-300 p-4 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-400">
@@ -65,6 +96,7 @@ export default async function IncidentsPage() {
                 key={candidate.id}
                 candidate={candidate}
                 serviceNames={names}
+                mode={mode}
               />
             ))}
           </ul>
