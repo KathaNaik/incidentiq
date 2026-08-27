@@ -5,6 +5,7 @@ import {
   load,
   fetchCorrelationComparison,
   fetchCorrelationEvaluation,
+  fetchRetrievalEvaluation,
   fetchTriageEvaluation,
   type EvalReport,
 } from "@/lib/api";
@@ -12,10 +13,11 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function EvalsPage() {
-  const [triage, correlation, comparison] = await Promise.all([
+  const [triage, correlation, comparison, retrieval] = await Promise.all([
     load(fetchTriageEvaluation),
     load(() => fetchCorrelationEvaluation("deterministic")),
     load(fetchCorrelationComparison),
+    load(fetchRetrievalEvaluation),
   ]);
 
   return (
@@ -35,6 +37,12 @@ export default async function EvalsPage() {
       />
 
       {comparison.ok && <VersionComparisonSection comparison={comparison.data} />}
+
+      <Suite
+        title="Historical retrieval"
+        description="Given a current incident, how often does a past incident with the same root cause appear in the top K? Leave-one-out over the external corpus, where relevance means same root-cause family. Read the caveat below the metrics: that corpus is clusters of near-duplicates, so these numbers measure the pipeline more than the capability."
+        result={retrieval}
+      />
     </div>
   );
 }

@@ -31,13 +31,18 @@ Both rule-driven, no model. See `apps/api/evaluation/`.
 | Suite | Metric | Result |
 |---|---|---|
 | Authored golden (33 tickets, dev set) | precision / recall / false-merge | 87.5% / 25.9% / 16.7% |
-| Polaris outages (held out) | precision / recall / false-merge | 79% / 0.2% / 31% |
+| Polaris outages (held out) | precision / recall / false-merge | 79.0% / 0.2% / 31.1% |
 
 **`semantic-correlation-v1`** — the same correlation plus embedding similarity
 (`fastembed:BAAI/bge-small-en-v1.5`, one signal among five). On the authored golden set
 it scores **identically** to the deterministic baseline on every metric: it recovers one
 true SSO pair the rules missed and loses a different one to the reduced lexical weight.
 The guardrails hold — identical text five hours apart is still kept apart.
+
+On the held-out Polaris outages it does slightly better and slightly worse at once:
+precision 79.7% (from 79.0%) and 1,393 true pairs found instead of 1,187 — about 17%
+more recall — while the false-merge rate rises from 31.1% to 32.1%. Event recovery stays
+at zero for both.
 
 Two findings worth carrying forward:
 
@@ -48,7 +53,27 @@ Two findings worth carrying forward:
   codes differ**: the entity signal rewards shared identifiers and says nothing about
   conflicting ones. That is the clearest next fix, and it is deterministic work.
 
-Both external numbers are poor, in different ways, and both are the honest state of the
+**`historical-retrieval-v1`** — precedent retrieval over 751 records (6 authored
+Northstar + 745 external):
+
+| Suite | Metric | Result |
+|---|---|---|
+| External corpus, leave-one-out | Recall@1 / @3 / @5 | 99.9% / 100% / 100% (random baseline 7.1% / 19.8% / 30.7%) |
+| Authored Northstar scenarios | correct precedent at rank 1 | 5 of 5, plus a deliberately vague query correctly marked as having no strong match |
+
+**Read that first row with the caveat.** The external corpus is 14 tight clusters of
+near-paraphrases — intra-family cosine median 0.89 against 0.63 between families — so
+"find another record from the same family" is closer to duplicate detection than to
+finding precedent across genuinely different incidents. It confirms the pipeline works;
+it does not establish the capability. Reranking on service and error identifiers changed
+these numbers not at all, and a title-only query slice still scored 99.1% Recall@1.
+
+**Known limitation carried forward from M5/M6, not fixed here:** both correlation
+versions may false-merge near-identical tickets whose strong error identifiers *differ*,
+because entity scoring rewards matches and does not penalize conflicts. The evaluated
+baselines were deliberately left unchanged.
+
+Both external correlation numbers are poor, in different ways, and both are the honest state of the
 baselines rather than something to close by retuning against the benchmark. Polaris
 recall is also structurally limited: its outage events carry 200–500 tickets over 3–4
 days, so all-pairs recall punishes a burst detector by construction. Polaris additionally

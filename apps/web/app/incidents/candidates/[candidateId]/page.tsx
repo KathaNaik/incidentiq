@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
+import { SimilarIncidents } from "@/components/similar-incidents";
 import {
   load,
   fetchCandidates,
   fetchServices,
+  fetchSimilarIncidents,
   fetchTickets,
   type CorrelationMode,
 } from "@/lib/api";
@@ -30,6 +32,10 @@ export default async function CandidatePage({
     ]);
     return { correlation, tickets, services };
   });
+
+  // Retrieval is loaded separately: it depends on the embedding provider, and an
+  // unavailable index should not blank the whole candidate page.
+  const similar = await load(() => fetchSimilarIncidents(candidateId, mode));
 
   if (!result.ok) {
     return (
@@ -138,6 +144,8 @@ export default async function CandidatePage({
           ))}
         </ol>
       </section>
+
+      {similar.ok && <SimilarIncidents result={similar.data} />}
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">

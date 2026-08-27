@@ -4,10 +4,11 @@ Three kinds of data live here, and they never mix.
 
 | Directory | Contents | Committed? |
 |---|---|---|
-| `demo/northstar_cloud/` | Northstar Cloud fixtures — original synthetic data we authored, served by the API | Yes |
+| `demo/northstar_cloud/` | Northstar Cloud fixtures — original synthetic data we authored, including resolved historical incidents | Yes |
 | `evals/golden/` | Authored triage golden set — cases and expected labels, in separate files | Yes |
 | `evals/triage/` | Triage evaluation artifacts, served by `GET /evals/triage` | Yes |
 | `evals/correlation/` | Authored correlation golden set (cases and labels in separate files) plus its evaluation artifact | Yes |
+| `evals/retrieval/` | Authored Northstar retrieval scenarios plus the retrieval evaluation artifact | Yes |
 | `raw/itsm/`, `raw/polaris/` | Datasets downloaded from Hugging Face | **No — gitignored** |
 | `processed/itsm/`, `processed/polaris/` | Normalized JSONL derived from `raw/` | **No — gitignored** |
 | `processed/embeddings/` | Cached ticket vectors, keyed by provider and model | **No — gitignored** |

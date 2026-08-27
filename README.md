@@ -63,6 +63,9 @@ Read-only endpoints:
 | `GET /evals/triage` | the committed triage evaluation artifact |
 | `GET /evals/correlation` | the committed correlation evaluation artifact |
 | `GET /evals/correlation/comparison` | deterministic versus semantic, with per-slice examples |
+| `POST /retrieval/historical-incidents` | past incidents resembling a described situation |
+| `GET /correlation/candidates/{id}/similar` | precedent for one candidate incident |
+| `GET /evals/retrieval` | the committed historical-retrieval evaluation |
 
 Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
 and `/evals/correlation` takes `?version=`. The version is stamped on every response.
@@ -137,6 +140,9 @@ Two deterministic baselines, both rule-driven with no model or embeddings anywhe
 - **`semantic-correlation-v1`** — the same correlation with one extra signal: cosine
   similarity between ticket embeddings. Same candidate generation, same guardrails, so
   the two are directly comparable. Opt-in everywhere; deterministic stays the default.
+- **`historical-retrieval-v1`** — given a current incident, finds resolved incidents that
+  looked like it, and shows what those turned out to be. Retrieval matches *symptoms
+  only*; a historical cause and fix are displayed after a match, never used to make one.
 
 Correlation is incremental: tickets are processed in arrival order and compared only
 against still-active candidates, so the evaluation measures what a running system could
@@ -152,7 +158,12 @@ uv run python scripts/evaluate_correlation.py --suite polaris    # external benc
 # Semantic correlation, and the baseline-versus-semantic comparison:
 uv sync --group semantic
 uv run --group semantic python scripts/evaluate_correlation.py --suite golden --mode both
+uv run --group semantic python scripts/evaluate_retrieval.py
 ```
+
+Historical retrieval needs the ITSM corpus (`scripts/download_itsm.py` and
+`preprocess_itsm.py`); without it the index still builds from the authored Northstar
+records alone.
 
 ### Embeddings
 

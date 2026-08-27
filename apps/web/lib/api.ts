@@ -161,6 +161,42 @@ export type VersionComparison = {
   notes: string[];
 };
 
+export type HistoricalIncident = {
+  id: string;
+  title: string;
+  summary: string;
+  services: string[];
+  observed_errors: string[];
+  occurred_at: string | null;
+  provenance: "northstar-authored" | "itsm-mit";
+  outcome: { root_cause: string; resolution_steps: string[] };
+};
+
+export type MatchSignal = {
+  kind: string;
+  detail: string;
+  contribution: number;
+  values: string[];
+};
+
+export type RetrievalHit = {
+  rank: number;
+  incident: HistoricalIncident;
+  score: number;
+  similarity: number;
+  signals: MatchSignal[];
+};
+
+export type RetrievalResult = {
+  version: string;
+  provider: string;
+  corpus_size: number;
+  query_text: string;
+  hits: RetrievalHit[];
+  /** False when nothing in the corpus resembles the query closely enough to be precedent. */
+  strong_match: boolean;
+};
+
 export type EvalMetric = {
   name: string;
   correct: number;
@@ -263,6 +299,19 @@ export async function fetchCandidates(
   mode: CorrelationMode = "deterministic",
 ): Promise<CorrelationResult> {
   return getJson<CorrelationResult>(`/correlation/candidates?mode=${mode}`);
+}
+
+export async function fetchSimilarIncidents(
+  candidateId: string,
+  mode: CorrelationMode = "deterministic",
+): Promise<RetrievalResult> {
+  return getJson<RetrievalResult>(
+    `/correlation/candidates/${encodeURIComponent(candidateId)}/similar?mode=${mode}`,
+  );
+}
+
+export async function fetchRetrievalEvaluation(): Promise<EvalReport> {
+  return getJson<EvalReport>("/evals/retrieval");
 }
 
 export async function fetchCorrelationComparison(): Promise<VersionComparison> {

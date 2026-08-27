@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     # Gitignored: derived from ticket text, including licensed corpora.
     embeddings_cache_dir: Path = REPO_ROOT / "data" / "processed" / "embeddings"
 
+    # Historical corpus. Northstar records are committed; the external corpus appears
+    # only after the ingestion scripts run, and retrieval works without it.
+    itsm_processed_dir: Path = REPO_ROOT / "data" / "processed" / "itsm"
+    retrieval_evals_dir: Path = REPO_ROOT / "data" / "evals" / "retrieval"
+
 
 @lru_cache
 def get_settings() -> Settings:

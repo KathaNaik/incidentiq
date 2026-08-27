@@ -1,0 +1,101 @@
+{
+  "dataset": "northstar-cloud",
+  "synthetic": true,
+  "note": "Resolved incidents from Northstar Cloud's fictional past, authored for IncidentIQ. Original content — not derived from, paraphrased from, or adapted from any external dataset. Root cause and resolution are historical knowledge: they are shown after retrieval and never form part of the searchable text.",
+  "records": [
+    {
+      "id": "NS-HIST-0001",
+      "title": "Connector syncs failed after the warehouse credential rotation",
+      "summary": "Every warehouse connector began failing within an hour of a scheduled credential rotation. Customers saw syncs that started and then aborted, dashboards holding yesterday's figures, and repeated 401 responses on manual resync attempts. The console reported the connectors as healthy throughout, which delayed detection.",
+      "services": ["svc-connector", "svc-analytics"],
+      "observed_errors": ["401", "ERR_SYNC_412", "token exchange rejected"],
+      "occurred_at": "2026-03-11T14:20:00Z",
+      "outcome": {
+        "root_cause": "The rotation issued new warehouse credentials but the connector fleet kept the previous secret cached in memory. Workers only re-read the secret on restart, so every sync authenticated with a credential that no longer existed.",
+        "resolution_steps": [
+          "Rolled the connector workers so they re-read the current secret.",
+          "Backfilled the syncs that had aborted during the window.",
+          "Added a secret-version check to the connector health probe so a stale credential surfaces as unhealthy instead of as a failed sync."
+        ]
+      }
+    },
+    {
+      "id": "NS-HIST-0002",
+      "title": "SSO sign-in outage after an identity provider certificate rotation",
+      "summary": "Members of several workspaces were bounced back to the sign-in page after authenticating with their identity provider. The console showed an invalid assertion error, and password sign-in continued to work for local accounts, which is what identified the fault as federation-specific.",
+      "services": ["svc-auth"],
+      "observed_errors": ["invalid assertion", "SAML signature validation failed"],
+      "occurred_at": "2026-05-02T08:05:00Z",
+      "outcome": {
+        "root_cause": "The customer's identity provider rotated its signing certificate. Northstar was still pinned to the retired certificate, so every assertion failed signature validation while the identity provider itself reported success.",
+        "resolution_steps": [
+          "Re-fetched the identity provider metadata and installed the current signing certificate.",
+          "Accepted both the outgoing and incoming certificates for the remainder of the overlap window.",
+          "Added an expiry alert on federation certificates at thirty days."
+        ]
+      }
+    },
+    {
+      "id": "NS-HIST-0003",
+      "title": "Dashboards rendered empty after a schema migration",
+      "summary": "Dashboards and saved reports loaded but showed no rows for every customer. The freshness indicator claimed the data was current, so the first several reports were filed as a rendering problem rather than a data problem.",
+      "services": ["svc-analytics"],
+      "observed_errors": ["empty result set", "column not found: event_ts"],
+      "occurred_at": "2026-01-19T11:40:00Z",
+      "outcome": {
+        "root_cause": "A migration renamed a timestamp column. The query layer was deployed ahead of the migration and filtered on the old name, which matched nothing and returned an empty result rather than an error.",
+        "resolution_steps": [
+          "Rolled the query layer back to the previous release.",
+          "Re-deployed it after the migration completed, in the correct order.",
+          "Made the query layer fail loudly on an unknown column instead of returning zero rows."
+        ]
+      }
+    },
+    {
+      "id": "NS-HIST-0004",
+      "title": "Analytics slowdown caused by a missing index after a data backfill",
+      "summary": "Dashboard loads degraded from under two seconds to thirty or more during business hours. Nothing was unavailable and no errors were returned; the reports simply took long enough that people assumed they had failed.",
+      "services": ["svc-analytics"],
+      "observed_errors": ["query timeout after 30s", "slow query log: seq scan"],
+      "occurred_at": "2026-06-14T15:10:00Z",
+      "outcome": {
+        "root_cause": "A backfill tripled the size of the events table. The index supporting the dashboard's date-range filter had been dropped to speed up the backfill and was never rebuilt, so every dashboard query fell back to a sequential scan.",
+        "resolution_steps": [
+          "Rebuilt the date-range index concurrently.",
+          "Added the index rebuild to the backfill runbook as a required completion step."
+        ]
+      }
+    },
+    {
+      "id": "NS-HIST-0005",
+      "title": "Workspace members lost access after a role migration",
+      "summary": "Users on newly migrated workspaces opened dashboards they had used the previous day and received permission errors. Other members of the same workspace were unaffected, which made the reports look like isolated account problems for the first few hours.",
+      "services": ["svc-analytics", "svc-auth"],
+      "observed_errors": ["403", "permission denied"],
+      "occurred_at": "2026-04-08T09:55:00Z",
+      "outcome": {
+        "root_cause": "The role migration mapped legacy roles onto new ones, but grants attached directly to individual resources were not carried across. Anyone whose access came from a direct grant rather than a role lost it.",
+        "resolution_steps": [
+          "Replayed the direct grants from the pre-migration snapshot.",
+          "Added a post-migration reconciliation that compares effective permissions before and after."
+        ]
+      }
+    },
+    {
+      "id": "NS-HIST-0006",
+      "title": "Webhook deliveries silently dropped during a gateway upgrade",
+      "summary": "Customers reported that webhook deliveries stopped arriving, with no failures visible in their delivery logs. Manual resends appeared to succeed. The gap was only obvious once someone compared the send count with the receive count.",
+      "services": ["svc-connector"],
+      "observed_errors": ["504", "upstream connect timeout"],
+      "occurred_at": "2026-02-25T17:30:00Z",
+      "outcome": {
+        "root_cause": "A gateway upgrade shortened the upstream idle timeout below the webhook worker's keep-alive interval. Connections were closed mid-flight and the worker recorded them as delivered because the request had been written successfully.",
+        "resolution_steps": [
+          "Restored the previous idle timeout on the gateway.",
+          "Changed the worker to record delivery on response rather than on write.",
+          "Added a reconciliation job comparing sent and acknowledged deliveries hourly."
+        ]
+      }
+    }
+  ]
+}

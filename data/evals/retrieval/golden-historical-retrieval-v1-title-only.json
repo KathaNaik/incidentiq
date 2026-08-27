@@ -1,0 +1,67 @@
+{
+  "suite": "historical-retrieval",
+  "version": "historical-retrieval-v1",
+  "generated_at": "2026-08-27T23:47:37.370230Z",
+  "case_count": 745,
+  "metrics": [
+    {
+      "name": "recall@1",
+      "correct": 738,
+      "total": 745,
+      "accuracy": 0.9906,
+      "abstained": 0,
+      "majority_baseline": 0.0707
+    },
+    {
+      "name": "recall@3",
+      "correct": 744,
+      "total": 745,
+      "accuracy": 0.9987,
+      "abstained": 0,
+      "majority_baseline": 0.1977
+    },
+    {
+      "name": "recall@5",
+      "correct": 744,
+      "total": 745,
+      "accuracy": 0.9987,
+      "abstained": 0,
+      "majority_baseline": 0.3074
+    },
+    {
+      "name": "mrr",
+      "correct": 744,
+      "total": 745,
+      "accuracy": 0.9946,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [
+    {
+      "case_id": "INC-DCP-0002",
+      "metric": "recall@5",
+      "expected": "family INC-DCP",
+      "predicted": "family INC-OES",
+      "status": "missed_precedent",
+      "explanation": "top hit INC-OES-V0042 scored 0.665 (similarity 0.681)",
+      "signals": [
+        "symptom similarity 0.681",
+        "shared error terms: mobile",
+        "symptom similarity 0.675",
+        "shared error terms: mobile",
+        "symptom similarity 0.658",
+        "shared error terms: mobile"
+      ],
+      "text": null
+    }
+  ],
+  "notes": [
+    "Relevance means same root-cause family. Family ids come from the corpus's record-id prefix and appear in no indexed text, query, or score.",
+    "Leave-one-out: each query's own record is excluded, so a hit requires matching a different telling of the same failure.",
+    "Corpus: 751 records, 14 families. Reranking on. Query text: title only.",
+    "Caveat on this metric: the external corpus is 14 tight clusters of near-paraphrases (intra-family cosine median 0.89 against 0.63 between families), so same-family retrieval is closer to duplicate detection than to finding precedent across genuinely different incidents. The authored Northstar cases are the harder test.",
+    "External corpus text does not appear in this report."
+  ]
+}

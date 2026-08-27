@@ -1,0 +1,48 @@
+{
+  "suite": "historical-retrieval",
+  "version": "historical-retrieval-v1",
+  "generated_at": "2026-08-27T23:44:52.020563Z",
+  "case_count": 745,
+  "metrics": [
+    {
+      "name": "recall@1",
+      "correct": 744,
+      "total": 745,
+      "accuracy": 0.9987,
+      "abstained": 0,
+      "majority_baseline": 0.0707
+    },
+    {
+      "name": "recall@3",
+      "correct": 745,
+      "total": 745,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": 0.1977
+    },
+    {
+      "name": "recall@5",
+      "correct": 745,
+      "total": 745,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": 0.3074
+    },
+    {
+      "name": "mrr",
+      "correct": 745,
+      "total": 745,
+      "accuracy": 0.9993,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [],
+  "notes": [
+    "Relevance means same root-cause family. Family ids come from the corpus's record-id prefix and appear in no indexed text, query, or score.",
+    "Leave-one-out: each query's own record is excluded, so a hit requires matching a different telling of the same failure.",
+    "Corpus: 751 records, 14 families. Reranking on.",
+    "External corpus text does not appear in this report."
+  ]
+}

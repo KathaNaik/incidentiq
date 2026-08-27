@@ -23,6 +23,7 @@ CORRELATION_REPORTS = {
     "semantic": "golden-semantic-correlation-v1.json",
 }
 COMPARISON_FILE = "comparison-semantic-correlation-v1.json"
+RETRIEVAL_REPORT_FILE = "golden-historical-retrieval-v1.json"
 
 
 @router.get("/evals/triage", response_model=EvalReportResponse)
@@ -44,6 +45,14 @@ def get_correlation_evaluation(
     return _read(
         settings.correlation_evals_dir / CORRELATION_REPORTS[version], "correlation"
     )
+
+
+@router.get("/evals/retrieval", response_model=EvalReportResponse)
+def get_retrieval_evaluation(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EvalReportResponse:
+    """The committed historical-retrieval evaluation."""
+    return _read(settings.retrieval_evals_dir / RETRIEVAL_REPORT_FILE, "retrieval")
 
 
 @router.get("/evals/correlation/comparison", response_model=VersionComparisonResponse)

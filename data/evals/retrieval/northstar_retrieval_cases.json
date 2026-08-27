@@ -1,0 +1,55 @@
+{
+  "dataset": "incidentiq-retrieval-golden",
+  "synthetic": true,
+  "note": "Authored Northstar retrieval scenarios. Each is a live situation described in the words an operator would have at the time — no root cause, no resolution, no hindsight — paired with the historical incident that should surface as precedent. Original content; not derived from any external dataset.",
+  "records": [
+    {
+      "id": "RQ01",
+      "query_text": "Warehouse connector stuck in syncing state. Every sync starts and then aborts, no new rows have arrived since this morning, and manual resync returns a 401. The connector still shows as healthy in the console.",
+      "services": ["svc-connector"],
+      "error_identifiers": ["401"],
+      "expected_incident_id": "NS-HIST-0001",
+      "why": "Same failure pattern: syncs aborting on authentication while health checks stay green."
+    },
+    {
+      "id": "RQ02",
+      "query_text": "Nobody on the team can sign in through SSO. Everyone is bounced back to the login page after authenticating with the identity provider, and the console reports an invalid assertion. Local password accounts still work.",
+      "services": ["svc-auth"],
+      "error_identifiers": [],
+      "expected_incident_id": "NS-HIST-0002",
+      "why": "Federation-specific sign-in failure with local accounts unaffected."
+    },
+    {
+      "id": "RQ03",
+      "query_text": "All dashboards render but show no rows for every customer. The freshness indicator still claims the data is current, which is why nobody noticed for an hour.",
+      "services": ["svc-analytics"],
+      "error_identifiers": [],
+      "expected_incident_id": "NS-HIST-0003",
+      "why": "Empty result sets presented as fresh data — the distinguishing symptom."
+    },
+    {
+      "id": "RQ04",
+      "query_text": "Dashboards take thirty seconds or more to load in the afternoon. Nothing errors and nothing is down, they are just slow enough that people assume they failed.",
+      "services": ["svc-analytics"],
+      "error_identifiers": [],
+      "expected_incident_id": "NS-HIST-0004",
+      "why": "Degradation without failure, business hours only."
+    },
+    {
+      "id": "RQ05",
+      "query_text": "A new analyst gets a 403 opening the finance workspace. Other members of the same workspace see it normally. The account was migrated to the new role model last week.",
+      "services": ["svc-analytics"],
+      "error_identifiers": ["403"],
+      "expected_incident_id": "NS-HIST-0005",
+      "why": "Access lost by some members but not others, following a role migration."
+    },
+    {
+      "id": "RQ06",
+      "query_text": "Something is wrong with the connector today. Not sure what exactly, it just feels off.",
+      "services": ["svc-connector"],
+      "error_identifiers": [],
+      "expected_incident_id": null,
+      "why": "Deliberately empty of evidence. Whatever ranks first here is a guess, and the scores should show that."
+    }
+  ]
+}
