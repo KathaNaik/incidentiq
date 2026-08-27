@@ -21,7 +21,8 @@ class MetricSummary(EvalModel):
     accuracy: float
     # Predictions that declined to commit (ambiguous or unknown). Counted separately
     # because abstaining is a designed outcome, not the same failure as being wrong.
-    abstained: int
+    # Not every metric has a notion of abstaining; those report zero.
+    abstained: int = 0
     # What a trivial always-predict-the-most-common-label system would score. Without
     # it an accuracy figure means very little.
     majority_baseline: float | None = None

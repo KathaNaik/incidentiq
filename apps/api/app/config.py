@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # Committed evaluation artifacts produced by the offline harness. The API reads
     # them; it never runs an evaluation itself.
     evals_dir: Path = REPO_ROOT / "data" / "evals" / "triage"
+    correlation_evals_dir: Path = REPO_ROOT / "data" / "evals" / "correlation"
 
 
 @lru_cache

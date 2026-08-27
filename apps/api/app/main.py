@@ -7,7 +7,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
-from app.routers import dataset, evals, health, incidents, services, tickets, triage
+from app.routers import (
+    correlation,
+    dataset,
+    evals,
+    health,
+    incidents,
+    services,
+    tickets,
+    triage,
+)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -35,6 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tickets.router)
     app.include_router(incidents.router)
     app.include_router(triage.router)
+    app.include_router(correlation.router)
     app.include_router(evals.router)
     return app
 

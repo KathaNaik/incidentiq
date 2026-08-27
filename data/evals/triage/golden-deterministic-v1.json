@@ -1,7 +1,7 @@
 {
   "suite": "golden",
   "version": "deterministic-v1",
-  "generated_at": "2026-08-26T10:40:28.408976Z",
+  "generated_at": "2026-08-26T11:21:32.820498Z",
   "case_count": 25,
   "metrics": [
     {

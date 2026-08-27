@@ -18,6 +18,7 @@ from app.schemas import EvalReportResponse
 router = APIRouter(tags=["evals"])
 
 GOLDEN_REPORT_FILE = "golden-deterministic-v1.json"
+CORRELATION_REPORT_FILE = "golden-deterministic-correlation-v1.json"
 
 
 @router.get("/evals/triage", response_model=EvalReportResponse)
@@ -25,14 +26,24 @@ def get_triage_evaluation(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> EvalReportResponse:
     """The most recent committed triage evaluation."""
-    path = settings.evals_dir / GOLDEN_REPORT_FILE
+    return _read(settings.evals_dir / GOLDEN_REPORT_FILE, "triage")
 
+
+@router.get("/evals/correlation", response_model=EvalReportResponse)
+def get_correlation_evaluation(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EvalReportResponse:
+    """The most recent committed correlation evaluation."""
+    return _read(settings.correlation_evals_dir / CORRELATION_REPORT_FILE, "correlation")
+
+
+def _read(path, suite: str) -> EvalReportResponse:
     if not path.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                "No triage evaluation artifact found. Generate one with "
-                "`uv run python scripts/evaluate_triage.py --suite golden`."
+                f"No {suite} evaluation artifact found. Generate one with "
+                f"`uv run python scripts/evaluate_{suite}.py --suite golden`."
             ),
         )
 

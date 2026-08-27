@@ -1,0 +1,112 @@
+{
+  "suite": "golden",
+  "version": "deterministic-correlation-v1",
+  "generated_at": "2026-08-26T11:21:32.929920Z",
+  "case_count": 26,
+  "metrics": [
+    {
+      "name": "pairwise_precision",
+      "correct": 7,
+      "total": 7,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "pairwise_recall",
+      "correct": 7,
+      "total": 24,
+      "accuracy": 0.2917,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "pairwise_f1",
+      "correct": 7,
+      "total": 31,
+      "accuracy": 0.4516,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "false_merge_rate",
+      "correct": 0,
+      "total": 5,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "singleton_accuracy",
+      "correct": 11,
+      "total": 11,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "event_recovery_rate",
+      "correct": 3,
+      "total": 4,
+      "accuracy": 0.75,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [
+    {
+      "case_id": "CG01+CG02",
+      "metric": "missed_correlation",
+      "expected": "EV-ANALYTICS-OUTAGE",
+      "predicted": null,
+      "status": "standalone",
+      "explanation": "scored 0.5543 (content 0.4, time 0.8409, 5 min apart)",
+      "signals": [
+        "time +0.8409: reported 5 minutes apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0: no shared terms",
+        "entity +0: no shared identifiers or symptoms"
+      ],
+      "text": "A: Dashboards stopped loading — Every dashboard shows a spinner and never renders. It started a few minutes ago.\nB: Analytics page is blank — The analytics workspace comes up empty for the whole team."
+    },
+    {
+      "case_id": "CG10+CG11",
+      "metric": "missed_correlation",
+      "expected": "EV-ANALYTICS-OUTAGE-PM",
+      "predicted": null,
+      "status": "standalone",
+      "explanation": "scored 0.5847 (content 0.4771, time 0.7846, 7 min apart)",
+      "signals": [
+        "time +0.7846: reported 7 minutes apart",
+        "service +1: same service: svc-analytics",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.3082: 2 shared terms, weighted overlap 0.31",
+        "entity +0: no shared identifiers or symptoms"
+      ],
+      "text": "A: Dashboards blank again — Same as this morning. Nothing renders in any dashboard.\nB: Analytics not loading — All dashboards are empty for the team again."
+    },
+    {
+      "case_id": "CG19+CG21",
+      "metric": "missed_correlation",
+      "expected": "EV-AUTH-SSO",
+      "predicted": null,
+      "status": "standalone",
+      "explanation": "scored 0.6331 (content 0.4887, time 0.9013, 3 min apart)",
+      "signals": [
+        "time +0.9013: reported 3 minutes apart",
+        "service +1: same service: svc-auth",
+        "issue_type +0: issue type unknown for at least one ticket",
+        "lexical +0.3547: 4 shared terms, weighted overlap 0.35",
+        "entity +0: no shared identifiers or symptoms"
+      ],
+      "text": "A: Cannot sign in to the console — SSO returns an invalid assertion for the whole team since about 14:00.\nB: SSO login fails with invalid assertion — Every attempt to log in through single sign on comes back with invalid assertion."
+    }
+  ],
+  "notes": [
+    "Authored for IncidentIQ; not derived from any external dataset.",
+    "Development set: correlation weights and thresholds are tuned here.",
+    "Precision is preferred over recall — a false merge is the costlier error."
+  ]
+}

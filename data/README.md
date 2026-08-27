@@ -6,7 +6,8 @@ Three kinds of data live here, and they never mix.
 |---|---|---|
 | `demo/northstar_cloud/` | Northstar Cloud fixtures — original synthetic data we authored, served by the API | Yes |
 | `evals/golden/` | Authored triage golden set — cases and expected labels, in separate files | Yes |
-| `evals/triage/` | Evaluation artifacts for the golden suite, served by `GET /evals/triage` | Yes |
+| `evals/triage/` | Triage evaluation artifacts, served by `GET /evals/triage` | Yes |
+| `evals/correlation/` | Authored correlation golden set (cases and labels in separate files) plus its evaluation artifact | Yes |
 | `raw/itsm/`, `raw/polaris/` | Datasets downloaded from Hugging Face | **No — gitignored** |
 | `processed/itsm/`, `processed/polaris/` | Normalized JSONL derived from `raw/` | **No — gitignored** |
 

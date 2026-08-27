@@ -1,0 +1,196 @@
+{
+  "dataset": "incidentiq-correlation-golden",
+  "synthetic": true,
+  "note": "Original tickets authored for IncidentIQ correlation development. Not derived from any external dataset. Ground truth lives in correlation_labels.json.",
+  "records": [
+    {
+      "id": "CG01",
+      "created_at": "2026-08-24T09:02:00Z",
+      "title": "Dashboards stopped loading",
+      "description": "Every dashboard shows a spinner and never renders. It started a few minutes ago.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG02",
+      "created_at": "2026-08-24T09:07:00Z",
+      "title": "Analytics page is blank",
+      "description": "The analytics workspace comes up empty for the whole team.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG03",
+      "created_at": "2026-08-24T09:11:00Z",
+      "title": "Reports are not showing any metrics",
+      "description": "Saved reports open but every tile is empty. Nothing renders.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG04",
+      "created_at": "2026-08-24T09:18:00Z",
+      "title": "Cannot load the executive dashboard",
+      "description": "It just spins and never loads. Nobody I have asked can see it either.",
+      "reported_by": "field-engineering"
+    },
+    {
+      "id": "CG05",
+      "created_at": "2026-08-24T09:26:00Z",
+      "title": "Dashboard tiles empty since about 09:00",
+      "description": "All widgets are blank across the workspace and the analytics view will not load.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG06",
+      "created_at": "2026-08-24T09:33:00Z",
+      "title": "Analytics is down",
+      "description": "Nothing loads in analytics at all. Dashboards stopped working for everyone.",
+      "reported_by": "synthetic-monitor"
+    },
+
+    {
+      "id": "CG26",
+      "created_at": "2026-08-24T10:15:00Z",
+      "title": "Warehouse connector slow this morning",
+      "description": "The connector sync is taking noticeably longer than usual but it does finish.",
+      "reported_by": "customer-success"
+    },
+
+    {
+      "id": "CG07",
+      "created_at": "2026-08-24T11:05:00Z",
+      "title": "Dashboard sharing permissions are not working",
+      "description": "I granted a colleague view access to a dashboard and they still get a 403 when opening it.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG08",
+      "created_at": "2026-08-24T11:12:00Z",
+      "title": "Dashboard is slow to render",
+      "description": "The dashboard eventually appears but takes about thirty seconds. It is sluggish rather than broken.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG09",
+      "created_at": "2026-08-24T11:20:00Z",
+      "title": "Dashboard export produced duplicate rows",
+      "description": "The exported file from the dashboard lists every account twice, so the totals are double counted.",
+      "reported_by": "field-engineering"
+    },
+
+    {
+      "id": "CG13",
+      "created_at": "2026-08-24T12:02:00Z",
+      "title": "Connector sync failing with ERR_SYNC_412",
+      "description": "Our warehouse sync aborts with ERR_SYNC_412 on every run since this morning.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG14",
+      "created_at": "2026-08-24T12:09:00Z",
+      "title": "ERR_SYNC_412 on manual resync",
+      "description": "Triggering a manual resync returns ERR_SYNC_412 immediately.",
+      "reported_by": "field-engineering"
+    },
+    {
+      "id": "CG16",
+      "created_at": "2026-08-24T12:15:00Z",
+      "title": "Connector service account lacks write permission",
+      "description": "Permission denied writing to the analytics schema. Access looks like it was revoked by mistake.",
+      "reported_by": "field-engineering"
+    },
+    {
+      "id": "CG15",
+      "created_at": "2026-08-24T12:21:00Z",
+      "title": "Sync error ERR_SYNC_412",
+      "description": "Still getting ERR_SYNC_412 from the connector on every attempt.",
+      "reported_by": "tier1-support"
+    },
+
+    {
+      "id": "CG17",
+      "created_at": "2026-08-24T13:10:00Z",
+      "title": "Something is off with the connector",
+      "description": "Not sure what exactly. It feels wrong today.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG18",
+      "created_at": "2026-08-24T13:28:00Z",
+      "title": "Connector issue",
+      "description": "We are having trouble with our connector.",
+      "reported_by": "tier1-support"
+    },
+
+    {
+      "id": "CG19",
+      "created_at": "2026-08-24T14:02:00Z",
+      "title": "Cannot sign in to the console",
+      "description": "SSO returns an invalid assertion for the whole team since about 14:00.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG21",
+      "created_at": "2026-08-24T14:05:00Z",
+      "title": "SSO login fails with invalid assertion",
+      "description": "Every attempt to log in through single sign on comes back with invalid assertion.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG20",
+      "created_at": "2026-08-24T14:06:00Z",
+      "title": "Dashboard will not load",
+      "description": "The analytics dashboard does not load for me this afternoon.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG22",
+      "created_at": "2026-08-24T14:12:00Z",
+      "title": "Nobody can log in through Okta",
+      "description": "All users are bounced back to the sign in page with an invalid assertion error.",
+      "reported_by": "synthetic-monitor"
+    },
+
+    {
+      "id": "CG10",
+      "created_at": "2026-08-24T15:40:00Z",
+      "title": "Dashboards blank again",
+      "description": "Same as this morning. Nothing renders in any dashboard.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG11",
+      "created_at": "2026-08-24T15:47:00Z",
+      "title": "Analytics not loading",
+      "description": "All dashboards are empty for the team again.",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG12",
+      "created_at": "2026-08-24T15:55:00Z",
+      "title": "No data in any report",
+      "description": "Every saved report is empty and the analytics view will not load.",
+      "reported_by": "field-engineering"
+    },
+
+    {
+      "id": "CG23",
+      "created_at": "2026-08-24T16:20:00Z",
+      "title": "How do I schedule a report?",
+      "description": "We would like the weekly report emailed every Monday. Where is that configured?",
+      "reported_by": "customer-success"
+    },
+    {
+      "id": "CG24",
+      "created_at": "2026-08-24T16:45:00Z",
+      "title": "Password reset email delayed",
+      "description": "One user waited about forty minutes for the reset message to arrive.",
+      "reported_by": "tier1-support"
+    },
+    {
+      "id": "CG25",
+      "created_at": "2026-08-24T17:02:00Z",
+      "title": "Feature request: dark mode for dashboards",
+      "description": "It would be nice to have a dark theme for the analytics views.",
+      "reported_by": "customer-success"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
-import { load, fetchIncidents, fetchServices } from "@/lib/api";
+import { CandidateCard } from "@/components/candidate-card";
+import { load, fetchCandidates, fetchIncidents, fetchServices } from "@/lib/api";
 import {
   formatTimestamp,
   incidentSeverityLabel,
@@ -13,11 +14,12 @@ export const dynamic = "force-dynamic";
 
 export default async function IncidentsPage() {
   const result = await load(async () => {
-    const [incidents, services] = await Promise.all([
+    const [incidents, services, correlation] = await Promise.all([
       fetchIncidents(),
       fetchServices(),
+      fetchCandidates(),
     ]);
-    return { incidents, services };
+    return { incidents, services, correlation };
   });
 
   if (!result.ok) {
@@ -29,13 +31,55 @@ export default async function IncidentsPage() {
     );
   }
 
-  const { incidents, services } = result.data;
+  const { incidents, services, correlation } = result.data;
   const names = serviceNames(services);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Header />
-      <ul className="space-y-3">
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
+            Potential incidents — deterministic correlation baseline
+          </h2>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            Groupings the baseline proposes from the ticket stream using time, service,
+            issue type, weighted word overlap and shared identifiers. Rules only, no
+            model. Nothing here is an incident until a person says so.{" "}
+            <span className="text-neutral-500">
+              {correlation.candidates.length} candidates from {correlation.ticket_count}{" "}
+              tickets · {correlation.version}
+            </span>
+          </p>
+        </div>
+        {correlation.candidates.length === 0 ? (
+          <p className="rounded border border-dashed border-neutral-300 p-4 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-400">
+            No candidates. The baseline found no group of tickets with enough shared
+            evidence — leaving them separate is the intended answer, not a failure.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {correlation.candidates.map((candidate) => (
+              <CandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                serviceNames={names}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
+          Declared incidents
+        </h2>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Hand-declared in the fixture data. Correlation does not read these, so the
+          candidates above are what the baseline found on its own.
+        </p>
+        <ul className="space-y-3">
         {incidents.map((incident) => (
           <li
             key={incident.id}
@@ -61,7 +105,8 @@ export default async function IncidentsPage() {
             </div>
           </li>
         ))}
-      </ul>
+        </ul>
+      </section>
     </div>
   );
 }
@@ -71,8 +116,8 @@ function Header() {
     <header className="space-y-1">
       <h1 className="text-xl font-semibold">Incidents</h1>
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Most recently detected first. Ticket links are declared in the fixture data —
-        correlation is not implemented yet.
+        Candidate groupings proposed by the correlation baseline, and the incidents
+        already declared in the fixture data.
       </p>
     </header>
   );

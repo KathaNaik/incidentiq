@@ -15,19 +15,30 @@ Evaluation is part of the product. A capability without a metric is not done.
 | Recommendation grounding | unsupported recommendation rate |
 | Abstention | abstention behavior on insufficient-evidence cases |
 
-## Current baseline
+## Current baselines
 
-`deterministic-v1` (phrase rules, no model) — see `apps/api/evaluation/`, run with
-`uv run python scripts/evaluate_triage.py`.
+Both rule-driven, no model. See `apps/api/evaluation/`.
+
+**`deterministic-v1`** — triage:
 
 | Suite | Metric | Result |
 |---|---|---|
 | Authored golden (25 cases, dev set) | service / issue type / priority | 92% / 80% / 88% |
 | Polaris (23,994 cases, held out) | priority | 43.1%, against a 58.8% majority-class baseline |
 
-The external number is below the majority class. That is the honest state of the
-baseline and the concrete opening for LLM-assisted triage — not something to close by
-retuning rules against the benchmark.
+**`deterministic-correlation-v1`** — correlation:
+
+| Suite | Metric | Result |
+|---|---|---|
+| Authored golden (26 tickets, dev set) | precision / recall / false-merge | 100% / 29% / 0% |
+| Polaris outages (held out) | precision / recall / false-merge | 79% / 0.2% / 31% |
+
+Both external numbers are poor, in different ways, and both are the honest state of the
+baselines rather than something to close by retuning against the benchmark. Polaris
+recall is also structurally limited: its outage events carry 200–500 tickets over 3–4
+days, so all-pairs recall punishes a burst detector by construction. Polaris additionally
+labels multi-month product *launch* cohorts as events; those are topical, not incidents,
+and grouping them would be a false positive.
 
 ## Harness expectations
 

@@ -1,0 +1,84 @@
+{
+  "dataset": "incidentiq-correlation-golden",
+  "synthetic": true,
+  "note": "Ground truth for the correlation golden set, kept in a separate file from the ticket text so correlation can never be handed the answer. expected_event_id null means the ticket belongs to no incident and should be left standalone.",
+  "scenarios": {
+    "A": "EV-ANALYTICS-OUTAGE — one outage, six reports in varied language",
+    "B": "CG07/CG08/CG09 — the word 'dashboard' in common, three unrelated causes",
+    "C": "EV-ANALYTICS-OUTAGE-PM — same service as A, hours later, a separate incident",
+    "D": "EV-CONNECTOR-ERR412 — the same error code quoted by three reporters",
+    "E": "CG16 — a permissions problem sitting inside the connector incident's window",
+    "F": "CG17/CG18 — two vague tickets with nothing specific in common",
+    "G": "CG20 — a dashboard failure during the SSO incident, on a different service"
+  },
+  "records": [
+    { "case_id": "CG01", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
+    { "case_id": "CG02", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
+    { "case_id": "CG03", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
+    { "case_id": "CG04", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
+    { "case_id": "CG05", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
+    { "case_id": "CG06", "expected_event_id": "EV-ANALYTICS-OUTAGE", "scenario": "A" },
+
+    {
+      "case_id": "CG07",
+      "expected_event_id": null,
+      "scenario": "B",
+      "note": "A sharing-permission defect, not the outage."
+    },
+    {
+      "case_id": "CG08",
+      "expected_event_id": null,
+      "scenario": "B",
+      "note": "Slow but working — a different problem from either."
+    },
+    {
+      "case_id": "CG09",
+      "expected_event_id": null,
+      "scenario": "B",
+      "note": "Duplicate rows in an export; shares only the word dashboard."
+    },
+
+    { "case_id": "CG10", "expected_event_id": "EV-ANALYTICS-OUTAGE-PM", "scenario": "C" },
+    { "case_id": "CG11", "expected_event_id": "EV-ANALYTICS-OUTAGE-PM", "scenario": "C" },
+    { "case_id": "CG12", "expected_event_id": "EV-ANALYTICS-OUTAGE-PM", "scenario": "C" },
+
+    { "case_id": "CG13", "expected_event_id": "EV-CONNECTOR-ERR412", "scenario": "D" },
+    { "case_id": "CG14", "expected_event_id": "EV-CONNECTOR-ERR412", "scenario": "D" },
+    { "case_id": "CG15", "expected_event_id": "EV-CONNECTOR-ERR412", "scenario": "D" },
+
+    {
+      "case_id": "CG16",
+      "expected_event_id": null,
+      "scenario": "E",
+      "note": "Same service and inside the incident window, but a revoked grant is not the sync failure."
+    },
+
+    {
+      "case_id": "CG17",
+      "expected_event_id": null,
+      "scenario": "F",
+      "note": "Too vague to correlate with anything. Leaving it alone is the right answer."
+    },
+    {
+      "case_id": "CG18",
+      "expected_event_id": null,
+      "scenario": "F",
+      "note": "As above. Two tickets saying nothing specific are not evidence of an incident."
+    },
+
+    { "case_id": "CG19", "expected_event_id": "EV-AUTH-SSO", "scenario": "G" },
+    { "case_id": "CG21", "expected_event_id": "EV-AUTH-SSO", "scenario": "G" },
+    { "case_id": "CG22", "expected_event_id": "EV-AUTH-SSO", "scenario": "G" },
+    {
+      "case_id": "CG20",
+      "expected_event_id": null,
+      "scenario": "G",
+      "note": "Arrives mid-SSO-incident but names a different service."
+    },
+
+    { "case_id": "CG23", "expected_event_id": null, "scenario": "singleton" },
+    { "case_id": "CG24", "expected_event_id": null, "scenario": "singleton" },
+    { "case_id": "CG25", "expected_event_id": null, "scenario": "singleton" },
+    { "case_id": "CG26", "expected_event_id": null, "scenario": "singleton" }
+  ]
+}

@@ -89,6 +89,49 @@ export type TriageResult = {
   signals: TriageSignal[];
 };
 
+export type CorrelationSignal = {
+  component: "time" | "service" | "issue_type" | "lexical" | "entity";
+  direction: "supporting" | "conflicting" | "neutral";
+  score: number;
+  weight: number;
+  detail: string;
+  values: string[];
+};
+
+export type PairwiseScore = {
+  ticket_a: string;
+  ticket_b: string;
+  score: number;
+  content_score: number;
+  time_score: number;
+  minutes_apart: number;
+  signals: CorrelationSignal[];
+};
+
+export type CandidateIncident = {
+  id: string;
+  ticket_ids: string[];
+  score: number;
+  confidence: "high" | "medium" | "low";
+  first_seen: string;
+  last_seen: string;
+  service_id: string | null;
+  issue_type: string | null;
+  ticket_count: number;
+  /** Distinct reporters actually named on the tickets — null when none are. */
+  distinct_reporters: number | null;
+  supporting_signals: CorrelationSignal[];
+  conflicting_signals: CorrelationSignal[];
+  member_pairs: PairwiseScore[];
+};
+
+export type CorrelationResult = {
+  version: string;
+  ticket_count: number;
+  candidates: CandidateIncident[];
+  standalone_ticket_ids: string[];
+};
+
 export type EvalMetric = {
   name: string;
   correct: number;
@@ -179,6 +222,14 @@ export async function fetchTicketTriage(ticketId: string): Promise<TriageResult>
 
 export async function fetchTriageEvaluation(): Promise<EvalReport> {
   return getJson<EvalReport>("/evals/triage");
+}
+
+export async function fetchCorrelationEvaluation(): Promise<EvalReport> {
+  return getJson<EvalReport>("/evals/correlation");
+}
+
+export async function fetchCandidates(): Promise<CorrelationResult> {
+  return getJson<CorrelationResult>("/correlation/candidates");
 }
 
 /** Runs a loader, turning an unreachable API into a value the page can render. */
