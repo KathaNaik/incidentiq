@@ -176,6 +176,10 @@ uv run --group semantic python scripts/evaluate_correlation.py --suite golden --
 uv run --group semantic python scripts/evaluate_retrieval.py
 uv run --group semantic python scripts/evaluate_investigation.py --baseline   # no key needed
 uv run --group semantic python scripts/evaluate_investigation.py --model      # needs OPENAI_API_KEY
+
+# Investigator v2, and the development set used to build it without touching the held-out cases:
+uv run --group semantic python scripts/evaluate_investigation.py --model --prompt investigation-v2
+uv run --group semantic python scripts/evaluate_investigation.py --model --prompt investigation-v2 --dev
 ```
 
 Historical retrieval needs the ITSM corpus (`scripts/download_itsm.py` and
@@ -206,6 +210,38 @@ Measured once on the 16 authored held-out cases (`gpt-5.6-terra`, 2026-08-27): 1
 leading-hypothesis accuracy, 75% abstention accuracy, 0% unsupported citations, 0%
 unsupported remediation, against a retrieval-only baseline of 83.3% / 37.5%. The abstain
 decision varies between runs — see the evaluation reference for the caveat.
+
+#### The v1 → v2 remediation experiment
+
+`investigation-v1` scored 0% unsupported remediation because it recommended remediation
+on **zero** of the six cases where an action was justified. That is not caution, it is
+the workflow not working: the approval and execution machinery had nothing to receive.
+
+v1 never told the model what happens to a recommendation, and the model appeared to treat
+"recommend a rollback" as "authorize a rollback". `investigation-v2` (`prompt_v2.py`)
+changes exactly that: it states that a recommendation is a proposal screened by
+deterministic policy and approved by a human, and it separates "is there a diagnosis?"
+from "is there a supported action?". Every v1 safety clause is carried over verbatim and
+no application-side validation changed. v1 is frozen and hash-pinned by a test.
+
+Both prompts, run once each on the same held-out cases:
+
+| | v1 | v2 |
+|---|---|---|
+| Remediation recall | 0% (0/6) | **100% (6/6)** |
+| Policy-eligible remediation recall | 0% | **100%** |
+| Remediation precision | undefined | 66.7% (6/9) |
+| Unsupported remediation rate | 0% | **18.8% (3/16)** |
+| Leading-hypothesis accuracy | 100% | 100% |
+| Abstention accuracy | 75% / 68.8% (two runs) | 68.8% |
+| Unsupported citation rate | 0% | 0% |
+
+**The cost is real and the control plane does not absorb it.** v2's three unsupported
+recommendations are all `restart_service` on services that genuinely read as degraded with
+a matching error signature — which is exactly the two-independent-kinds bar that policy
+enforces, so policy marks them eligible for approval. Human review is currently the only
+thing standing between those and an operator. This is recorded as a finding rather than
+patched by raising the threshold; see [the evaluation notes](#baselines-and-evaluation).
 
 What the model is and is not trusted with:
 

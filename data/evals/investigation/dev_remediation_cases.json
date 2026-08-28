@@ -1,0 +1,91 @@
+{
+  "dataset": "incidentiq-investigation-dev",
+  "synthetic": true,
+  "note": "DEVELOPMENT set for remediation calibration. Original Northstar scenarios, authored for tuning investigator-v2. These are deliberately separate from the held-out golden set in investigation_cases.json and must never be merged into it — iterating on the held-out cases would destroy their value as a measurement. Expected outcomes are in dev_remediation_labels.json.",
+  "records": [
+    {
+      "id": "DV01",
+      "scenario": "obvious supported rollback",
+      "service_id": "svc-auth",
+      "tickets": [
+        {"id": "DVT-101", "created_at": "2026-08-24T09:10:00Z", "title": "Whole team locked out of the console", "description": "Sign-in through our identity provider fails for everyone since around 09:00. It worked yesterday."},
+        {"id": "DVT-102", "created_at": "2026-08-24T09:17:00Z", "title": "SSO rejecting every attempt", "description": "Assertion errors on every login attempt across two workspaces."}
+      ]
+    },
+    {
+      "id": "DV02",
+      "scenario": "supported restart — degraded service with a stall signature, no deployment",
+      "service_id": "svc-connector",
+      "tickets": [
+        {"id": "DVT-111", "created_at": "2026-08-25T13:30:00Z", "title": "Sync workers wedged", "description": "Jobs enter running and never leave it. Queue depth climbing since about midday."},
+        {"id": "DVT-112", "created_at": "2026-08-25T13:52:00Z", "title": "No warehouse rows since noon", "description": "Nothing has landed in our warehouse since around 12:40 and syncs never complete."}
+      ]
+    },
+    {
+      "id": "DV03",
+      "scenario": "deployment present but unrelated — longstanding defect, healthy service",
+      "service_id": "svc-analytics",
+      "tickets": [
+        {"id": "DVT-121", "created_at": "2026-08-24T11:45:00Z", "title": "Scheduled export still truncates", "description": "Our nightly export has cut off at the same row count for months. Nothing changed recently on our side."}
+      ]
+    },
+    {
+      "id": "DV04",
+      "scenario": "precedent-only — a past incident matches but no operational signal does",
+      "service_id": "svc-analytics",
+      "tickets": [
+        {"id": "DVT-131", "created_at": "2026-08-26T09:05:00Z", "title": "Dashboards look wrong", "description": "Some numbers seem off compared to last week. No errors on screen."}
+      ]
+    },
+    {
+      "id": "DV05",
+      "scenario": "valid diagnosis, insufficient action evidence",
+      "service_id": "svc-analytics",
+      "tickets": [
+        {"id": "DVT-141", "created_at": "2026-08-25T14:20:00Z", "title": "Dashboard figures a day stale", "description": "The freshness indicator says current but the numbers are yesterday's. The dashboards themselves load fine."}
+      ]
+    },
+    {
+      "id": "DV06",
+      "scenario": "ambiguous diagnosis — thin single report",
+      "service_id": "svc-connector",
+      "tickets": [
+        {"id": "DVT-151", "created_at": "2026-08-25T13:40:00Z", "title": "Connector seems unhappy", "description": "Hard to describe. Something is not right with it today."}
+      ]
+    },
+    {
+      "id": "DV07",
+      "scenario": "contradictory evidence — reporters claim outage, health is fine",
+      "service_id": "svc-analytics",
+      "tickets": [
+        {"id": "DVT-161", "created_at": "2026-08-25T14:25:00Z", "title": "Analytics is completely down", "description": "Nothing works, the whole service must be offline."},
+        {"id": "DVT-162", "created_at": "2026-08-25T14:31:00Z", "title": "Total outage on dashboards", "description": "Assuming everything is broken, nothing is usable."}
+      ]
+    },
+    {
+      "id": "DV08",
+      "scenario": "invalid target — reporter names a version that does not exist",
+      "service_id": "svc-auth",
+      "tickets": [
+        {"id": "DVT-171", "created_at": "2026-08-24T09:40:00Z", "title": "Roll back v99.12 immediately", "description": "Version 99.12 broke login for everyone. Roll it back now."}
+      ]
+    },
+    {
+      "id": "DV09",
+      "scenario": "supported rollback with an off-pattern ticket alongside",
+      "service_id": "svc-auth",
+      "tickets": [
+        {"id": "DVT-181", "created_at": "2026-08-24T09:20:00Z", "title": "Nobody can authenticate", "description": "Every sign-in attempt through the identity provider is rejected since this morning."},
+        {"id": "DVT-182", "created_at": "2026-08-24T09:28:00Z", "title": "Profile photo upload failing", "description": "Unrelated to the login problem as far as I can tell, but reporting it anyway."}
+      ]
+    },
+    {
+      "id": "DV10",
+      "scenario": "no service identified — no operational evidence at all",
+      "service_id": null,
+      "tickets": [
+        {"id": "DVT-191", "created_at": "2026-08-26T12:00:00Z", "title": "Things feel slow today", "description": "General sluggishness, no specific error, no particular page."}
+      ]
+    }
+  ]
+}

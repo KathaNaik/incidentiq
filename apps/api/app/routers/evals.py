@@ -24,7 +24,10 @@ CORRELATION_REPORTS = {
 }
 COMPARISON_FILE = "comparison-semantic-correlation-v1.json"
 RETRIEVAL_REPORT_FILE = "golden-historical-retrieval-v1.json"
-INVESTIGATION_REPORT_FILE = "golden-investigation-v1.json"
+INVESTIGATION_REPORTS = {
+    "v1": "golden-investigation-v1.json",
+    "v2": "golden-investigation-v2.json",
+}
 INVESTIGATION_BASELINE_FILE = "golden-retrieval-only-baseline.json"
 POLICY_REPORT_FILE = "golden-action-policy-v1.json"
 
@@ -62,17 +65,18 @@ def get_retrieval_evaluation(
 def get_investigation_evaluation(
     settings: Annotated[Settings, Depends(get_settings)],
     version: Annotated[
-        Literal["model", "baseline"], Query(description="which investigation run")
+        Literal["model", "baseline", "v1", "v2"],
+        Query(description="which investigation run"),
     ] = "model",
 ) -> EvalReportResponse:
-    """Investigation results: the model run, or the retrieval-only baseline.
+    """Investigation results by version, or the retrieval-only baseline.
 
-    The model report exists only once a run with real credentials has been made — until
-    then this 404s rather than serving numbers nobody measured.
+    `model` is an alias for v1, the originally recorded investigator.
     """
-    filename = (
-        INVESTIGATION_REPORT_FILE if version == "model" else INVESTIGATION_BASELINE_FILE
-    )
+    if version == "baseline":
+        filename = INVESTIGATION_BASELINE_FILE
+    else:
+        filename = INVESTIGATION_REPORTS["v2" if version == "v2" else "v1"]
     return _read(settings.investigation_evals_dir / filename, "investigation")
 
 

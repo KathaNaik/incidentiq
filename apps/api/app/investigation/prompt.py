@@ -97,3 +97,22 @@ def build_user_message(
         ]
     )
     return "\n".join(lines)
+
+
+def select_prompt(version: str) -> tuple[str, str]:
+    """Returns (system_prompt, version) for a prompt version.
+
+    v1 is frozen: it is the prompt the recorded M8 results were produced with, and
+    changing it would make those numbers describe something that no longer exists.
+    """
+    from app.investigation.prompt_v2 import PROMPT_VERSION_V2, SYSTEM_PROMPT_V2
+
+    prompts = {
+        PROMPT_VERSION: (SYSTEM_PROMPT, PROMPT_VERSION),
+        PROMPT_VERSION_V2: (SYSTEM_PROMPT_V2, PROMPT_VERSION_V2),
+    }
+    if version not in prompts:
+        raise ValueError(
+            f"unknown prompt version {version!r}; known: {', '.join(sorted(prompts))}"
+        )
+    return prompts[version]

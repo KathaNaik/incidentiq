@@ -20,7 +20,12 @@ from app.investigation.models import (
     InvestigationResult,
     InvestigationRun,
 )
-from app.investigation.prompt import PROMPT_VERSION, SYSTEM_PROMPT, build_user_message
+from app.investigation.prompt import (
+    PROMPT_VERSION,
+    SYSTEM_PROMPT,
+    build_user_message,
+    select_prompt,
+)
 from app.investigation.provider import InvestigationModel
 from app.investigation.rules import INVESTIGATION_VERSION
 from app.investigation.tools import (
@@ -70,8 +75,14 @@ def investigate(
     candidate: CandidateIncident,
     registry: EvidenceRegistry,
     model: InvestigationModel,
+    prompt_version: str = PROMPT_VERSION,
 ) -> InvestigationResult:
-    """One model call over fixed evidence, then validation."""
+    """One model call over fixed evidence, then validation.
+
+    `prompt_version` selects which investigator is being run. It defaults to v1 so that
+    re-running anything historical reproduces the historical configuration.
+    """
+    system_prompt, prompt_version = select_prompt(prompt_version)
     summary = (
         f"{candidate.ticket_count} correlated tickets on "
         f"{candidate.service_id or 'an unidentified service'}, first seen "
@@ -81,7 +92,7 @@ def investigate(
     user_message = build_user_message(incident_summary=summary, registry=registry)
 
     started_at = datetime.now(UTC)
-    response = model.investigate(SYSTEM_PROMPT, user_message)
+    response = model.investigate(system_prompt, user_message)
     output = validate_output(response.output, registry)
 
     # Enough to debug a bad investigation: what model, what prompt, what evidence, how
@@ -91,7 +102,7 @@ def investigate(
         extra={
             "incident_id": candidate.id,
             "model": response.model,
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": prompt_version,
             "evidence_count": len(registry),
             "latency_ms": response.latency_ms,
             "input_tokens": response.input_tokens,
@@ -109,7 +120,7 @@ def investigate(
         evidence=registry.items,
         run=InvestigationRun(
             model=response.model,
-            prompt_version=PROMPT_VERSION,
+            prompt_version=prompt_version,
             evidence_ids=registry.ids,
             latency_ms=response.latency_ms,
             input_tokens=response.input_tokens,

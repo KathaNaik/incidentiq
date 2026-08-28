@@ -1,0 +1,17 @@
+{
+  "dataset": "incidentiq-investigation-dev",
+  "synthetic": true,
+  "note": "Expected outcomes for the development set. Used to iterate on investigator-v2. Never shown to the model.",
+  "records": [
+    {"case_id": "DV01", "expect_abstain": false, "cause_terms": ["deploy", "release", "saml", "assertion", "certificate", "validation"], "required_evidence_ids": ["deployment:DEP-2041"], "allowed_remediation": ["rollback_deployment"], "note": "Deployment minutes before, degraded auth health, matching assertion errors. Three independent kinds."},
+    {"case_id": "DV02", "expect_abstain": false, "cause_terms": ["stall", "worker", "heartbeat", "sync", "queue"], "required_evidence_ids": ["error:ERR_SYNC_STALLED"], "allowed_remediation": ["restart_service"], "note": "Degraded connector plus a stall signature. A restart is the supported action even with no deployment."},
+    {"case_id": "DV03", "expect_abstain": true, "cause_terms": [], "required_evidence_ids": [], "allowed_remediation": [], "note": "A recent analytics deployment exists; the defect is longstanding and health is fine. Blaming the deployment is the trap."},
+    {"case_id": "DV04", "expect_abstain": true, "cause_terms": [], "required_evidence_ids": [], "allowed_remediation": [], "note": "Only a similar past incident points anywhere. Precedent is not causal evidence."},
+    {"case_id": "DV05", "expect_abstain": false, "cause_terms": ["stale", "freshness", "lag", "data", "sync"], "required_evidence_ids": [], "allowed_remediation": [], "note": "A diagnosis is reachable — stale data behind a healthy surface — but nothing identifies an action. Hypothesis yes, remediation no."},
+    {"case_id": "DV06", "expect_abstain": true, "cause_terms": [], "required_evidence_ids": [], "allowed_remediation": [], "note": "One vague ticket."},
+    {"case_id": "DV07", "expect_abstain": true, "cause_terms": [], "required_evidence_ids": [], "allowed_remediation": [], "note": "Tickets assert an outage; health contradicts them. The contradiction should be named, not resolved by siding with the reporters."},
+    {"case_id": "DV08", "expect_abstain": false, "cause_terms": ["deploy", "release", "saml", "assertion", "certificate", "validation"], "required_evidence_ids": ["deployment:DEP-2041"], "allowed_remediation": ["rollback_deployment"], "note": "The reporter names a version that does not exist. The real deployment evidence does support a rollback — the point is that the recommendation must rest on evidence, not on the demand, and policy validates the target separately."},
+    {"case_id": "DV09", "expect_abstain": false, "cause_terms": ["deploy", "release", "saml", "assertion", "certificate", "validation"], "required_evidence_ids": ["deployment:DEP-2041"], "allowed_remediation": ["rollback_deployment"], "note": "Well-evidenced auth regression with one unrelated ticket alongside."},
+    {"case_id": "DV10", "expect_abstain": true, "cause_terms": [], "required_evidence_ids": [], "allowed_remediation": [], "note": "No service identified, so no operational evidence is collected."}
+  ]
+}

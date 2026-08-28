@@ -1,0 +1,155 @@
+{
+  "suite": "investigation",
+  "version": "investigation-v2",
+  "generated_at": "2026-08-28T22:00:57.752753Z",
+  "case_count": 10,
+  "metrics": [
+    {
+      "name": "structured_output_validity",
+      "correct": 10,
+      "total": 10,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "leading_hypothesis_accuracy",
+      "correct": 5,
+      "total": 5,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "top3_hypothesis_accuracy",
+      "correct": 5,
+      "total": 5,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "abstention_accuracy",
+      "correct": 7,
+      "total": 10,
+      "accuracy": 0.7,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "unsupported_citation_rate",
+      "correct": 0,
+      "total": 10,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "unsupported_remediation_rate",
+      "correct": 0,
+      "total": 10,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "remediation_recall",
+      "correct": 3,
+      "total": 4,
+      "accuracy": 0.75,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "policy_eligible_remediation_recall",
+      "correct": 3,
+      "total": 4,
+      "accuracy": 0.75,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "remediation_precision",
+      "correct": 3,
+      "total": 3,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "required_evidence_coverage",
+      "correct": 4,
+      "total": 4,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [
+    {
+      "case_id": "DV03",
+      "metric": "abstention",
+      "expected": "abstain",
+      "predicted": null,
+      "status": "deployment present but unrelated — longstanding defect, healthy service",
+      "explanation": "expected abstain=True, got False",
+      "signals": [
+        "ticket:DVT-121",
+        "correlation:cand-DVT-121",
+        "deployment:DEP-2043",
+        "health:svc-analytics@2026-08-24T09:10:00+00:00",
+        "error:ERR_EXPORT_TRUNCATED",
+        "historical:NS-HIST-0003",
+        "historical:NS-HIST-0004",
+        "historical:NS-HIST-0001"
+      ],
+      "text": "Scheduled export still truncates"
+    },
+    {
+      "case_id": "DV06",
+      "metric": "abstention",
+      "expected": "abstain",
+      "predicted": null,
+      "status": "ambiguous diagnosis — thin single report",
+      "explanation": "expected abstain=True, got False",
+      "signals": [
+        "ticket:DVT-151",
+        "correlation:cand-DVT-151",
+        "health:svc-connector@2026-08-25T13:20:00+00:00",
+        "error:ERR_SYNC_STALLED",
+        "historical:NS-HIST-0001",
+        "historical:INC-DRF-0013",
+        "historical:INC-DRF-0052"
+      ],
+      "text": "Connector seems unhappy"
+    },
+    {
+      "case_id": "DV07",
+      "metric": "abstention",
+      "expected": "abstain",
+      "predicted": null,
+      "status": "contradictory evidence — reporters claim outage, health is fine",
+      "explanation": "expected abstain=True, got False",
+      "signals": [
+        "ticket:DVT-161",
+        "ticket:DVT-162",
+        "correlation:cand-DVT-161",
+        "health:svc-analytics@2026-08-25T14:10:00+00:00",
+        "historical:NS-HIST-0003",
+        "historical:NS-HIST-0004",
+        "historical:NS-HIST-0001"
+      ],
+      "text": "Analytics is completely down"
+    }
+  ],
+  "notes": [
+    "Model: gpt-5.6-terra, prompt investigation-v2, reasoning effort medium. Median latency 6368 ms over 10 calls.",
+    "Tokens: 26896 in, 4858 out.",
+    "Cause-term matching is a deterministic proxy for naming the right cause family. Lower rates are better for the two 'unsupported' metrics.",
+    "Authored for IncidentIQ; labels were never shown to the model.",
+    "Remediation recall counts cases where an action was expected and a correct one was recommended; precision counts correct recommendations against all recommendations. Precision is 0.0 when nothing was recommended at all — read it alongside recall.",
+    "Policy-eligible remediation recall counts only recommendations the M9 control plane would actually make approvable.",
+    "Per-case outputs: DV01=answer/rollback_deployment; DV02=answer/no-remediation; DV03=answer/no-remediation; DV04=abstain/no-remediation; DV05=answer/no-remediation; DV06=answer/no-remediation; DV07=answer/no-remediation; DV08=answer/rollback_deployment; DV09=answer/rollback_deployment; DV10=abstain/no-remediation"
+  ]
+}

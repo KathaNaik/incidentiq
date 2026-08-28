@@ -23,8 +23,10 @@ from pathlib import Path
 
 from app.correlation import CorrelationTicket, correlate
 from app.correlation.models import CandidateIncident, Confidence
+from app.actions import evaluate_action_policy
 from app.investigation import (
     INVESTIGATION_VERSION,
+    PROMPT_VERSION,
     EvidenceRegistry,
     InvestigationModel,
     InvestigationModelError,
@@ -38,17 +40,21 @@ from evaluation.models import CaseFailure, EvalReport, MetricSummary
 
 CASES_FILE = "investigation_cases.json"
 LABELS_FILE = "investigation_labels.json"
+DEV_CASES_FILE = "dev_remediation_cases.json"
+DEV_LABELS_FILE = "dev_remediation_labels.json"
 MAX_REPORTED = 12
 
 
-def load_cases(directory: Path) -> tuple[dict, ...]:
-    return tuple(_payload(directory / CASES_FILE)["records"])
+def load_cases(directory: Path, *, dev: bool = False) -> tuple[dict, ...]:
+    return tuple(_payload(directory / (DEV_CASES_FILE if dev else CASES_FILE))["records"])
 
 
-def load_labels(directory: Path) -> dict[str, dict]:
+def load_labels(directory: Path, *, dev: bool = False) -> dict[str, dict]:
     return {
         record["case_id"]: record
-        for record in _payload(directory / LABELS_FILE)["records"]
+        for record in _payload(directory / (DEV_LABELS_FILE if dev else LABELS_FILE))[
+            "records"
+        ]
     }
 
 
@@ -175,15 +181,23 @@ def run_investigation_evaluation(
     operations: OperationsFixtures,
     index: HistoricalIndex,
     model: InvestigationModel,
+    prompt_version: str = PROMPT_VERSION,
+    dev: bool = False,
 ) -> EvalReport:
-    """The full authored suite against a model."""
-    cases = load_cases(directory)
-    labels = load_labels(directory)
+    """The authored suite against a model and a prompt version.
+
+    `dev` runs the development set instead of the held-out one. Keeping both behind the
+    same function means the metric definitions cannot drift between tuning and
+    measurement.
+    """
+    cases = load_cases(directory, dev=dev)
+    labels = load_labels(directory, dev=dev)
 
     valid = 0
     remediation_expected = 0
     remediation_recommended = 0
     remediation_correct = 0
+    policy_eligible_correct = 0
     recorded: list[dict] = []
     leading_correct = 0
     top3_correct = 0
@@ -206,7 +220,12 @@ def run_investigation_evaluation(
         )
 
         try:
-            result = investigate(candidate=candidate, registry=registry, model=model)
+            result = investigate(
+                candidate=candidate,
+                registry=registry,
+                model=model,
+                prompt_version=prompt_version,
+            )
         except InvestigationValidationError as error:
             # Validation rejected the output. That is the guardrail working, and it is
             # also a failed case: the model produced something unusable.
@@ -249,6 +268,18 @@ def run_investigation_evaluation(
             remediation_recommended += 1
             if output.remediation.action_type.value in allowed_actions:
                 remediation_correct += 1
+                # A correct action is only *useful* if M9 policy would make it
+                # approvable. A recommendation the control plane blocks helps nobody,
+                # so it does not count toward policy-eligible recall.
+                decision = evaluate_action_policy(
+                    recommendation=output.remediation,
+                    investigation=output,
+                    evidence=result.evidence,
+                    operations=operations,
+                    service_id=case.get("service_id"),
+                )
+                if decision.eligible:
+                    policy_eligible_correct += 1
         latencies.append(result.run.latency_ms)
         input_tokens += result.run.input_tokens or 0
         output_tokens += result.run.output_tokens or 0
@@ -360,6 +391,14 @@ def run_investigation_evaluation(
             else 0.0,
         ),
         MetricSummary(
+            name="policy_eligible_remediation_recall",
+            correct=policy_eligible_correct,
+            total=remediation_expected,
+            accuracy=round(policy_eligible_correct / remediation_expected, 4)
+            if remediation_expected
+            else 0.0,
+        ),
+        MetricSummary(
             name="remediation_precision",
             correct=remediation_correct,
             total=remediation_recommended,
@@ -380,15 +419,15 @@ def run_investigation_evaluation(
     median_latency = sorted(latencies)[len(latencies) // 2] if latencies else 0
     return EvalReport(
         suite="investigation",
-        version=INVESTIGATION_VERSION,
+        version=prompt_version,
         generated_at=datetime.now(UTC),
         case_count=total,
         metrics=metrics,
         confusion=(),
         failures=tuple(failures[:MAX_REPORTED]),
         notes=(
-            f"Model: {model.model_id}. Median latency {median_latency} ms over "
-            f"{len(latencies)} calls.",
+            f"Model: {model.model_id}, prompt {prompt_version}, reasoning effort "
+            f"medium. Median latency {median_latency} ms over {len(latencies)} calls.",
             f"Tokens: {input_tokens} in, {output_tokens} out."
             if input_tokens or output_tokens
             else "Token usage not reported by the provider.",
@@ -399,7 +438,13 @@ def run_investigation_evaluation(
             "one was recommended; precision counts correct recommendations against all "
             "recommendations. Precision is 0.0 when nothing was recommended at all — "
             "read it alongside recall.",
-            f"Per-case outputs recorded: {len(recorded)}.",
+            "Policy-eligible remediation recall counts only recommendations the M9 "
+            "control plane would actually make approvable.",
+            "Per-case outputs: " + "; ".join(
+                f"{r['case_id']}={'abstain' if r['abstain'] else 'answer'}/"
+                f"{r['remediation'] or 'no-remediation'}"
+                for r in recorded
+            ),
         ),
     )
 

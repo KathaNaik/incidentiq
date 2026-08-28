@@ -36,6 +36,14 @@ def main() -> int:
     parser.add_argument(
         "--policy", action="store_true", help="run the deterministic action-policy suite"
     )
+    parser.add_argument(
+        "--prompt", default="investigation-v1", help="investigator prompt version"
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="run the development set instead of the held-out golden set",
+    )
     args = parser.parse_args()
     if not any((args.baseline, args.model, args.policy)):
         args.baseline = True
@@ -74,11 +82,14 @@ def main() -> int:
                 OpenAIInvestigationModel(
                     settings.investigation_model, settings.openai_api_key
                 ),
+                prompt_version=args.prompt,
+                dev=args.dev,
             )
         except InvestigationModelError as error:
             print(f"error: {error}", file=sys.stderr)
             return 1
-        reports.append((report, directory / f"golden-{report.version}.json"))
+        suffix = "dev" if args.dev else "golden"
+        reports.append((report, directory / f"{suffix}-{report.version}.json"))
 
     for report, path in reports:
         write_json(path, report)

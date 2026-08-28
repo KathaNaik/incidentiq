@@ -474,8 +474,10 @@ export async function fetchPolicyEvaluation(): Promise<EvalReport> {
   return getJson<EvalReport>("/evals/policy");
 }
 
-export async function fetchInvestigationEvaluation(): Promise<EvalReport> {
-  return getJson<EvalReport>("/evals/investigation");
+export async function fetchInvestigationEvaluation(
+  version: "v1" | "v2" | "baseline" = "v1",
+): Promise<EvalReport> {
+  return getJson<EvalReport>(`/evals/investigation?version=${version}`);
 }
 
 export async function fetchRetrievalEvaluation(): Promise<EvalReport> {
