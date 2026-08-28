@@ -181,6 +181,10 @@ def run_investigation_evaluation(
     labels = load_labels(directory)
 
     valid = 0
+    remediation_expected = 0
+    remediation_recommended = 0
+    remediation_correct = 0
+    recorded: list[dict] = []
     leading_correct = 0
     top3_correct = 0
     graded = 0
@@ -219,6 +223,32 @@ def run_investigation_evaluation(
 
         valid += 1
         output = result.output
+
+        # Recorded so remediation metrics can be recomputed later without re-running
+        # the model — the gap that made M8's numbers impossible to extend.
+        recorded.append(
+            {
+                "case_id": case["id"],
+                "abstain": output.abstain,
+                "hypotheses": [h.summary for h in output.hypotheses],
+                "remediation": (
+                    output.remediation.action_type.value if output.remediation else None
+                ),
+                "remediation_evidence": list(
+                    output.remediation.supporting_evidence_ids
+                )
+                if output.remediation
+                else [],
+            }
+        )
+
+        allowed_actions = set(label["allowed_remediation"])
+        if allowed_actions:
+            remediation_expected += 1
+        if output.remediation is not None:
+            remediation_recommended += 1
+            if output.remediation.action_type.value in allowed_actions:
+                remediation_correct += 1
         latencies.append(result.run.latency_ms)
         input_tokens += result.run.input_tokens or 0
         output_tokens += result.run.output_tokens or 0
@@ -322,6 +352,22 @@ def run_investigation_evaluation(
             accuracy=round(unsupported_remediation / total, 4) if total else 0.0,
         ),
         MetricSummary(
+            name="remediation_recall",
+            correct=remediation_correct,
+            total=remediation_expected,
+            accuracy=round(remediation_correct / remediation_expected, 4)
+            if remediation_expected
+            else 0.0,
+        ),
+        MetricSummary(
+            name="remediation_precision",
+            correct=remediation_correct,
+            total=remediation_recommended,
+            accuracy=round(remediation_correct / remediation_recommended, 4)
+            if remediation_recommended
+            else 0.0,
+        ),
+        MetricSummary(
             name="required_evidence_coverage",
             correct=evidence_covered,
             total=evidence_required,
@@ -349,6 +395,11 @@ def run_investigation_evaluation(
             "Cause-term matching is a deterministic proxy for naming the right cause "
             "family. Lower rates are better for the two 'unsupported' metrics.",
             "Authored for IncidentIQ; labels were never shown to the model.",
+            "Remediation recall counts cases where an action was expected and a correct "
+            "one was recommended; precision counts correct recommendations against all "
+            "recommendations. Precision is 0.0 when nothing was recommended at all — "
+            "read it alongside recall.",
+            f"Per-case outputs recorded: {len(recorded)}.",
         ),
     )
 

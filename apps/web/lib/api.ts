@@ -248,6 +248,58 @@ export type InvestigationResult = {
   };
 };
 
+export type PolicyReason = { check: string; passed: boolean; detail: string };
+
+export type ActionPolicyDecision = {
+  eligible: boolean;
+  decision: "eligible_for_approval" | "rejected_by_policy" | "requires_more_evidence";
+  reasons: PolicyReason[];
+  effective_risk: "low" | "medium" | "high";
+  required_approvals: number;
+  validated_target: { service_id: string; deployment_id: string | null; version: string | null } | null;
+  validated_evidence_ids: string[];
+  evidence_source_kinds: string[];
+};
+
+export type IncidentAction = {
+  id: string;
+  incident_id: string;
+  action_type: string;
+  target: { service_id: string; deployment_id: string | null; version: string | null };
+  status:
+    | "proposed" | "policy_rejected" | "awaiting_approval" | "approved"
+    | "rejected" | "executing" | "succeeded" | "failed";
+  risk: "low" | "medium" | "high";
+  created_at: string;
+  recommendation_summary: string;
+  recommendation_evidence_ids: string[];
+  policy: ActionPolicyDecision;
+  approval: {
+    id: string; approved: boolean; actor_type: string; actor_id: string;
+    decided_at: string; reason: string | null;
+  } | null;
+  execution: {
+    simulated: boolean; succeeded: boolean; summary: string;
+    details: string[]; executed_at: string;
+  } | null;
+};
+
+export type ActionResponse = {
+  action: IncidentAction;
+  actor: { actor_id: string; note: string };
+};
+
+export type AuditEvent = {
+  id: string;
+  incident_id: string;
+  action_id: string | null;
+  event_type: string;
+  actor_type: "system" | "model" | "human";
+  actor_id: string;
+  occurred_at: string;
+  details: Record<string, string>;
+};
+
 export type EvalMetric = {
   name: string;
   correct: number;
@@ -374,6 +426,52 @@ export async function investigateCandidate(
     throw new Error(body?.detail ?? `investigation failed with ${response.status}`);
   }
   return (await response.json()) as InvestigationResult;
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    cache: "no-store",
+    ...(body === undefined
+      ? {}
+      : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  });
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(detail?.detail ?? `${path} failed with ${response.status}`);
+  }
+  return (await response.json()) as T;
+}
+
+export async function proposeAction(
+  incidentId: string,
+  investigation: InvestigationResult,
+  serviceId: string | null,
+): Promise<ActionResponse> {
+  return postJson<ActionResponse>(
+    `/incidents/${encodeURIComponent(incidentId)}/actions`,
+    { investigation, service_id: serviceId },
+  );
+}
+
+export async function approveAction(actionId: string): Promise<ActionResponse> {
+  return postJson<ActionResponse>(`/actions/${encodeURIComponent(actionId)}/approve`);
+}
+
+export async function rejectAction(actionId: string): Promise<ActionResponse> {
+  return postJson<ActionResponse>(`/actions/${encodeURIComponent(actionId)}/reject`);
+}
+
+export async function executeAction(actionId: string): Promise<ActionResponse> {
+  return postJson<ActionResponse>(`/actions/${encodeURIComponent(actionId)}/execute`);
+}
+
+export async function fetchActionAudit(actionId: string): Promise<AuditEvent[]> {
+  return getJson<AuditEvent[]>(`/actions/${encodeURIComponent(actionId)}/audit`);
+}
+
+export async function fetchPolicyEvaluation(): Promise<EvalReport> {
+  return getJson<EvalReport>("/evals/policy");
 }
 
 export async function fetchInvestigationEvaluation(): Promise<EvalReport> {

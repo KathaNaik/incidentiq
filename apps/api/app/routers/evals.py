@@ -26,6 +26,7 @@ COMPARISON_FILE = "comparison-semantic-correlation-v1.json"
 RETRIEVAL_REPORT_FILE = "golden-historical-retrieval-v1.json"
 INVESTIGATION_REPORT_FILE = "golden-investigation-v1.json"
 INVESTIGATION_BASELINE_FILE = "golden-retrieval-only-baseline.json"
+POLICY_REPORT_FILE = "golden-action-policy-v1.json"
 
 
 @router.get("/evals/triage", response_model=EvalReportResponse)
@@ -73,6 +74,14 @@ def get_investigation_evaluation(
         INVESTIGATION_REPORT_FILE if version == "model" else INVESTIGATION_BASELINE_FILE
     )
     return _read(settings.investigation_evals_dir / filename, "investigation")
+
+
+@router.get("/evals/policy", response_model=EvalReportResponse)
+def get_policy_evaluation(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EvalReportResponse:
+    """The deterministic action-policy suite."""
+    return _read(settings.policy_evals_dir / POLICY_REPORT_FILE, "policy")
 
 
 @router.get("/evals/correlation/comparison", response_model=VersionComparisonResponse)

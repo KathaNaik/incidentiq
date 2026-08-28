@@ -1,0 +1,39 @@
+{
+  "suite": "action-policy",
+  "version": "action-policy-v1",
+  "generated_at": "2026-08-28T01:04:58.785495Z",
+  "case_count": 13,
+  "metrics": [
+    {
+      "name": "policy_cases_passed",
+      "correct": 13,
+      "total": 13,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "unsafe_action_allowed_rate",
+      "correct": 0,
+      "total": 7,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "valid_action_blocked_rate",
+      "correct": 0,
+      "total": 3,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [],
+  "notes": [
+    "Policy is deterministic business logic; anything below 100% is a defect, not a limitation.",
+    "Lower is better for both rate metrics — they count failures, not successes.",
+    "Authored for IncidentIQ; no external dataset is involved."
+  ]
+}

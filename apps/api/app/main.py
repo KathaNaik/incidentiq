@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
 from app.routers import (
+    actions,
     correlation,
     dataset,
     evals,
@@ -49,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(correlation.router)
     app.include_router(retrieval.router)
     app.include_router(investigation.router)
+    app.include_router(actions.router)
     app.include_router(evals.router)
     return app
 

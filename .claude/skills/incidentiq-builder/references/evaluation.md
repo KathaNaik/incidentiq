@@ -73,7 +73,27 @@ these numbers not at all, and a title-only query slice still scored 99.1% Recall
 | Suite | Metric | Result |
 |---|---|---|
 | Retrieval-only baseline (16 authored cases) | leading hypothesis / abstention | 83.3% (5/6 answerable) / 37.5% |
-| `gpt-5.6-terra` (2026-08-27, one held-out run) | leading hypothesis / abstention | **100% (6/6) / 75%** |
+| `gpt-5.6-terra` (run 1, 2026-08-28) | leading hypothesis / abstention | **100% (6/6) / 75%** |
+| `gpt-5.6-terra` (run 2, M9 remeasurement) | leading hypothesis / abstention | 100% (6/6) / 68.8% |
+
+**Remediation recall: 0% (0 of 6).** The investigator recommended no remediation on any
+case where one was expected and justified. This is the metric M8 was missing, and it
+reframes M8's headline: the 0% unsupported-remediation rate was not discipline, it was
+the absence of any recommendation at all. Remediation precision is undefined (0/0) for
+the same reason. The M8 run is preserved verbatim at
+`golden-investigation-v1-m8-original-run.json`; run 2 added the metric without altering it.
+
+**`action-policy-v1`** — the deterministic gate between recommendation and action:
+
+| Metric | Result |
+|---|---|
+| Authored policy cases passed | **13/13 (100%)** |
+| Unsafe action allowed rate | **0%** (0/7) |
+| Valid action blocked rate | **0%** (0/3) |
+
+Policy is business logic, so 100% is the expectation rather than an achievement. Its
+value is what it means for the model: an investigator that recommends badly is tolerable
+because policy refuses to act on it, and that claim is now measured rather than asserted.
 
 Full investigator run: structured-output validity 100%, top-3 accuracy 100%,
 unsupported citation rate 0%, unsupported remediation rate 0%, required-evidence

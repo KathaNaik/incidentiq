@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     itsm_processed_dir: Path = REPO_ROOT / "data" / "processed" / "itsm"
     retrieval_evals_dir: Path = REPO_ROOT / "data" / "evals" / "retrieval"
     investigation_evals_dir: Path = REPO_ROOT / "data" / "evals" / "investigation"
+    policy_evals_dir: Path = REPO_ROOT / "data" / "evals" / "policy"
 
     # Model used for investigation.
     investigation_model: str = "gpt-5.6-terra"

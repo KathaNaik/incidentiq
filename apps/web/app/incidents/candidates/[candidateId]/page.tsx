@@ -151,7 +151,10 @@ export default async function CandidatePage({
       </section>
 
       {investigation.ok ? (
-        <Investigation result={investigation.data} />
+        <Investigation
+          result={investigation.data}
+          serviceId={candidate.service_id}
+        />
       ) : (
         <section className="rounded border border-dashed border-neutral-300 p-4 dark:border-neutral-700">
           <h2 className="text-sm font-medium">AI investigation unavailable</h2>

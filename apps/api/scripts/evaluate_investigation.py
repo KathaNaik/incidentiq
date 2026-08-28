@@ -24,6 +24,7 @@ from app.investigation import (  # noqa: E402
 )
 from app.retrieval import HistoricalIndex, load_corpus  # noqa: E402
 from evaluation.investigation import run_baseline, run_investigation_evaluation  # noqa: E402
+from evaluation.policy import run_policy_evaluation  # noqa: E402
 from evaluation.models import EvalReport  # noqa: E402
 from ingestion.io import write_json  # noqa: E402
 
@@ -32,8 +33,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", action="store_true", help="run the retrieval-only baseline")
     parser.add_argument("--model", action="store_true", help="run the AI investigator")
+    parser.add_argument(
+        "--policy", action="store_true", help="run the deterministic action-policy suite"
+    )
     args = parser.parse_args()
-    if not args.baseline and not args.model:
+    if not any((args.baseline, args.model, args.policy)):
         args.baseline = True
 
     settings = get_settings()
@@ -51,6 +55,12 @@ def main() -> int:
         return 1
 
     reports: list[tuple[EvalReport, Path]] = []
+    if args.policy:
+        report = run_policy_evaluation(operations)
+        reports.append(
+            (report, settings.policy_evals_dir / f"golden-{report.version}.json")
+        )
+
     if args.baseline:
         report = run_baseline(directory, operations, index)
         reports.append((report, directory / f"golden-{report.version}.json"))

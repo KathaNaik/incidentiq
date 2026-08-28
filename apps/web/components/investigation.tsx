@@ -1,4 +1,5 @@
 import { Badge } from "@/components/badge";
+import { RemediationWorkflow } from "@/components/remediation-workflow";
 import type { EvidenceItem, InvestigationResult } from "@/lib/api";
 
 const KIND_LABELS: Record<string, string> = {
@@ -13,13 +14,21 @@ const KIND_LABELS: Record<string, string> = {
 /**
  * The investigation panel.
  *
- * Two things this component is careful about. First, observed evidence and model
- * hypothesis are visually separate sections — a past incident's root cause is a fact
- * about *that* incident, and must never read as a finding about this one. Second, the
- * remediation block is inert: it says what the model would suggest and that a human
- * would have to approve it. There is no working action here, and the button says so.
+ * Observed evidence and model hypothesis are visually separate sections — a past
+ * incident's root cause is a fact about *that* incident, and must never read as a
+ * finding about this one.
+ *
+ * Remediation is delegated to `RemediationWorkflow`, which puts the recommendation
+ * behind deterministic policy and two explicit human decisions. Nothing here executes
+ * anything on its own.
  */
-export function Investigation({ result }: { result: InvestigationResult }) {
+export function Investigation({
+  result,
+  serviceId,
+}: {
+  result: InvestigationResult;
+  serviceId: string | null;
+}) {
   const { output, evidence } = result;
   const byId = new Map(evidence.map((item) => [item.id, item]));
 
@@ -120,37 +129,7 @@ export function Investigation({ result }: { result: InvestigationResult }) {
         </p>
       </div>
 
-      {output.remediation && (
-        <div className="rounded border border-amber-300 p-4 dark:border-amber-900">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-medium">Recommended remediation</h3>
-            <Badge tone={output.remediation.risk === "high" ? "danger" : "warn"}>
-              {output.remediation.risk} risk
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-            {output.remediation.description}
-          </p>
-          <CitedEvidence
-            label="Justified by"
-            ids={output.remediation.supporting_evidence_ids}
-            byId={byId}
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded border border-neutral-300 px-3 py-1 text-sm text-neutral-400 dark:border-neutral-700"
-            >
-              Apply remediation
-            </button>
-            <span className="text-xs text-neutral-500">
-              Not available. Nothing here executes — the approval and audit workflow is
-              the next milestone.
-            </span>
-          </div>
-        </div>
-      )}
+      <RemediationWorkflow result={result} serviceId={serviceId} />
 
       <p className="text-xs text-neutral-500">
         {result.version} · model {result.run.model} · prompt {result.run.prompt_version} ·{" "}

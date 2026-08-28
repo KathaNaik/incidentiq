@@ -1,7 +1,7 @@
 {
   "suite": "investigation",
   "version": "investigation-v1",
-  "generated_at": "2026-08-28T01:08:12.063996Z",
+  "generated_at": "2026-08-28T00:38:19.800424Z",
   "case_count": 16,
   "metrics": [
     {
@@ -30,9 +30,9 @@
     },
     {
       "name": "abstention_accuracy",
-      "correct": 11,
+      "correct": 12,
       "total": 16,
-      "accuracy": 0.6875,
+      "accuracy": 0.75,
       "abstained": 0,
       "majority_baseline": null
     },
@@ -48,22 +48,6 @@
       "name": "unsupported_remediation_rate",
       "correct": 0,
       "total": 16,
-      "accuracy": 0.0,
-      "abstained": 0,
-      "majority_baseline": null
-    },
-    {
-      "name": "remediation_recall",
-      "correct": 0,
-      "total": 6,
-      "accuracy": 0.0,
-      "abstained": 0,
-      "majority_baseline": null
-    },
-    {
-      "name": "remediation_precision",
-      "correct": 0,
-      "total": 0,
       "accuracy": 0.0,
       "abstained": 0,
       "majority_baseline": null
@@ -102,25 +86,22 @@
       "text": "SSO sign-in returns invalid assertion for the whole team"
     },
     {
-      "case_id": "IV02",
+      "case_id": "IV04",
       "metric": "abstention",
-      "expected": "hypothesis",
+      "expected": "abstain",
       "predicted": null,
-      "status": "A — same incident, terser reports",
-      "explanation": "expected abstain=False, got True",
+      "status": "C — vague single report",
+      "explanation": "expected abstain=True, got False",
       "signals": [
-        "ticket:IVT-111",
-        "ticket:IVT-112",
-        "correlation:cand-IVT-111",
-        "deployment:DEP-2041",
-        "health:svc-auth@2026-08-24T09:10:00+00:00",
-        "error:ERR_SAML_INVALID_ASSERTION",
-        "error:401",
-        "historical:NS-HIST-0002",
-        "historical:INC-DRF-0045",
-        "historical:NS-HIST-0001"
+        "ticket:IVT-131",
+        "correlation:cand-IVT-131",
+        "health:svc-connector@2026-08-25T13:20:00+00:00",
+        "error:ERR_SYNC_STALLED",
+        "historical:NS-HIST-0001",
+        "historical:INC-DRF-0013",
+        "historical:NS-HIST-0006"
       ],
-      "text": "sso broken"
+      "text": "Something is off with the connector"
     },
     {
       "case_id": "IV12",
@@ -140,27 +121,6 @@
         "historical:INC-DRF-0052"
       ],
       "text": "Sync jobs stuck in running state"
-    },
-    {
-      "case_id": "IV14",
-      "metric": "abstention",
-      "expected": "hypothesis",
-      "predicted": null,
-      "status": "A — multiple auth reports, one off-pattern",
-      "explanation": "expected abstain=False, got True",
-      "signals": [
-        "ticket:IVT-231",
-        "ticket:IVT-232",
-        "correlation:cand-IVT-231",
-        "deployment:DEP-2041",
-        "health:svc-auth@2026-08-24T09:10:00+00:00",
-        "error:ERR_SAML_INVALID_ASSERTION",
-        "error:401",
-        "historical:NS-HIST-0002",
-        "historical:NS-HIST-0001",
-        "historical:INC-DRF-0045"
-      ],
-      "text": "Nobody can sign in"
     },
     {
       "case_id": "IV16",
@@ -184,11 +144,9 @@
     }
   ],
   "notes": [
-    "Model: gpt-5.6-terra. Median latency 11022 ms over 16 calls.",
-    "Tokens: 35449 in, 12325 out.",
+    "Model: gpt-5.6-terra. Median latency 10738 ms over 16 calls.",
+    "Tokens: 35449 in, 12445 out.",
     "Cause-term matching is a deterministic proxy for naming the right cause family. Lower rates are better for the two 'unsupported' metrics.",
-    "Authored for IncidentIQ; labels were never shown to the model.",
-    "Remediation recall counts cases where an action was expected and a correct one was recommended; precision counts correct recommendations against all recommendations. Precision is 0.0 when nothing was recommended at all — read it alongside recall.",
-    "Per-case outputs recorded: 16."
+    "Authored for IncidentIQ; labels were never shown to the model."
   ]
 }

@@ -12,6 +12,7 @@ from app.fixtures import load_dataset
 from app.repository import InMemoryRepository, Repository
 
 if TYPE_CHECKING:
+    from app.actions import ActionRepository
     from app.retrieval import HistoricalIndex
 
 
@@ -50,3 +51,18 @@ def get_retrieval_index() -> "HistoricalIndex":
 
 
 RetrievalIndexDep = Annotated["HistoricalIndex", Depends(get_retrieval_index)]
+
+
+@lru_cache
+def get_action_repository() -> "ActionRepository":
+    """The process-wide action store.
+
+    In-memory and prototype-local: action state and the audit trail are lost when the
+    API restarts. See `app.actions.repository` for what production would need instead.
+    """
+    from app.actions import ActionRepository
+
+    return ActionRepository()
+
+
+ActionRepositoryDep = Annotated["ActionRepository", Depends(get_action_repository)]

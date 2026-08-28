@@ -68,6 +68,13 @@ Read-only endpoints:
 | `GET /evals/retrieval` | the committed historical-retrieval evaluation |
 | `POST /correlation/candidates/{id}/investigate` | evidence-backed AI investigation (requires `OPENAI_API_KEY`) |
 | `GET /evals/investigation` | investigation metrics (`?version=model` or `baseline`) |
+| `POST /incidents/{id}/actions` | propose an action from a remediation recommendation |
+| `GET /incidents/{id}/actions` | actions proposed for an incident |
+| `POST /actions/{id}/approve` | explicit human approval |
+| `POST /actions/{id}/reject` | explicit human rejection |
+| `POST /actions/{id}/execute` | run the simulated action (idempotent) |
+| `GET /actions/{id}/audit` | the action's audit trail |
+| `GET /evals/policy` | action-policy suite results |
 
 Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
 and `/evals/correlation` takes `?version=`. The version is stamped on every response.
@@ -186,6 +193,14 @@ correlation and retrieval are unaffected, and no investigation is ever fabricate
 
 Structured outputs guarantee the *shape* of the answer, not its truth — which is why
 every result still passes application-side validation.
+
+**Remediation is gated, not automatic.** A model recommendation passes deterministic
+policy (allowed action, real target, two independent evidence kinds, investigation did
+not abstain, incident still open) before a human may approve it, and approval and
+execution are separate clicks. Execution is **simulated** — no infrastructure is
+contacted — and every boundary is audited with precise actor attribution: the model
+recommends, the system proposes and executes, a human approves. Action state is
+in-memory and resets when the API restarts.
 
 Measured once on the 16 authored held-out cases (`gpt-5.6-terra`, 2026-08-27): 100%
 leading-hypothesis accuracy, 75% abstention accuracy, 0% unsupported citations, 0%

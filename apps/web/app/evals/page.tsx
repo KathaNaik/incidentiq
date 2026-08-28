@@ -6,6 +6,7 @@ import {
   fetchCorrelationComparison,
   fetchCorrelationEvaluation,
   fetchInvestigationEvaluation,
+  fetchPolicyEvaluation,
   fetchRetrievalEvaluation,
   fetchTriageEvaluation,
   type EvalReport,
@@ -14,13 +15,14 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function EvalsPage() {
-  const [triage, correlation, comparison, retrieval, investigation] =
+  const [triage, correlation, comparison, retrieval, investigation, policy] =
     await Promise.all([
       load(fetchTriageEvaluation),
       load(() => fetchCorrelationEvaluation("deterministic")),
       load(fetchCorrelationComparison),
       load(fetchRetrievalEvaluation),
       load(fetchInvestigationEvaluation),
+      load(fetchPolicyEvaluation),
     ]);
 
   return (
@@ -45,6 +47,12 @@ export default async function EvalsPage() {
         title="AI investigation"
         description="Ranked root-cause hypotheses over typed evidence, graded programmatically: did it cite the decisive evidence, did it abstain when it should have, did it ever cite evidence that was never supplied, did it recommend an action the evidence did not justify. Lower is better for the two 'unsupported' rates."
         result={investigation}
+      />
+
+      <Suite
+        title="Action policy"
+        description="The deterministic gate between a model recommendation and an approvable action: allowed action type, target existence, evidence sufficiency, abstention gating, incident state. This is business logic, not a model, so anything below 100% is a defect. Both rate metrics count failures — lower is better."
+        result={policy}
       />
 
       <Suite
