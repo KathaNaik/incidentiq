@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
+import { Investigation } from "@/components/investigation";
 import { SimilarIncidents } from "@/components/similar-incidents";
 import {
   load,
@@ -10,6 +11,7 @@ import {
   fetchServices,
   fetchSimilarIncidents,
   fetchTickets,
+  investigateCandidate,
   type CorrelationMode,
 } from "@/lib/api";
 import { formatTimestamp, serviceLabel, serviceNames } from "@/lib/format";
@@ -36,6 +38,9 @@ export default async function CandidatePage({
   // Retrieval is loaded separately: it depends on the embedding provider, and an
   // unavailable index should not blank the whole candidate page.
   const similar = await load(() => fetchSimilarIncidents(candidateId, mode));
+  // Investigation needs a model provider. When one is not configured the page still
+  // renders everything deterministic, and says why the AI section is absent.
+  const investigation = await load(() => investigateCandidate(candidateId, mode));
 
   if (!result.ok) {
     return (
@@ -144,6 +149,20 @@ export default async function CandidatePage({
           ))}
         </ol>
       </section>
+
+      {investigation.ok ? (
+        <Investigation result={investigation.data} />
+      ) : (
+        <section className="rounded border border-dashed border-neutral-300 p-4 dark:border-neutral-700">
+          <h2 className="text-sm font-medium">AI investigation unavailable</h2>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            {investigation.error}
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Everything above is deterministic and unaffected.
+          </p>
+        </section>
+      )}
 
       {similar.ok && <SimilarIncidents result={similar.data} />}
 

@@ -24,6 +24,8 @@ CORRELATION_REPORTS = {
 }
 COMPARISON_FILE = "comparison-semantic-correlation-v1.json"
 RETRIEVAL_REPORT_FILE = "golden-historical-retrieval-v1.json"
+INVESTIGATION_REPORT_FILE = "golden-investigation-v1.json"
+INVESTIGATION_BASELINE_FILE = "golden-retrieval-only-baseline.json"
 
 
 @router.get("/evals/triage", response_model=EvalReportResponse)
@@ -53,6 +55,24 @@ def get_retrieval_evaluation(
 ) -> EvalReportResponse:
     """The committed historical-retrieval evaluation."""
     return _read(settings.retrieval_evals_dir / RETRIEVAL_REPORT_FILE, "retrieval")
+
+
+@router.get("/evals/investigation", response_model=EvalReportResponse)
+def get_investigation_evaluation(
+    settings: Annotated[Settings, Depends(get_settings)],
+    version: Annotated[
+        Literal["model", "baseline"], Query(description="which investigation run")
+    ] = "model",
+) -> EvalReportResponse:
+    """Investigation results: the model run, or the retrieval-only baseline.
+
+    The model report exists only once a run with real credentials has been made — until
+    then this 404s rather than serving numbers nobody measured.
+    """
+    filename = (
+        INVESTIGATION_REPORT_FILE if version == "model" else INVESTIGATION_BASELINE_FILE
+    )
+    return _read(settings.investigation_evals_dir / filename, "investigation")
 
 
 @router.get("/evals/correlation/comparison", response_model=VersionComparisonResponse)

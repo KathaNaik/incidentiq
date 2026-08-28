@@ -1,0 +1,29 @@
+{
+  "suite": "investigation-baseline",
+  "version": "retrieval-only-baseline",
+  "generated_at": "2026-08-28T00:06:37.464393Z",
+  "case_count": 16,
+  "metrics": [
+    {
+      "name": "leading_hypothesis_accuracy",
+      "correct": 5,
+      "total": 6,
+      "accuracy": 0.8333,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "abstention_accuracy",
+      "correct": 6,
+      "total": 16,
+      "accuracy": 0.375,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [],
+  "notes": [
+    "Retrieval-only: asserts the nearest historical incident's root cause with no synthesis and no abstention. The number to beat."
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "dataset": "northstar-cloud",
+  "synthetic": true,
+  "note": "Synthetic operational telemetry for the fictional Northstar Cloud. Authored for IncidentIQ — not derived from any external dataset, and not a feed from any real monitoring system. Every record here is fabricated, and the provenance string on each says so wherever it is displayed.",
+  "deployments": [
+    {
+      "id": "DEP-2041",
+      "service_id": "svc-auth",
+      "version": "4.12.0",
+      "deployed_at": "2026-08-24T08:52:00Z",
+      "status": "succeeded",
+      "change_summary": "Refactored SAML assertion validation and tightened certificate chain checks."
+    },
+    {
+      "id": "DEP-2042",
+      "service_id": "svc-analytics",
+      "version": "9.3.1",
+      "deployed_at": "2026-08-20T11:00:00Z",
+      "status": "succeeded",
+      "change_summary": "Dashboard rendering performance work; no query-layer changes."
+    },
+    {
+      "id": "DEP-2043",
+      "service_id": "svc-analytics",
+      "version": "9.3.2",
+      "deployed_at": "2026-08-24T11:02:00Z",
+      "status": "succeeded",
+      "change_summary": "Copy changes to the empty-state message on saved reports."
+    },
+    {
+      "id": "DEP-2044",
+      "service_id": "svc-connector",
+      "version": "2.8.4",
+      "deployed_at": "2026-08-25T04:15:00Z",
+      "status": "succeeded",
+      "change_summary": "Connector retry backoff tuning."
+    }
+  ],
+  "health": [
+    {
+      "service_id": "svc-auth",
+      "observed_at": "2026-08-24T09:10:00Z",
+      "status": "degraded",
+      "signals": [
+        "sign-in success rate 41% (baseline 99.4%)",
+        "SAML assertion validation errors elevated since 08:55",
+        "latency unchanged"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-24T09:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "dashboard render success rate 99.7%",
+        "p95 load time 1.8s (baseline 1.9s)"
+      ]
+    },
+    {
+      "service_id": "svc-connector",
+      "observed_at": "2026-08-25T13:20:00Z",
+      "status": "degraded",
+      "signals": [
+        "sync completion rate 62% (baseline 98%)",
+        "queue depth rising since 12:40",
+        "no change in authentication error rate"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-25T14:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "dashboard render success rate 99.6%",
+        "data freshness lag 19 hours (baseline under 1 hour)"
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "service_id": "svc-auth",
+      "code": "ERR_SAML_INVALID_ASSERTION",
+      "count": 4127,
+      "first_seen": "2026-08-24T08:55:00Z",
+      "last_seen": "2026-08-24T09:40:00Z",
+      "sample_message": "assertion signature did not match any configured certificate"
+    },
+    {
+      "service_id": "svc-auth",
+      "code": "401",
+      "count": 388,
+      "first_seen": "2026-08-24T08:56:00Z",
+      "last_seen": "2026-08-24T09:38:00Z",
+      "sample_message": "token exchange rejected"
+    },
+    {
+      "service_id": "svc-connector",
+      "code": "ERR_SYNC_STALLED",
+      "count": 214,
+      "first_seen": "2026-08-25T12:41:00Z",
+      "last_seen": "2026-08-25T14:30:00Z",
+      "sample_message": "sync worker heartbeat missed; job left in running state"
+    },
+    {
+      "service_id": "svc-analytics",
+      "code": "ERR_EXPORT_TRUNCATED",
+      "count": 6,
+      "first_seen": "2026-08-24T16:05:00Z",
+      "last_seen": "2026-08-24T16:44:00Z",
+      "sample_message": "export stopped at row limit"
+    }
+  ]
+}

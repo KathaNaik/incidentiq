@@ -197,6 +197,57 @@ export type RetrievalResult = {
   strong_match: boolean;
 };
 
+export type EvidenceItem = {
+  id: string;
+  kind: "ticket" | "correlation" | "deployment" | "health" | "error" | "historical";
+  summary: string;
+  source_id: string;
+  provenance: string;
+  observed_at: string | null;
+};
+
+export type Hypothesis = {
+  summary: string;
+  /** The model's own stated confidence — not a calibrated probability. */
+  confidence: number;
+  supporting_evidence_ids: string[];
+  conflicting_evidence_ids: string[];
+};
+
+export type InvestigationOutput = {
+  hypotheses: Hypothesis[];
+  missing_evidence: string[];
+  recommended_next_step: {
+    action_type: string;
+    description: string;
+    rationale: string;
+  };
+  remediation: {
+    action_type: string;
+    description: string;
+    risk: "low" | "medium" | "high";
+    supporting_evidence_ids: string[];
+  } | null;
+  abstain: boolean;
+  abstain_reason: string | null;
+};
+
+export type InvestigationResult = {
+  incident_id: string;
+  version: string;
+  output: InvestigationOutput;
+  evidence: EvidenceItem[];
+  run: {
+    model: string;
+    prompt_version: string;
+    evidence_ids: string[];
+    latency_ms: number;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    started_at: string;
+  };
+};
+
 export type EvalMetric = {
   name: string;
   correct: number;
@@ -308,6 +359,25 @@ export async function fetchSimilarIncidents(
   return getJson<RetrievalResult>(
     `/correlation/candidates/${encodeURIComponent(candidateId)}/similar?mode=${mode}`,
   );
+}
+
+export async function investigateCandidate(
+  candidateId: string,
+  mode: CorrelationMode = "deterministic",
+): Promise<InvestigationResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/correlation/candidates/${encodeURIComponent(candidateId)}/investigate?mode=${mode}`,
+    { method: "POST", cache: "no-store" },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? `investigation failed with ${response.status}`);
+  }
+  return (await response.json()) as InvestigationResult;
+}
+
+export async function fetchInvestigationEvaluation(): Promise<EvalReport> {
+  return getJson<EvalReport>("/evals/investigation");
 }
 
 export async function fetchRetrievalEvaluation(): Promise<EvalReport> {

@@ -1,0 +1,89 @@
+"""Evaluate the AI investigator, and the retrieval-only baseline it must beat.
+
+Usage (from apps/api):
+    uv run --group semantic python scripts/evaluate_investigation.py --baseline
+    uv run --group semantic python scripts/evaluate_investigation.py --model
+
+`--baseline` needs no credentials. `--model` calls the configured OpenAI model and
+requires OPENAI_API_KEY; without one it exits with a clear message rather than
+producing numbers.
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.config import get_settings  # noqa: E402
+from app.embeddings import EmbeddingCache, EmbeddingError, LocalEmbeddingProvider  # noqa: E402
+from app.investigation import (  # noqa: E402
+    InvestigationModelError,
+    OpenAIInvestigationModel,
+    load_operations,
+)
+from app.retrieval import HistoricalIndex, load_corpus  # noqa: E402
+from evaluation.investigation import run_baseline, run_investigation_evaluation  # noqa: E402
+from evaluation.models import EvalReport  # noqa: E402
+from ingestion.io import write_json  # noqa: E402
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--baseline", action="store_true", help="run the retrieval-only baseline")
+    parser.add_argument("--model", action="store_true", help="run the AI investigator")
+    args = parser.parse_args()
+    if not args.baseline and not args.model:
+        args.baseline = True
+
+    settings = get_settings()
+    directory = settings.investigation_evals_dir
+
+    try:
+        operations = load_operations(settings.fixtures_dir)
+        provider = LocalEmbeddingProvider()
+        index = HistoricalIndex(
+            provider, EmbeddingCache(settings.embeddings_cache_dir, provider)
+        )
+        index.build(load_corpus(settings.fixtures_dir, settings.itsm_processed_dir))
+    except (EmbeddingError, ValueError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+    reports: list[tuple[EvalReport, Path]] = []
+    if args.baseline:
+        report = run_baseline(directory, operations, index)
+        reports.append((report, directory / f"golden-{report.version}.json"))
+
+    if args.model:
+        try:
+            report = run_investigation_evaluation(
+                directory,
+                operations,
+                index,
+                OpenAIInvestigationModel(
+                    settings.investigation_model, settings.openai_api_key
+                ),
+            )
+        except InvestigationModelError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
+        reports.append((report, directory / f"golden-{report.version}.json"))
+
+    for report, path in reports:
+        write_json(path, report)
+        print(f"\n{report.suite} — {report.version} ({report.case_count} cases)")
+        for metric in report.metrics:
+            print(
+                f"  {metric.name:<30} {metric.accuracy:7.1%}  "
+                f"({metric.correct}/{metric.total})"
+            )
+        for note in report.notes:
+            print(f"  note: {note}")
+        print(f"  failures listed: {len(report.failures)}")
+        print(f"  written: {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -66,6 +66,8 @@ Read-only endpoints:
 | `POST /retrieval/historical-incidents` | past incidents resembling a described situation |
 | `GET /correlation/candidates/{id}/similar` | precedent for one candidate incident |
 | `GET /evals/retrieval` | the committed historical-retrieval evaluation |
+| `POST /correlation/candidates/{id}/investigate` | evidence-backed AI investigation (requires `OPENAI_API_KEY`) |
+| `GET /evals/investigation` | investigation metrics (`?version=model` or `baseline`) |
 
 Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
 and `/evals/correlation` takes `?version=`. The version is stamped on every response.
@@ -109,6 +111,8 @@ cd apps/web && npm run build      # production build
 | `INCIDENTIQ_FIXTURES_DIR` | api | `data/demo/northstar_cloud` | Fixture dataset the API serves |
 | `INCIDENTIQ_EMBEDDINGS_CACHE_DIR` | api | `data/processed/embeddings` | Where ticket vectors are cached |
 | `NEXT_PUBLIC_API_BASE_URL` | web | `http://localhost:8001` | Backend base URL used by the browser |
+| `OPENAI_API_KEY` | api | _(unset)_ | Credentials for investigation. Nothing else needs it. |
+| `INCIDENTIQ_INVESTIGATION_MODEL` | api | `gpt-5.6-terra` | Model used for investigation |
 
 CORS is open to the local Next.js dev server only. Any deployed environment must set
 `INCIDENTIQ_CORS_ALLOW_ORIGINS` explicitly.
@@ -143,6 +147,10 @@ Two deterministic baselines, both rule-driven with no model or embeddings anywhe
 - **`historical-retrieval-v1`** — given a current incident, finds resolved incidents that
   looked like it, and shows what those turned out to be. Retrieval matches *symptoms
   only*; a historical cause and fix are displayed after a match, never used to make one.
+- **`investigation-v1`** — the only place a language model runs. It receives a fixed set
+  of typed evidence, returns ranked hypotheses citing that evidence *by id*, and its
+  output is validated against the registry before anyone sees it. It recommends
+  remediation; it never executes anything.
 
 Correlation is incremental: tickets are processed in arrival order and compared only
 against still-active candidates, so the evaluation measures what a running system could
@@ -159,11 +167,45 @@ uv run python scripts/evaluate_correlation.py --suite polaris    # external benc
 uv sync --group semantic
 uv run --group semantic python scripts/evaluate_correlation.py --suite golden --mode both
 uv run --group semantic python scripts/evaluate_retrieval.py
+uv run --group semantic python scripts/evaluate_investigation.py --baseline   # no key needed
+uv run --group semantic python scripts/evaluate_investigation.py --model      # needs OPENAI_API_KEY
 ```
 
 Historical retrieval needs the ITSM corpus (`scripts/download_itsm.py` and
 `preprocess_itsm.py`); without it the index still builds from the authored Northstar
 records alone.
+
+### Investigation and the model
+
+Investigation calls OpenAI's Responses API with structured outputs, via the official
+Python SDK. Credentials come from `OPENAI_API_KEY` in the environment or a gitignored
+`apps/api/.env` — nothing is stored in the repository. The model is configurable with
+`INCIDENTIQ_INVESTIGATION_MODEL` and defaults to `gpt-5.6-terra`. **Without credentials
+the investigation endpoint returns a 503 explaining what to configure**; triage,
+correlation and retrieval are unaffected, and no investigation is ever fabricated.
+
+Structured outputs guarantee the *shape* of the answer, not its truth — which is why
+every result still passes application-side validation.
+
+Measured once on the 16 authored held-out cases (`gpt-5.6-terra`, 2026-08-27): 100%
+leading-hypothesis accuracy, 75% abstention accuracy, 0% unsupported citations, 0%
+unsupported remediation, against a retrieval-only baseline of 83.3% / 37.5%. The abstain
+decision varies between runs — see the evaluation reference for the caveat.
+
+What the model is and is not trusted with:
+
+- It sees only evidence this system collected, each item carrying an id.
+- Every hypothesis and every remediation recommendation must cite those ids. A citation
+  the registry does not recognise fails validation and the result is rejected — the
+  operator gets nothing rather than an ungrounded claim.
+- Abstaining and recommending remediation are mutually exclusive, enforced in code.
+- Action types are closed enums, so an action the product has no notion of cannot be
+  invented.
+- Ticket text and historical records are fenced as data in the prompt, and the model is
+  told not to follow instructions found inside them.
+
+Confidence shown in the UI is the model's own estimate. It is not calibrated and is
+labelled as such wherever it appears.
 
 ### Embeddings
 

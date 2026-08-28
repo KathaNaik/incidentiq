@@ -5,6 +5,7 @@ import {
   load,
   fetchCorrelationComparison,
   fetchCorrelationEvaluation,
+  fetchInvestigationEvaluation,
   fetchRetrievalEvaluation,
   fetchTriageEvaluation,
   type EvalReport,
@@ -13,12 +14,14 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function EvalsPage() {
-  const [triage, correlation, comparison, retrieval] = await Promise.all([
-    load(fetchTriageEvaluation),
-    load(() => fetchCorrelationEvaluation("deterministic")),
-    load(fetchCorrelationComparison),
-    load(fetchRetrievalEvaluation),
-  ]);
+  const [triage, correlation, comparison, retrieval, investigation] =
+    await Promise.all([
+      load(fetchTriageEvaluation),
+      load(() => fetchCorrelationEvaluation("deterministic")),
+      load(fetchCorrelationComparison),
+      load(fetchRetrievalEvaluation),
+      load(fetchInvestigationEvaluation),
+    ]);
 
   return (
     <div className="space-y-10">
@@ -37,6 +40,12 @@ export default async function EvalsPage() {
       />
 
       {comparison.ok && <VersionComparisonSection comparison={comparison.data} />}
+
+      <Suite
+        title="AI investigation"
+        description="Ranked root-cause hypotheses over typed evidence, graded programmatically: did it cite the decisive evidence, did it abstain when it should have, did it ever cite evidence that was never supplied, did it recommend an action the evidence did not justify. Lower is better for the two 'unsupported' rates."
+        result={investigation}
+      />
 
       <Suite
         title="Historical retrieval"

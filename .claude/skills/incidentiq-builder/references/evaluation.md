@@ -68,6 +68,39 @@ finding precedent across genuinely different incidents. It confirms the pipeline
 it does not establish the capability. Reranking on service and error identifiers changed
 these numbers not at all, and a title-only query slice still scored 99.1% Recall@1.
 
+**`investigation-v1`** — the AI investigator, over typed evidence:
+
+| Suite | Metric | Result |
+|---|---|---|
+| Retrieval-only baseline (16 authored cases) | leading hypothesis / abstention | 83.3% (5/6 answerable) / 37.5% |
+| `gpt-5.6-terra` (2026-08-27, one held-out run) | leading hypothesis / abstention | **100% (6/6) / 75%** |
+
+Full investigator run: structured-output validity 100%, top-3 accuracy 100%,
+unsupported citation rate 0%, unsupported remediation rate 0%, required-evidence
+coverage 100% (6/6). Median latency 10.7 s over 16 calls; 35,449 input and 12,445
+output tokens.
+
+**The abstain flag is not stable across runs.** A verification pass minutes after the
+recorded run returned the opposite decision on two cases (IV01, IV16), with correct
+hypotheses either way. The 75% figure is therefore one sample of a non-deterministic
+behaviour, not a fixed property, and repeating the run until it improved would have been
+tuning against the held-out set.
+
+The investigator recommended **no remediation on any case**, including the four where a
+rollback was supportable. That keeps the unsupported-remediation rate at zero for a
+reason that is not entirely a virtue, and the harness does not currently measure *missed*
+remediation.
+
+The baseline is the number to beat and it says something specific: nearest-neighbour
+retrieval names a plausible cause reasonably often, and is wrong about *when not to
+answer* almost two thirds of the time, because it never abstains. Abstention is the gap.
+
+Investigation metrics are graded programmatically — evidence ids cited, abstention
+correctness, unsupported citation rate, unsupported remediation rate, required-evidence
+coverage, structured-output validity. Only "named the right cause" uses a proxy (accepted
+cause terms in the leading hypothesis); no LLM judge is used, and one should not be added
+until the deterministic signals stop discriminating.
+
 **Known limitation carried forward from M5/M6, not fixed here:** both correlation
 versions may false-merge near-identical tickets whose strong error identifiers *differ*,
 because entity scoring rewards matches and does not penalize conflicts. The evaluated

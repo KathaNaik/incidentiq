@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["local", "test", "production"]
@@ -48,6 +49,15 @@ class Settings(BaseSettings):
     # only after the ingestion scripts run, and retrieval works without it.
     itsm_processed_dir: Path = REPO_ROOT / "data" / "processed" / "itsm"
     retrieval_evals_dir: Path = REPO_ROOT / "data" / "evals" / "retrieval"
+    investigation_evals_dir: Path = REPO_ROOT / "data" / "evals" / "investigation"
+
+    # Model used for investigation.
+    investigation_model: str = "gpt-5.6-terra"
+
+    # Read from the plain OPENAI_API_KEY name rather than the INCIDENTIQ_ prefix, since
+    # that is the variable the OpenAI tooling ecosystem already uses. Picked up from the
+    # environment or from a gitignored .env; never committed, never logged.
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
 
 
 @lru_cache

@@ -11,6 +11,7 @@ dependencies = [
     # plain `uv sync` is enough to reproduce a download — no hidden setup step.
     "huggingface-hub>=0.26",
     "pyarrow>=18",
+    "openai>=3.5.0",
 ]
 
 [dependency-groups]
