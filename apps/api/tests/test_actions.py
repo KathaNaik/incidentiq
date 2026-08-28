@@ -27,6 +27,7 @@ from app.config import get_settings
 from app.investigation import load_operations
 from app.investigation.models import RemediationAction, RiskLevel
 from evaluation.policy import (
+    CORRELATION,
     DEPLOYMENT,
     ERROR,
     GHOST_DEPLOYMENT,
@@ -45,7 +46,7 @@ def strong_investigation():
             RemediationAction.ROLLBACK_DEPLOYMENT,
             (DEPLOYMENT.id, HEALTH.id, ERROR.id),
         ),
-        evidence=(DEPLOYMENT, HEALTH, ERROR),
+        evidence=(CORRELATION, DEPLOYMENT, HEALTH, ERROR),
     )
 
 

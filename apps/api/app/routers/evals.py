@@ -30,6 +30,7 @@ INVESTIGATION_REPORTS = {
 }
 INVESTIGATION_BASELINE_FILE = "golden-retrieval-only-baseline.json"
 POLICY_REPORT_FILE = "golden-action-policy-v1.json"
+POLICY_REPLAY_FILE = "golden-policy-replay.json"
 
 
 @router.get("/evals/triage", response_model=EvalReportResponse)
@@ -86,6 +87,26 @@ def get_policy_evaluation(
 ) -> EvalReportResponse:
     """The deterministic action-policy suite."""
     return _read(settings.policy_evals_dir / POLICY_REPORT_FILE, "policy")
+
+
+@router.get("/evals/policy/replay")
+def policy_replay(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Both policy versions scored on the same recorded investigator recommendations.
+
+    Served raw rather than as an EvalReport: this compares two policies over one model
+    run, which is a different shape from a suite scoring one system against labels.
+    """
+    path = settings.investigation_evals_dir / POLICY_REPLAY_FILE
+    if not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "no policy replay recorded; run scripts/evaluate_policy_replay.py"
+            ),
+        )
+    return json.loads(path.read_text())
 
 
 @router.get("/evals/correlation/comparison", response_model=VersionComparisonResponse)

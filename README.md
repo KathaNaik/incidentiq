@@ -6,12 +6,12 @@ IncidentIQ turns fragmented technical support tickets plus operational context i
 correlated incident, an evidence-backed root-cause hypothesis, and a recommended
 remediation that a human approves before anything runs.
 
-**Status:** early. The domain model is defined and served over a read-only API backed by
-synthetic Northstar Cloud fixtures, the two external datasets are ingested offline, and
-triage and incident correlation both have measured baselines with an evaluation harness.
-Correlation has a second version that adds embedding similarity, measured against the
-deterministic one on identical inputs. No LLM reasoning is involved anywhere;
-investigation and remediation are not implemented.
+**Status:** the full workflow runs end to end. Tickets correlate into candidate incidents,
+a language model investigates one against typed evidence it must cite by id, deterministic
+action-specific policy decides whether its recommendation may be approved, and a human
+approves before a simulated execution. Every stage has a measured baseline and an
+evaluation artifact; the deterministic stages use no model at all. Execution is simulated
+throughout — no infrastructure is contacted.
 
 ## Repository layout
 
@@ -67,7 +67,7 @@ Read-only endpoints:
 | `GET /correlation/candidates/{id}/similar` | precedent for one candidate incident |
 | `GET /evals/retrieval` | the committed historical-retrieval evaluation |
 | `POST /correlation/candidates/{id}/investigate` | evidence-backed AI investigation (requires `OPENAI_API_KEY`) |
-| `GET /evals/investigation` | investigation metrics (`?version=model` or `baseline`) |
+| `GET /evals/investigation` | investigation metrics (`?version=v1`, `v2` or `baseline`) |
 | `POST /incidents/{id}/actions` | propose an action from a remediation recommendation |
 | `GET /incidents/{id}/actions` | actions proposed for an incident |
 | `POST /actions/{id}/approve` | explicit human approval |
@@ -75,6 +75,7 @@ Read-only endpoints:
 | `POST /actions/{id}/execute` | run the simulated action (idempotent) |
 | `GET /actions/{id}/audit` | the action's audit trail |
 | `GET /evals/policy` | action-policy suite results |
+| `GET /evals/policy/replay` | policy-v1 versus policy-v2 on identical recorded recommendations |
 
 Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
 and `/evals/correlation` takes `?version=`. The version is stamped on every response.
@@ -199,8 +200,8 @@ Structured outputs guarantee the *shape* of the answer, not its truth — which 
 every result still passes application-side validation.
 
 **Remediation is gated, not automatic.** A model recommendation passes deterministic
-policy (allowed action, real target, two independent evidence kinds, investigation did
-not abstain, incident still open) before a human may approve it, and approval and
+policy — action-specific since `action-policy-v2`, described below — before a human may
+approve it, and approval and
 execution are separate clicks. Execution is **simulated** — no infrastructure is
 contacted — and every boundary is audited with precise actor attribution: the model
 recommends, the system proposes and executes, a human approves. Action state is
@@ -210,6 +211,38 @@ Measured once on the 16 authored held-out cases (`gpt-5.6-terra`, 2026-08-27): 1
 leading-hypothesis accuracy, 75% abstention accuracy, 0% unsupported citations, 0%
 unsupported remediation, against a retrieval-only baseline of 83.3% / 37.5%. The abstain
 decision varies between runs — see the evaluation reference for the caveat.
+
+#### Evidence of failure is not evidence for an action
+
+`action-policy-v1` asked one question of every action: are there at least two independent
+kinds of evidence? Measuring investigator-v2 showed why that is not enough. Three
+`restart_service` recommendations passed it on services that were degraded and emitting
+errors — every generic check green — with nothing establishing that a restart addressed
+what was actually broken. Counting evidence answers *how much*; the question was *of what*.
+
+`action-policy-v2` asks each action its own questions, all of them plain predicates over
+typed fixture records:
+
+**rollback_deployment** — the cited deployment matches a real record; it shipped *before*
+onset and within a two-hour blast window; the service degraded *after* it and was not
+already degraded before; there is an error signature on the changed service; and nothing
+points at a cause a rollback cannot reach.
+
+**restart_service** — the service is genuinely unhealthy; an error signature indicates the
+wedged process state a restart clears (a closed error-code → failure-mechanism table in
+[mechanisms.py](apps/api/app/actions/mechanisms.py), never a grep over log prose); no
+configuration, credential, permission, data or dependency failure is implicated, since
+those survive a restart untouched; and no recent release better explains the degradation,
+which would make rollback the right action instead. An unclassified error code is
+`UNKNOWN` and does **not** satisfy restart relevance — a new code makes restarts harder to
+approve until somebody classifies it, which is the correct direction to fail.
+
+Onset is derived from symptom evidence only. Letting the suspected deployment set it would
+make "the release came before the trouble" true by construction with a gap of zero.
+
+Every check names the evidence it read, so a rejection is traceable rather than asserted.
+`action-policy-v1` is preserved unchanged in `policy.py` — the recorded M9 results are
+attributable to it, and a superseded policy that quietly changes is a benchmark that lies.
 
 #### The v1 → v2 remediation experiment
 
@@ -236,12 +269,38 @@ Both prompts, run once each on the same held-out cases:
 | Abstention accuracy | 75% / 68.8% (two runs) | 68.8% |
 | Unsupported citation rate | 0% | 0% |
 
-**The cost is real and the control plane does not absorb it.** v2's three unsupported
-recommendations are all `restart_service` on services that genuinely read as degraded with
-a matching error signature — which is exactly the two-independent-kinds bar that policy
-enforces, so policy marks them eligible for approval. Human review is currently the only
-thing standing between those and an operator. This is recorded as a finding rather than
-patched by raising the threshold; see [the evaluation notes](#baselines-and-evaluation).
+**The cost is real, and action-specific policy does not absorb it either.** Replaying the
+recorded v2 recommendations through `action-policy-v2` blocks none of them: all three
+restarts land on svc-connector, whose `ERR_SYNC_STALLED` signature ("sync worker heartbeat
+missed; job left in running state") *is* the wedged-worker mechanism a restart addresses.
+Policy is right not to block them. What was wrong in those cases was the model concluding
+at all rather than the action it chose — a diagnosis failure, which a gate on action
+support is not the place to fix.
+
+Where policy-v2 does separate from v1 is on cases this particular run did not contain, and
+the authored matrix in [test_policy_v2.py](apps/api/tests/test_policy_v2.py) covers them: a
+restart against a configuration or credential failure, against a healthy service, against a
+recent release that better explains the degradation; a rollback of a deployment that
+predates onset by days, or that shipped after the service was already degraded, or where
+the errors point at a dependency. `action-policy-v1` allowed every one of those.
+
+#### Evaluation versions
+
+`investigation-eval-v1` (`investigation_cases.json` / `investigation_labels.json`) is
+frozen and hash-pinned by a test; every recorded metric stays attributable to it.
+
+`investigation-eval-v2` carries all sixteen v1 cases over byte-for-byte and changes two
+things. It adds IV17–IV19 so the restart boundary has cases on both sides of it, and it
+adjudicates a real inconsistency: **IV04 and IV12 sit on the same service minutes apart, so
+evidence collection hands them identical operational signals, yet v1 labelled a restart
+unsupported on one and correct on the other.** The difference was ticket quality, not
+evidence. v2 keeps the differing *diagnosis* expectation — IV04's single vague ticket
+supports no conclusion — but adds `remediation_unsafe` to stop scoring the action itself as
+dangerous. IV03, IV07 and IV08 share that service and evidence and were adjudicated the
+same way, because fixing one and not the others would trade one inconsistency for another.
+
+The remaining `remediation_unsafe` cases are the ones where acting would genuinely do harm:
+a healthy service, or no identified service at all.
 
 What the model is and is not trusted with:
 

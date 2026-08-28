@@ -1,12 +1,14 @@
 import { ApiError } from "@/components/api-error";
 import { EvalReportSection } from "@/components/eval-report";
 import { InvestigatorComparison } from "@/components/investigator-comparison";
+import { PolicyComparison } from "@/components/policy-comparison";
 import { VersionComparisonSection } from "@/components/version-comparison";
 import {
   load,
   fetchCorrelationComparison,
   fetchCorrelationEvaluation,
   fetchInvestigationEvaluation,
+  fetchPolicyReplay,
   fetchPolicyEvaluation,
   fetchRetrievalEvaluation,
   fetchTriageEvaluation,
@@ -16,7 +18,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function EvalsPage() {
-  const [triage, correlation, comparison, retrieval, investigation, policy, investigationV2] =
+  const [triage, correlation, comparison, retrieval, investigation, policy, investigationV2, policyReplay] =
     await Promise.all([
       load(fetchTriageEvaluation),
       load(() => fetchCorrelationEvaluation("deterministic")),
@@ -25,6 +27,7 @@ export default async function EvalsPage() {
       load(() => fetchInvestigationEvaluation("v1")),
       load(fetchPolicyEvaluation),
       load(() => fetchInvestigationEvaluation("v2")),
+      load(fetchPolicyReplay),
     ]);
 
   return (
@@ -48,6 +51,8 @@ export default async function EvalsPage() {
       {investigation.ok && investigationV2.ok && (
         <InvestigatorComparison v1={investigation.data} v2={investigationV2.data} />
       )}
+
+      {policyReplay.ok && <PolicyComparison report={policyReplay.data} />}
 
       <Suite
         title="AI investigation"

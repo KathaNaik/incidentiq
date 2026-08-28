@@ -41,19 +41,47 @@ from evaluation.models import CaseFailure, EvalReport, MetricSummary
 NOW = datetime(2026, 8, 24, 9, 30, tzinfo=UTC)
 
 
-def _evidence(evidence_id: str, kind: EvidenceKind, source_id: str) -> EvidenceItem:
+def _evidence(
+    evidence_id: str,
+    kind: EvidenceKind,
+    source_id: str,
+    observed_at: datetime | None = None,
+) -> EvidenceItem:
     return EvidenceItem(
         id=evidence_id,
         kind=kind,
         summary="evidence",
         source_id=source_id,
         provenance="Northstar Cloud synthetic operations fixture",
+        observed_at=observed_at,
     )
 
 
-DEPLOYMENT = _evidence("deployment:DEP-2041", EvidenceKind.DEPLOYMENT, "DEP-2041")
-HEALTH = _evidence("health:svc-auth@x", EvidenceKind.HEALTH, "svc-auth")
-ERROR = _evidence("error:ERR_SAML_INVALID_ASSERTION", EvidenceKind.ERROR, "ERR_SAML_INVALID_ASSERTION")
+# Timestamps match the real Northstar records these stand in for, because action-policy-v2
+# reasons about ordering: a deployment is only a suspect if it shipped before the trouble
+# started. Undated evidence makes that unanswerable, and policy fails closed rather than
+# assuming the ordering it needs.
+ONSET = datetime(2026, 8, 24, 9, 0, tzinfo=UTC)
+
+CORRELATION = _evidence("correlation:cand-TEST", EvidenceKind.CORRELATION, "cand-TEST", ONSET)
+DEPLOYMENT = _evidence(
+    "deployment:DEP-2041",
+    EvidenceKind.DEPLOYMENT,
+    "DEP-2041",
+    datetime(2026, 8, 24, 8, 52, tzinfo=UTC),
+)
+HEALTH = _evidence(
+    "health:svc-auth@x",
+    EvidenceKind.HEALTH,
+    "svc-auth",
+    datetime(2026, 8, 24, 9, 10, tzinfo=UTC),
+)
+ERROR = _evidence(
+    "error:ERR_SAML_INVALID_ASSERTION",
+    EvidenceKind.ERROR,
+    "ERR_SAML_INVALID_ASSERTION",
+    datetime(2026, 8, 24, 9, 2, tzinfo=UTC),
+)
 HISTORICAL = _evidence("historical:NS-HIST-0002", EvidenceKind.HISTORICAL, "NS-HIST-0002")
 GHOST_DEPLOYMENT = _evidence("deployment:DEP-9999", EvidenceKind.DEPLOYMENT, "DEP-9999")
 

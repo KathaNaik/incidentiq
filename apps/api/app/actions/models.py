@@ -89,11 +89,17 @@ class ActionTarget(ActionModel):
 
 
 class PolicyReason(ActionModel):
-    """One check, and how it came out. Rendered directly in the UI."""
+    """One check, and how it came out. Rendered directly in the UI.
+
+    `evidence_ids` names the evidence the check actually consulted, so a rejection can be
+    traced to the signals that caused it rather than asserted. Empty for checks that read
+    no evidence — the abstention gate reads the investigation, not the registry.
+    """
 
     check: str
     passed: bool
     detail: str
+    evidence_ids: tuple[str, ...] = ()
 
 
 class ActionPolicyDecision(ActionModel):

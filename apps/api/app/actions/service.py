@@ -26,7 +26,7 @@ from app.actions.models import (
     AuditEvent,
     AuditEventType,
 )
-from app.actions.policy import evaluate_action_policy
+from app.actions.policy_v2 import evaluate_action_policy_v2
 from app.actions.repository import ActionRepository
 from app.actions.rules import DEMO_ACTOR_ID
 from app.investigation.models import InvestigationResult
@@ -81,7 +81,7 @@ def propose_action(
         )
     )
 
-    policy = evaluate_action_policy(
+    policy = evaluate_action_policy_v2(
         recommendation=recommendation,
         investigation=investigation.output,
         evidence=investigation.evidence,

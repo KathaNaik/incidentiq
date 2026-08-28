@@ -4,10 +4,23 @@ Two tables and a transition map. All of it deterministic, all of it in one file,
 it produced by a model.
 """
 
+from datetime import timedelta
+
 from app.actions.models import ActionStatus, ActionType
 from app.investigation.models import RiskLevel
 
 ACTIONS_VERSION = "action-policy-v1"
+
+# The policy in force. v1 is kept intact so the recorded M9 numbers stay attributable to
+# the code that produced them; v2 is what runs.
+ACTIONS_VERSION_V2 = "action-policy-v2"
+ACTIVE_ACTIONS_VERSION = ACTIONS_VERSION_V2
+
+# How long after a deployment it remains a plausible cause. Beyond this a release and an
+# incident are two things that happened on the same day. Two hours is a judgement call
+# for this prototype's fixtures, not a law of operations — it is one constant, in one
+# place, so it can be argued with.
+DEPLOYMENT_BLAST_WINDOW = timedelta(hours=2)
 
 # Prototype identity. There is no authentication in this milestone, and the actor id
 # says so plainly rather than implying a signed-in user.
@@ -24,6 +37,14 @@ ACTION_RISK: dict[ActionType, RiskLevel] = {
 # Every consequential action needs one human approval in this milestone. Nothing is
 # auto-approved on low risk or high model confidence.
 REQUIRED_APPROVALS = 1
+
+# --- superseded by action-policy-v2 ---------------------------------------------------
+#
+# The generic threshold below is what v1 enforced. Measuring investigator-v2 showed it
+# passing three restarts on services that were merely degraded: two independent kinds was
+# a bar about the *quantity* of evidence when the question was about its *relevance*.
+# Kept because policy-v1's recorded results are only meaningful alongside the constants
+# that produced them. `policy_v2.py` asks each action its own questions instead.
 
 # Distinct evidence *kinds* required before an action is eligible. Two independent kinds
 # for anything consequential: one signal can be a coincidence, and the point of policy

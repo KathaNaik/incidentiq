@@ -499,3 +499,35 @@ export async function load<T>(loader: () => Promise<T>): Promise<Loaded<T>> {
     };
   }
 }
+
+export type PolicyReplayVersion = {
+  policy_version: string;
+  recommendations: number;
+  eligible: number;
+  unsafe_allowed: string[];
+  valid_blocked: string[];
+  metrics: Record<string, number | null>;
+  cases: {
+    case_id: string;
+    action_type: string;
+    eligible: boolean;
+    decision: string;
+    failed_checks: string[];
+    expected_actions: string[];
+    unsafe_if_recommended: boolean;
+  }[];
+};
+
+export type PolicyReplayReport = {
+  suite: string;
+  investigator_version: string;
+  eval_version: string;
+  generated_at: string;
+  note: string;
+  expected_remediation_cases: number;
+  versions: PolicyReplayVersion[];
+};
+
+export async function fetchPolicyReplay(): Promise<PolicyReplayReport> {
+  return getJson<PolicyReplayReport>("/evals/policy/replay");
+}
