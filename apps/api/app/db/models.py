@@ -467,6 +467,13 @@ class CorrelationDecisionRow(Base):
     supporting_signals: Mapped[list] = mapped_column(JSONColumn, nullable=False, default=list)
     conflicting_signals: Mapped[list] = mapped_column(JSONColumn, nullable=False, default=list)
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Hybrid staging. Null for a decision made by a single-strategy run — a deterministic
+    # decision has no fallback stage, and inventing empty fields for it would suggest one
+    # was considered.
+    strategy: Mapped[str | None] = mapped_column(String(64))
+    deterministic_stage: Mapped[dict | None] = mapped_column(JSONColumn)
+    fallback_stage: Mapped[dict | None] = mapped_column(JSONColumn)
+    embedding_model: Mapped[str | None] = mapped_column(String(128))
     # Runners-up worth keeping: enough to explain an ambiguous call without storing a row
     # per rejected candidate.
     alternatives: Mapped[list] = mapped_column(JSONColumn, nullable=False, default=list)

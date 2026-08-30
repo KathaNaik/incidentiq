@@ -141,3 +141,22 @@ UNKNOWN_SERVICE_SCORE = 0.0
 SHARED_IDENTIFIER_SCORE = 1.0
 # Shared symptom vocabulary (both say "stale data") is weaker but real.
 SHARED_SYMPTOM_SCORE = 0.5
+
+
+# --- hybrid correlation (M16) ----------------------------------------------------------
+#
+# A third strategy, not a change to either baseline above. Deterministic scoring decides
+# almost everything; semantic evidence is computed only when the deterministic pass says a
+# candidate is operationally plausible AND that lexical overlap was the failing signal.
+HYBRID_CORRELATION_VERSION = "hybrid-correlation-v1"
+
+# The fallback policy is versioned separately from the strategy, because the conditions
+# under which an embedding is worth computing may change without the strategy changing.
+FALLBACK_POLICY_VERSION = "fallback-policy-v1"
+
+# Lexical component score at or below which lexical is treated as the limiting signal.
+# Not a score band on the blended total: a band would also fire for tickets sitting near
+# the threshold for entirely different reasons, and those are not paraphrases. Set where
+# the lexical signal has clearly stopped carrying evidence rather than merely being
+# modest — a genuine wording match on this corpus scores well above it.
+LEXICAL_WEAKNESS_MAX = 0.35

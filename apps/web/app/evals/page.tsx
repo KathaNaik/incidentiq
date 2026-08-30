@@ -1,6 +1,7 @@
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
 import { Caveats, PolarisFinding } from "@/components/caveats";
+import { EmbeddingBakeoff } from "@/components/embedding-bakeoff";
 import { EvalReportSection } from "@/components/eval-report";
 import { InvestigatorComparison } from "@/components/investigator-comparison";
 import { PolicyComparison } from "@/components/policy-comparison";
@@ -9,6 +10,7 @@ import {
   load,
   fetchCorrelationComparison,
   fetchCorrelationEvaluation,
+  fetchEmbeddingBakeoff,
   fetchInvestigationEvaluation,
   fetchPolicyReplay,
   fetchPolicyEvaluation,
@@ -38,6 +40,7 @@ export default async function EvalsPage() {
     policy,
     investigationV2,
     policyReplay,
+    bakeoff,
   ] = await Promise.all([
     load(fetchTriageEvaluation),
     load(() => fetchCorrelationEvaluation("deterministic")),
@@ -47,6 +50,7 @@ export default async function EvalsPage() {
     load(fetchPolicyEvaluation),
     load(() => fetchInvestigationEvaluation("v2")),
     load(fetchPolicyReplay),
+    load(fetchEmbeddingBakeoff),
   ]);
 
   return (
@@ -77,6 +81,7 @@ export default async function EvalsPage() {
         />
         {comparison.ok && <VersionComparisonSection comparison={comparison.data} />}
         <PolarisFinding />
+        {bakeoff.ok && <EmbeddingBakeoff report={bakeoff.data} />}
       </Group>
 
       <Group

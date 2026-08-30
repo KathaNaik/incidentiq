@@ -46,8 +46,20 @@ def get_intake() -> "TicketIntake":
     from app.intake import TicketIntake
 
     dataset = load_dataset(get_settings().fixtures_dir)
+    settings = get_settings()
+
+    def similarity_factory():
+        # Constructed only when hybrid actually reaches its fallback stage. Building it
+        # eagerly would load the embedding model on every process start for a strategy
+        # that is not the default.
+        from app.correlation.semantic import default_similarity
+
+        return default_similarity(settings.embeddings_cache_dir)
+
     return TicketIntake(
-        known_services=frozenset(service.id for service in dataset.services)
+        known_services=frozenset(service.id for service in dataset.services),
+        strategy=settings.live_correlation_strategy,
+        similarity_factory=similarity_factory,
     )
 
 

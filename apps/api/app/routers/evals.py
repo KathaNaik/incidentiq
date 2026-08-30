@@ -89,6 +89,24 @@ def get_policy_evaluation(
     return _read(settings.policy_evals_dir / POLICY_REPORT_FILE, "policy")
 
 
+@router.get("/evals/embedding-bakeoff")
+def embedding_bakeoff(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """Raw pair ordering per embedding model.
+
+    Served raw: this compares models on a pair set, which is a different shape from a
+    suite scoring one system against labels.
+    """
+    path = settings.evals_dir.parent / "intake" / "golden-embedding-bakeoff.json"
+    if not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="no bake-off recorded; run scripts/run_bakeoff.py",
+        )
+    return json.loads(path.read_text())
+
+
 @router.get("/evals/policy/replay")
 def policy_replay(
     settings: Annotated[Settings, Depends(get_settings)],

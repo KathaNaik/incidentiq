@@ -297,6 +297,129 @@ Measured intake cost: **30.8 ms end to end** (p50 31.8, p95 42.1), of which tria
 0.22 ms and correlation 5.9 ms over the replay window. The rest is HTTP and two database
 transactions.
 
+#### hybrid-correlation-v1, and why it is not the default
+
+M15 left a real limitation: the deterministic baseline refuses semantically equivalent
+paraphrases. `hybrid-correlation-v1` was built to address it — **selective semantic
+fallback, not semantic correlation on every ticket.**
+
+```
+arriving ticket → deterministic correlation
+                  ├─ attaches?        → done, no embedding
+                  └─ no → is fallback justified?
+                          ├─ hard conflict → done, no embedding
+                          └─ eligible → embed, rescore with semantic-v1, re-check cohesion
+```
+
+**Eligibility is free**, because every condition is read from signals the deterministic
+pass already produced: the candidate is inside the active window, no service / issue-type /
+identifier conflict, some positive operational agreement, and — the condition that matters
+— *lexical overlap is the limiting signal*. A score band was rejected: it would also fire
+for tickets near the threshold for entirely different reasons, and those are not
+paraphrases. Once fallback runs, scoring is exactly `semantic-correlation-v1`; hybrid
+chooses *when*, never *how*, and no guardrail is relaxed.
+
+Hybrid adds one conflict the baseline does not detect: **differing error identifiers**. The
+baseline rewards a shared identifier and is silent about differing ones. That silence is a
+gap here specifically — `ERR_AUTH_STALL` against `ERR_TOKEN_EXPIRED` is the most
+semantically similar pair in the whole authored set, scoring *above* both genuine
+paraphrases. It is detected in the hybrid gate, not in the baseline, because changing the
+baseline would change results M5 and M6 already measured.
+
+**Measured on the same 14 authored cases:**
+
+| | deterministic | semantic-everything | hybrid |
+|---|---|---|---|
+| Correct outcome | **12/14** | 11/14 | **12/14** |
+| False attachment | 0/9 | 0/9 | 0/9 |
+| Paraphrase slice | **0/2** | **0/2** | **0/2** |
+| Hard-conflict slice | 4/4 | 4/4 | 4/4 |
+| Fallback invocation | — | 100% | 21.4% |
+| Fast path (no embedding) | 100% | 0% | 78.6% |
+
+**Hybrid is not the live default, because it recovers nothing.** The gate works — it fires
+on exactly the right cases, for exactly the right structural reasons, and skips the
+dangerous ones without cost. What fails is the signal underneath it:
+
+| pair | cosine |
+|---|---|
+| genuine paraphrase | 0.66 – 0.74 |
+| **conflicting-identifier case** | **0.79 – 0.80** |
+| near-duplicate | 0.99 |
+
+M6 calibrates semantic similarity from a floor of 0.72, so genuine paraphrases land *at or
+below zero signal* — while the case that must never merge scores higher than either of
+them. On this corpus the embedding model's similarity ordering does not track incident
+identity, and lowering the floor would admit the false merge before it admitted the
+paraphrase. Paying an embedding on a fifth of submissions to change no outcome is not a
+trade worth making.
+
+So the live default stays `deterministic-correlation-v1`, set in
+`INCIDENTIQ_LIVE_CORRELATION_STRATEGY`. Hybrid remains implemented, evaluated, and
+selectable — a recorded negative result rather than dead code.
+
+**Latency**, warm cache: deterministic 1.33 ms, hybrid fast path 1.37 ms, hybrid fallback
+6.92 ms. But an *arriving* ticket is by definition unseen, so a fallback-eligible
+submission pays a real embedding: **19.3 ms marginal**, and 564 ms on the first such
+submission after a restart while the model loads.
+
+#### Embedding model bake-off
+
+M16 ended with a specific suspicion: the fallback *gate* worked, and the embedding
+*representation* did not. M17 tested whether that was the model. Same pair set, same
+embedding text, same gate — only the model changed.
+
+`Alibaba-NLP/gte-modernbert-base` and `BAAI/bge-m3` were the intended challengers and are
+**not available through fastembed**; running them needs PyTorch and a Transformers version
+with ModernBERT support, multiple gigabytes to answer a question two supported models can
+answer. Two were substituted from *different families*, so a shared failure would say
+something about the approach rather than about one model.
+
+The measurement is **separation margin**: the weakest genuine paraphrase minus the
+strongest pair that must never merge. Negative means no threshold separates them.
+
+| model | dim | size | true paraphrase | must-not-merge | margin | ordering |
+|---|---|---|---|---|---|---|
+| bge-small | 384 | 0.07 GB | 0.659 – 0.740 | 0.601 – 0.804 | **−0.144** | 50.0% |
+| gte-base | 768 | 0.44 GB | 0.822 – 0.880 | 0.781 – 0.886 | **−0.065** | 50.0% |
+| bge-large | 1024 | 1.20 GB | 0.596 – 0.728 | 0.561 – 0.798 | **−0.202** | 54.2% |
+
+**No model separates them.** In every one, the strongest must-not-merge pair scores higher
+than the weakest true paraphrase, and ordering accuracy sits at a coin flip. A model
+eighteen times the baseline's size fails *worse* than the baseline. A model from an
+entirely different family fails the same way.
+
+`gte-base` scores everything higher — 0.78 to 0.89 across the board — which is exactly the
+trap: absolute cosine says nothing, and its ordering is still 50%. Near-duplicates score
+~0.99 in all three and are excluded from the margin, because they already attach
+deterministically; counting them would make every model look separable while the cases
+that need help stayed unrecovered.
+
+**Threshold calibration was not attempted.** Recalibrating a model whose ordering is a coin
+flip cannot help, and doing it anyway would have produced a floor fitted to noise.
+
+Phase 1 predicted the end-to-end result exactly. All three models produce **identical**
+online metrics: 12/14 correct, 0% false attachment, **0/2 paraphrases recovered**, 21.4%
+fallback invocation.
+
+| model | cold load | warm embedding | p95 | embeddings/s |
+|---|---|---|---|---|
+| bge-small | 533 ms | 19.3 ms | 27.3 ms | 90 |
+| gte-base | 447 ms | 59.2 ms | 60.3 ms | 17 |
+| bge-large | 1393 ms | 55.2 ms | 56.8 ms | 20 |
+
+**The live default stays deterministic.** No challenger earned a change: each would cost
+three times the embedding latency on a fifth of submissions to recover nothing.
+
+**What this establishes**: the problem is not the model. Generic cosine similarity over
+whole-ticket embeddings is the wrong decision representation for "is this the same
+incident" — it measures topical resemblance, and two tickets about the same service with
+different failure mechanisms are topically near-identical. That is a property of the
+question, not of a checkpoint, and swapping further general-purpose embedding models is
+unlikely to change it. A discriminative approach — a pairwise classifier or a cross-encoder
+trained on incident identity rather than text similarity — is the next thing worth trying,
+and is outside this milestone.
+
 #### What live intake will and will not group
 
 The deterministic baseline is tuned for precision, and it shows. On the authored online

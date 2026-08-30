@@ -72,6 +72,11 @@ class CorrelationDecision(IntakeModel):
     reason: str = ""
     # Runners-up, when the choice was close enough that the alternative matters.
     alternatives: tuple[str, ...] = ()
+    # Hybrid staging. Absent for a single-strategy decision, which had no fallback stage.
+    strategy: str | None = None
+    deterministic_stage: dict | None = None
+    fallback_stage: dict | None = None
+    embedding_model: str | None = None
 
 
 class RuntimeTicket(IntakeModel):

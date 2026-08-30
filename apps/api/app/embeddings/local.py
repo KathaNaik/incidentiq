@@ -14,6 +14,14 @@ reuses the exact vectors rather than recomputing them.
 from collections.abc import Sequence
 
 from app.embeddings.provider import EmbeddingError
+from app.embeddings.registry import MODELS, EmbeddingModelSpec
+
+
+def _spec_for_name(model_name: str) -> EmbeddingModelSpec | None:
+    """The registry entry for a model, or None for one not evaluated here."""
+    return next(
+        (spec for spec in MODELS.values() if spec.model_name == model_name), None
+    )
 
 MODEL_NAME = "BAAI/bge-small-en-v1.5"
 DIMENSIONS = 384
@@ -27,6 +35,11 @@ class LocalEmbeddingProvider:
     def __init__(self, model_name: str = MODEL_NAME) -> None:
         self._model_name = model_name
         self._model = None
+        # Dimension comes from the registry, not from a module constant. It used to be
+        # fixed at 384 while `model_name` was already a parameter, so constructing this
+        # with any other model reported the wrong shape — a silently wrong vector rather
+        # than an error.
+        self._spec = _spec_for_name(model_name)
 
     @property
     def identity(self) -> str:
@@ -34,7 +47,7 @@ class LocalEmbeddingProvider:
 
     @property
     def dimensions(self) -> int:
-        return DIMENSIONS
+        return self._spec.dimension if self._spec else DIMENSIONS
 
     def _load(self):
         if self._model is not None:

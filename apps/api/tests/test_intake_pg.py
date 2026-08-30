@@ -375,3 +375,150 @@ def test_no_model_is_called_during_intake(intake, monkeypatch) -> None:
     monkeypatch.setattr(provider.OpenAIInvestigationModel, "investigate", explode)
     result = intake.submit(request("EXT-NOLLM", *AUTH))
     assert result.ticket.id
+
+
+# --- hybrid correlation (M16) -----------------------------------------------------------
+
+
+class _CountingSimilarity:
+    """Wraps the real provider and counts what it was asked to embed.
+
+    "Did this ticket cost an embedding?" is the question hybrid exists to answer well, so
+    the tests measure it rather than trusting the code path.
+    """
+
+    def __init__(self, inner=None, fail: bool = False) -> None:
+        self._inner = inner
+        self.prepared: list[list[str]] = []
+        self.fail = fail
+
+    @property
+    def identity(self) -> str:
+        return self._inner.identity if self._inner else "test:stub"
+
+    def prepare(self, tickets) -> None:
+        self.prepared.append([t.id for t in tickets])
+        if self.fail:
+            raise RuntimeError("embedding provider unavailable")
+        if self._inner:
+            self._inner.prepare(tickets)
+
+    def score(self, a, b):
+        return self._inner.score(a, b)
+
+    def cosine(self, a, b):
+        return self._inner.cosine(a, b)
+
+
+def hybrid_intake(similarity=None) -> TicketIntake:
+    return TicketIntake(
+        known_services=SERVICES,
+        strategy="hybrid",
+        similarity_factory=(lambda: similarity) if similarity else None,
+    )
+
+
+def test_a_deterministic_attachment_never_costs_an_embedding(intake) -> None:
+    """The fast path. Most submissions must not pay for a model."""
+    counter = _CountingSimilarity()
+    hybrid = hybrid_intake(counter)
+
+    hybrid.submit(request("H-A", *AUTH, minutes=0))
+    result = hybrid.submit(request("H-B", *AUTH_DUP, minutes=6))
+
+    assert result.correlation.candidate_id is not None
+    assert counter.prepared == [], "a clear deterministic match must not embed anything"
+    assert result.correlation.fallback_stage["semantic_invoked"] is False
+
+
+def test_a_hard_service_conflict_never_costs_an_embedding(intake) -> None:
+    counter = _CountingSimilarity()
+    hybrid = hybrid_intake(counter)
+
+    hybrid.submit(request("H-A", *AUTH, minutes=0, service="svc-auth"))
+    hybrid.submit(request("H-B", *AUTH_DUP, minutes=6, service="svc-auth"))
+    unrelated = hybrid.submit(
+        request(
+            "H-OTHER",
+            "Meeting room display will not turn on",
+            "The screen stays black when we try to start a session.",
+            minutes=10,
+            service="svc-analytics",
+        )
+    )
+
+    assert unrelated.correlation.candidate_id is None
+    assert counter.prepared == [], "a different service is decided without embedding"
+    blocking = [
+        reason
+        for decision in unrelated.correlation.fallback_stage["decisions"]
+        for reason in decision["blocking_reasons"]
+    ]
+    assert any("service conflict" in reason for reason in blocking)
+
+
+def test_a_stale_candidate_never_costs_an_embedding(intake) -> None:
+    counter = _CountingSimilarity()
+    hybrid = hybrid_intake(counter)
+
+    hybrid.submit(request("H-A", *AUTH, minutes=0))
+    hybrid.submit(request("H-B", *AUTH_DUP, minutes=6))
+    late = hybrid.submit(request("H-LATE", *AUTH, minutes=60 * 24))
+
+    assert late.correlation.candidate_id is None
+    assert counter.prepared == []
+
+
+def test_an_embedding_failure_leaves_the_ticket_persisted_and_unattached(intake) -> None:
+    """A provider outage must not lose a report, and must not fake a score."""
+    hybrid = hybrid_intake(_CountingSimilarity(fail=True))
+
+    hybrid.submit(request("H-A", *AUTH, minutes=0))
+    hybrid.submit(request("H-B", *AUTH_DUP, minutes=6))
+    borderline = hybrid.submit(
+        request(
+            "H-PARA",
+            "Users complete SSO but their workspace never finishes loading",
+            "Everyone gets through single sign-on and then nothing happens.",
+            minutes=12,
+            service="svc-auth",
+        )
+    )
+
+    assert borderline.ticket.id, "the ticket is persisted"
+    assert borderline.triage.version == TRIAGE_VERSION, "triage is persisted"
+    assert borderline.correlation.candidate_id is None, "and it is not attached"
+    assert borderline.correlation.fallback_stage["failed"] is True
+    assert "embedding provider unavailable" in borderline.correlation.reason
+    assert borderline.correlation.fallback_stage["semantic_score"] is None, (
+        "no fabricated score"
+    )
+
+
+def test_hybrid_staging_is_persisted_and_survives_a_restart(intake) -> None:
+    counter = _CountingSimilarity()
+    hybrid = hybrid_intake(counter)
+
+    hybrid.submit(request("H-A", *AUTH, minutes=0))
+    second = hybrid.submit(request("H-B", *AUTH_DUP, minutes=6))
+
+    row = SqlRepository(load_dataset(get_settings().fixtures_dir)).decision_for(
+        second.ticket.id
+    )
+    assert row.strategy == "hybrid-correlation-v1"
+    assert row.deterministic_stage["attached"] is True
+    assert row.fallback_stage["semantic_invoked"] is False
+    assert row.fallback_stage["policy_version"] == "fallback-policy-v1"
+
+
+def test_the_live_default_is_still_deterministic() -> None:
+    """Hybrid is implemented and evaluated; it did not earn the default.
+
+    It matched deterministic exactly on the authored set while recovering none of the
+    paraphrases it was built for, so it would cost embeddings to change nothing.
+    """
+    from app.config import Settings
+    from app.intake.rules import LIVE_CORRELATION_MODE
+
+    assert LIVE_CORRELATION_MODE == "deterministic"
+    assert Settings().live_correlation_strategy == "deterministic"

@@ -1,0 +1,174 @@
+{
+  "suite": "embedding-bakeoff",
+  "version": "bakeoff-v1",
+  "generated_at": "2026-08-30T11:26:23.750725+00:00",
+  "note": "Phase 1: raw pair ordering. The question is whether a model ranks genuine same-incident paraphrases above pairs that must never merge. Separation margin is min(paraphrase) - max(dangerous negative); a negative margin means no single threshold separates the slice and threshold tuning cannot help. Average cosine is deliberately not the headline \u2014 a model that scores everything higher has learned nothing about incident identity. Pairs are drawn from the authored M16 online cases, not written for this experiment. Embedding text is unchanged from M16, so the only variable is the model.",
+  "unsupported": {
+    "Alibaba-NLP/gte-modernbert-base": "not available through fastembed; needs PyTorch and a Transformers version with ModernBERT support \u2014 multiple gigabytes to answer a question two supported models can answer",
+    "BAAI/bge-m3": "not available through fastembed"
+  },
+  "pairs": [
+    {
+      "id": "PR01:P-001",
+      "kind": "positive",
+      "note": "true paraphrase, auth incident"
+    },
+    {
+      "id": "PR01:P-002",
+      "kind": "positive",
+      "note": "true paraphrase, auth incident, second member"
+    },
+    {
+      "id": "PR02:C-001",
+      "kind": "positive",
+      "note": "true paraphrase, connector incident"
+    },
+    {
+      "id": "PR02:C-002",
+      "kind": "positive",
+      "note": "true paraphrase, connector incident, second member"
+    },
+    {
+      "id": "ON08:S-801",
+      "kind": "near_duplicate",
+      "note": "near-verbatim duplicate report"
+    },
+    {
+      "id": "PR03:P-001",
+      "kind": "dangerous_negative",
+      "note": "permissions request against an availability incident"
+    },
+    {
+      "id": "PR04:E-001",
+      "kind": "dangerous_negative",
+      "note": "conflicting error identifiers on one service"
+    },
+    {
+      "id": "PR04:E-002",
+      "kind": "dangerous_negative",
+      "note": "conflicting error identifiers, second member"
+    },
+    {
+      "id": "PR06:P-001",
+      "kind": "dangerous_negative",
+      "note": "unrelated service and problem"
+    },
+    {
+      "id": "ON03:S-301",
+      "kind": "dangerous_negative",
+      "note": "shared vocabulary, different service and failure"
+    },
+    {
+      "id": "ON07:S-701",
+      "kind": "dangerous_negative",
+      "note": "same service, unrelated problem"
+    }
+  ],
+  "models": [
+    {
+      "model_id": "bge-small",
+      "model_name": "BAAI/bge-small-en-v1.5",
+      "dimension": 384,
+      "positive_min": 0.6593,
+      "positive_max": 0.7395,
+      "positive_mean": 0.7074,
+      "positive_median": 0.7154,
+      "dangerous_min": 0.6014,
+      "dangerous_max": 0.8035,
+      "dangerous_mean": 0.6935,
+      "dangerous_median": 0.6835,
+      "near_duplicate_min": 0.9898,
+      "near_duplicate_max": 0.9898,
+      "separation_margin": -0.1442,
+      "ordering_accuracy": 0.5,
+      "ordering_wins": 12,
+      "ordering_comparisons": 24,
+      "separable": false,
+      "scores": {
+        "ON03:S-301": 0.7607,
+        "ON07:S-701": 0.6062,
+        "ON08:S-801": 0.9898,
+        "PR01:P-001": 0.7395,
+        "PR01:P-002": 0.7239,
+        "PR02:C-001": 0.7069,
+        "PR02:C-002": 0.6593,
+        "PR03:P-001": 0.6031,
+        "PR04:E-001": 0.7859,
+        "PR04:E-002": 0.8035,
+        "PR06:P-001": 0.6014
+      },
+      "scoring_seconds": 0.05,
+      "size_gb": 0.067
+    },
+    {
+      "model_id": "gte-base",
+      "model_name": "thenlper/gte-base",
+      "dimension": 768,
+      "positive_min": 0.8217,
+      "positive_max": 0.8799,
+      "positive_mean": 0.858,
+      "positive_median": 0.8653,
+      "dangerous_min": 0.7813,
+      "dangerous_max": 0.8864,
+      "dangerous_mean": 0.8416,
+      "dangerous_median": 0.8488,
+      "near_duplicate_min": 0.995,
+      "near_duplicate_max": 0.995,
+      "separation_margin": -0.0647,
+      "ordering_accuracy": 0.5,
+      "ordering_wins": 12,
+      "ordering_comparisons": 24,
+      "separable": false,
+      "scores": {
+        "ON03:S-301": 0.8853,
+        "ON07:S-701": 0.813,
+        "ON08:S-801": 0.995,
+        "PR01:P-001": 0.8799,
+        "PR01:P-002": 0.877,
+        "PR02:C-001": 0.8535,
+        "PR02:C-002": 0.8217,
+        "PR03:P-001": 0.7986,
+        "PR04:E-001": 0.8847,
+        "PR04:E-002": 0.8864,
+        "PR06:P-001": 0.7813
+      },
+      "scoring_seconds": 8.54,
+      "size_gb": 0.44
+    },
+    {
+      "model_id": "bge-large",
+      "model_name": "BAAI/bge-large-en-v1.5",
+      "dimension": 1024,
+      "positive_min": 0.596,
+      "positive_max": 0.7278,
+      "positive_mean": 0.6753,
+      "positive_median": 0.6886,
+      "dangerous_min": 0.5611,
+      "dangerous_max": 0.7983,
+      "dangerous_mean": 0.6704,
+      "dangerous_median": 0.6615,
+      "near_duplicate_min": 0.992,
+      "near_duplicate_max": 0.992,
+      "separation_margin": -0.2023,
+      "ordering_accuracy": 0.5417,
+      "ordering_wins": 13,
+      "ordering_comparisons": 24,
+      "separable": false,
+      "scores": {
+        "ON03:S-301": 0.7198,
+        "ON07:S-701": 0.5798,
+        "ON08:S-801": 0.992,
+        "PR01:P-001": 0.7278,
+        "PR01:P-002": 0.7204,
+        "PR02:C-001": 0.6568,
+        "PR02:C-002": 0.596,
+        "PR03:P-001": 0.6032,
+        "PR04:E-001": 0.7603,
+        "PR04:E-002": 0.7983,
+        "PR06:P-001": 0.5611
+      },
+      "scoring_seconds": 20.69,
+      "size_gb": 1.2
+    }
+  ]
+}

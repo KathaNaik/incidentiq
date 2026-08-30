@@ -730,6 +730,26 @@ export type TicketIntakeResult = {
     conflicting_signals: string[];
     reason: string;
     alternatives: string[];
+    /** Hybrid staging. Null when a single strategy decided, which had no fallback stage. */
+    strategy?: string | null;
+    deterministic_stage?: {
+      attached: boolean;
+      candidate_id: string | null;
+      score: number | null;
+    } | null;
+    fallback_stage?: {
+      semantic_invoked: boolean;
+      semantic_score: number | null;
+      failed: boolean;
+      policy_version: string;
+      decisions: {
+        candidate_id: string;
+        eligible: boolean;
+        reasons: string[];
+        blocking_reasons: string[];
+      }[];
+    } | null;
+    embedding_model?: string | null;
   };
   candidate: Record<string, unknown> | null;
   idempotent_replay: boolean;
@@ -774,4 +794,34 @@ export async function submitTicket(
     throw new Error(detail ?? `Submission failed with ${response.status}`);
   }
   return { result: body as TicketIntakeResult, replayed: response.status === 200 };
+}
+
+export type EmbeddingBakeoffModel = {
+  model_id: string;
+  model_name: string;
+  dimension: number;
+  size_gb: number | null;
+  positive_min: number | null;
+  positive_max: number | null;
+  positive_mean: number | null;
+  dangerous_min: number | null;
+  dangerous_max: number | null;
+  near_duplicate_min: number | null;
+  near_duplicate_max: number | null;
+  separation_margin: number;
+  ordering_accuracy: number | null;
+  separable: boolean;
+};
+
+export type EmbeddingBakeoff = {
+  suite: string;
+  version: string;
+  generated_at: string;
+  note: string;
+  unsupported: Record<string, string>;
+  models: EmbeddingBakeoffModel[];
+};
+
+export async function fetchEmbeddingBakeoff(): Promise<EmbeddingBakeoff> {
+  return getJson<EmbeddingBakeoff>("/evals/embedding-bakeoff");
 }

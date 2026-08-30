@@ -110,13 +110,22 @@ def calibrate(cosine: float) -> float:
     return round(min(1.0, max(0.0, (cosine - SEMANTIC_FLOOR) / span)), 4)
 
 
-def default_similarity(cache_directory: Path | None = None) -> SemanticSimilarity:
+def default_similarity(
+    cache_directory: Path | None = None, model_name: str | None = None
+) -> SemanticSimilarity:
     """The configured provider, with a disk cache when one is given.
+
+    `model_name` selects a registry model for the M17 bake-off. It defaults to the
+    baseline, so every historical result stays reproducible without passing anything —
+    and the cache is keyed by provider identity, so two models can never read each
+    other's vectors.
 
     Constructing this does not load the model — that happens on the first embedding, so
     an unavailable provider surfaces as an `EmbeddingError` at use, with a message
     saying what to install.
     """
-    provider = LocalEmbeddingProvider()
+    provider = (
+        LocalEmbeddingProvider(model_name) if model_name else LocalEmbeddingProvider()
+    )
     cache = EmbeddingCache(cache_directory, provider) if cache_directory else None
     return SemanticSimilarity(provider, cache)

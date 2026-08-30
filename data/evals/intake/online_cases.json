@@ -1,8 +1,8 @@
 {
   "dataset": "incidentiq-intake-online",
-  "eval_version": "intake-eval-v1",
+  "eval_version": "intake-eval-v2",
   "synthetic": true,
-  "note": "Authored online-intake cases. Each has a `seed` (tickets already in the window) and one `arriving` ticket, and asks what incremental correlation does with the arrival. Original content, no external dataset, no hidden labels in the ticket text. Small on purpose: this is acceptance and regression evidence, not a benchmark, and no broad claim should be made from eight cases.",
+  "note": "Authored online-intake cases. Each has a `seed` (tickets already in the window) and one `arriving` ticket, and asks what incremental correlation does with the arrival. Original content, no external dataset, no hidden labels in the ticket text. Two slices: `baseline` (M15, general intake behaviour) and the M16 additions \u2014 `paraphrase` (same incident, different words: the case deterministic correlation refuses) and `hard_conflict` (semantic similarity would be high but a deterministic conflict must win). Fourteen cases is acceptance and regression evidence, not a benchmark.",
   "records": [
     {
       "id": "ON01",
@@ -31,7 +31,8 @@
         "service_id": "svc-auth"
       },
       "expected": "created_candidate",
-      "note": "Three reporters, one failure, overlapping vocabulary. LABEL CORRECTED while authoring: the expectation was 'attached', but the two seed tickets do not clear the linkage threshold with each other, so no candidate exists for the arrival to join \u2014 verified by correlating the seed alone, independently of what the arrival then did. Grouping the arrival with the compatible seed ticket and forming a candidate is the correct outcome. The case still earns its place: it shows a candidate forming on the third report rather than the second."
+      "note": "Three reporters, one failure, overlapping vocabulary. LABEL CORRECTED while authoring: the expectation was 'attached', but the two seed tickets do not clear the linkage threshold with each other, so no candidate exists for the arrival to join \u2014 verified by correlating the seed alone, independently of what the arrival then did. Grouping the arrival with the compatible seed ticket and forming a candidate is the correct outcome. The case still earns its place: it shows a candidate forming on the third report rather than the second.",
+      "slice": "baseline"
     },
     {
       "id": "ON02",
@@ -59,7 +60,8 @@
         "description": "The shared printer will not accept jobs and shows an offline status on its panel."
       },
       "expected": "uncorrelated",
-      "note": "Nothing in common. Must stay on its own."
+      "note": "Nothing in common. Must stay on its own.",
+      "slice": "baseline"
     },
     {
       "id": "ON03",
@@ -88,7 +90,8 @@
         "service_id": "svc-analytics"
       },
       "expected": "uncorrelated",
-      "note": "'queue growing, never complete' matches lexically, but a different service and a different failure. A merge here would invent an incident."
+      "note": "'queue growing, never complete' matches lexically, but a different service and a different failure. A merge here would invent an incident.",
+      "slice": "baseline"
     },
     {
       "id": "ON04",
@@ -117,7 +120,8 @@
         "service_id": "svc-auth"
       },
       "expected": "uncorrelated",
-      "note": "A day later is a different incident however similar the words. The idle window must refuse it."
+      "note": "A day later is a different incident however similar the words. The idle window must refuse it.",
+      "slice": "baseline"
     },
     {
       "id": "ON05",
@@ -139,7 +143,8 @@
         "service_id": "svc-connector"
       },
       "expected": "created_candidate",
-      "note": "One report is a singleton; the second compatible one is what makes it an incident."
+      "note": "One report is a singleton; the second compatible one is what makes it an incident.",
+      "slice": "baseline"
     },
     {
       "id": "ON06",
@@ -153,7 +158,8 @@
         "service_id": "svc-analytics"
       },
       "expected": "uncorrelated",
-      "note": "No active candidate exists. A lone report is a valid state, not a failure."
+      "note": "No active candidate exists. A lone report is a valid state, not a failure.",
+      "slice": "baseline"
     },
     {
       "id": "ON07",
@@ -182,7 +188,8 @@
         "service_id": "svc-auth"
       },
       "expected": "uncorrelated",
-      "note": "Same service is not the same incident. Attaching on service alone would be the failure."
+      "note": "Same service is not the same incident. Attaching on service alone would be the failure.",
+      "slice": "baseline"
     },
     {
       "id": "ON08",
@@ -211,7 +218,189 @@
         "service_id": "svc-connector"
       },
       "expected": "attached",
-      "note": "The clearest possible duplicate. If this does not attach, live intake attaches nothing."
+      "note": "The clearest possible duplicate. If this does not attach, live intake attaches nothing.",
+      "slice": "baseline"
+    },
+    {
+      "id": "PR01",
+      "scenario": "True paraphrase, low lexical overlap",
+      "slice": "paraphrase",
+      "seed": [
+        {
+          "id": "P-001",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Sign-in requests hang after authentication",
+          "description": "Users authenticate with the identity provider and then the request hangs. The session never finishes establishing and the console never loads.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "P-002",
+          "created_at": "2026-09-01T09:11:00Z",
+          "title": "Sign-in hangs once authentication completes",
+          "description": "Authentication with the identity provider succeeds and then the request hangs indefinitely. The session never establishes.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "P-003",
+        "created_at": "2026-09-01T09:18:00Z",
+        "title": "Users complete SSO but their workspace never finishes loading",
+        "description": "Everyone gets through the single sign-on step, then nothing happens. The workspace never finishes opening for them.",
+        "service_id": "svc-auth"
+      },
+      "expected": "attached",
+      "note": "The exact M15 limitation. Same service, same window, same failure \u2014 described in entirely different words. Deterministic loses the lexical signal and refuses."
+    },
+    {
+      "id": "PR02",
+      "scenario": "True paraphrase on a different service",
+      "slice": "paraphrase",
+      "seed": [
+        {
+          "id": "C-001",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Warehouse sync jobs stuck in running state",
+          "description": "Sync jobs start and never finish. The queue is growing and nothing completes.",
+          "service_id": "svc-connector"
+        },
+        {
+          "id": "C-002",
+          "created_at": "2026-09-01T09:10:00Z",
+          "title": "Sync jobs stuck running and the queue is growing",
+          "description": "Connector jobs start and never complete. The queue keeps climbing and nothing finishes.",
+          "service_id": "svc-connector"
+        }
+      ],
+      "arriving": {
+        "id": "C-003",
+        "created_at": "2026-09-01T09:16:00Z",
+        "title": "Nothing has landed in the warehouse for hours",
+        "description": "Data has stopped arriving on our side entirely. Whatever moves it across appears to have wedged.",
+        "service_id": "svc-connector"
+      },
+      "expected": "attached",
+      "note": "Second paraphrase case so the slice is not one example. Different service, same shape of problem."
+    },
+    {
+      "id": "PR03",
+      "scenario": "Same domain, permissions rather than availability",
+      "slice": "hard_conflict",
+      "seed": [
+        {
+          "id": "P-001",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Sign-in requests hang after authentication",
+          "description": "Users authenticate with the identity provider and then the request hangs. The session never finishes establishing and the console never loads.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "P-002",
+          "created_at": "2026-09-01T09:11:00Z",
+          "title": "Sign-in hangs once authentication completes",
+          "description": "Authentication with the identity provider succeeds and then the request hangs indefinitely. The session never establishes.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "P-004",
+        "created_at": "2026-09-01T09:17:00Z",
+        "title": "I cannot change SSO permissions for my workspace",
+        "description": "I am trying to update who can sign in through SSO for my workspace and the permission settings will not save for my account.",
+        "service_id": "svc-auth"
+      },
+      "expected": "uncorrelated",
+      "note": "Semantic similarity would be high \u2014 it is all SSO vocabulary \u2014 but permissions and availability are contradictory issue types. Fallback must be blocked before any embedding is computed."
+    },
+    {
+      "id": "PR04",
+      "scenario": "Same service, conflicting error identifiers",
+      "slice": "hard_conflict",
+      "seed": [
+        {
+          "id": "E-001",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Authentication stalling for everyone",
+          "description": "Sign-in is stalling for the whole workspace. Logs show ERR_AUTH_STALL repeatedly.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "E-002",
+          "created_at": "2026-09-01T09:10:00Z",
+          "title": "Authentication stalls on every attempt",
+          "description": "Every sign-in attempt stalls. We keep seeing ERR_AUTH_STALL in the logs.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "E-003",
+        "created_at": "2026-09-01T09:16:00Z",
+        "title": "Authentication failing with expired tokens",
+        "description": "Sign-in is failing for our integrations. The logs show ERR_TOKEN_EXPIRED on each attempt.",
+        "service_id": "svc-auth"
+      },
+      "expected": "uncorrelated",
+      "note": "Same service, same window, similar prose \u2014 but a different failure mechanism named explicitly. A quoted identifier is the strongest non-temporal evidence there is, and semantic similarity must not be allowed to argue with it."
+    },
+    {
+      "id": "PR05",
+      "scenario": "Near-identical wording, a day late",
+      "slice": "hard_conflict",
+      "seed": [
+        {
+          "id": "P-001",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Sign-in requests hang after authentication",
+          "description": "Users authenticate with the identity provider and then the request hangs. The session never finishes establishing and the console never loads.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "P-002",
+          "created_at": "2026-09-01T09:11:00Z",
+          "title": "Sign-in hangs once authentication completes",
+          "description": "Authentication with the identity provider succeeds and then the request hangs indefinitely. The session never establishes.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "P-005",
+        "created_at": "2026-09-02T09:18:00Z",
+        "title": "Sign-in requests hang after authentication",
+        "description": "Users authenticate with the identity provider and then the request hangs. The session never finishes establishing.",
+        "service_id": "svc-auth"
+      },
+      "expected": "uncorrelated",
+      "note": "Maximum semantic similarity \u2014 it is nearly the same text. A day later it is a different incident, and the active window must refuse it without embedding anything."
+    },
+    {
+      "id": "PR06",
+      "scenario": "Unrelated service and problem",
+      "slice": "hard_conflict",
+      "seed": [
+        {
+          "id": "P-001",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Sign-in requests hang after authentication",
+          "description": "Users authenticate with the identity provider and then the request hangs. The session never finishes establishing and the console never loads.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "P-002",
+          "created_at": "2026-09-01T09:11:00Z",
+          "title": "Sign-in hangs once authentication completes",
+          "description": "Authentication with the identity provider succeeds and then the request hangs indefinitely. The session never establishes.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "P-006",
+        "created_at": "2026-09-01T09:19:00Z",
+        "title": "Meeting room display will not turn on",
+        "description": "The screen in the third floor meeting room stays black when we try to start a session.",
+        "service_id": "svc-analytics"
+      },
+      "expected": "uncorrelated",
+      "note": "Different service and a different problem. No embedding cost should be paid at all."
     }
-  ]
+  ],
+  "supersedes": "intake-eval-v1"
 }

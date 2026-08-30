@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # than failing obscurely at import time.
     database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
 
+    # Which correlation strategy live intake runs. Deterministic by default — hybrid is
+    # implemented and evaluated but did not earn the default; see the README. Settable so
+    # the comparison can be run against a live API rather than only offline.
+    live_correlation_strategy: Literal["deterministic", "hybrid"] = "deterministic"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -1,22 +1,22 @@
 {
   "suite": "intake",
-  "version": "semantic-correlation-v1",
-  "generated_at": "2026-08-30T11:07:20.795054Z",
+  "version": "hybrid-correlation-v1",
+  "generated_at": "2026-08-30T11:27:03.288290Z",
   "case_count": 14,
   "metrics": [
     {
       "name": "correct_outcome_rate",
-      "correct": 11,
+      "correct": 12,
       "total": 14,
-      "accuracy": 0.7857,
+      "accuracy": 0.8571,
       "abstained": 0,
       "majority_baseline": null
     },
     {
       "name": "correct_attachment_rate",
-      "correct": 2,
+      "correct": 3,
       "total": 5,
-      "accuracy": 0.4,
+      "accuracy": 0.6,
       "abstained": 0,
       "majority_baseline": null
     },
@@ -46,17 +46,17 @@
     },
     {
       "name": "candidate_creation_accuracy",
-      "correct": 1,
+      "correct": 2,
       "total": 2,
-      "accuracy": 0.5,
+      "accuracy": 1.0,
       "abstained": 0,
       "majority_baseline": null
     },
     {
       "name": "baseline_slice_accuracy",
-      "correct": 7,
+      "correct": 8,
       "total": 8,
-      "accuracy": 0.875,
+      "accuracy": 1.0,
       "abstained": 0,
       "majority_baseline": null
     },
@@ -75,27 +75,49 @@
       "accuracy": 0.0,
       "abstained": 0,
       "majority_baseline": null
+    },
+    {
+      "name": "semantic_fallback_invocation_rate",
+      "correct": 3,
+      "total": 14,
+      "accuracy": 0.2143,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "deterministic_fast_path_rate",
+      "correct": 11,
+      "total": 14,
+      "accuracy": 0.7857,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "fallback_success_rate",
+      "correct": 1,
+      "total": 3,
+      "accuracy": 0.3333,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "fallback_false_attachment_rate",
+      "correct": 0,
+      "total": 3,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
     }
   ],
   "confusion": [],
   "failures": [
-    {
-      "case_id": "ON01",
-      "metric": "intake_outcome",
-      "expected": "created_candidate",
-      "predicted": "attached",
-      "status": "Second reporter of the same auth failure, different words",
-      "explanation": "score 0.6304, 3 tickets, low confidence",
-      "signals": [],
-      "text": "Three reporters, one failure, overlapping vocabulary. LABEL CORRECTED while authoring: the expectation was 'attached', but the two seed tickets do not clear the linkage threshold with each other, so no candidate exists for the arrival to join — verified by correlating the seed alone, independently of what the arrival then did. Grouping the arrival with the compatible seed ticket and forming a candidate is the correct outcome. The case still earns its place: it shows a candidate forming on the third report rather than the second."
-    },
     {
       "case_id": "PR01",
       "metric": "intake_outcome",
       "expected": "attached",
       "predicted": "uncorrelated",
       "status": "True paraphrase, low lexical overlap",
-      "explanation": "no candidate met the linkage thresholds",
+      "explanation": "semantic fallback ran, no attachment",
       "signals": [],
       "text": "The exact M15 limitation. Same service, same window, same failure — described in entirely different words. Deterministic loses the lexical signal and refuses."
     },
@@ -105,7 +127,7 @@
       "expected": "attached",
       "predicted": "uncorrelated",
       "status": "True paraphrase on a different service",
-      "explanation": "no candidate met the linkage thresholds",
+      "explanation": "semantic fallback ran, no attachment",
       "signals": [],
       "text": "Second paraphrase case so the slice is not one example. Different service, same shape of problem."
     }
@@ -114,7 +136,7 @@
     "Authored online-intake cases: a window of tickets plus one arrival.",
     "Eight cases. Acceptance and regression evidence, not a benchmark — no general claim should be drawn from a set this size.",
     "False attachment is the metric that matters most: inventing an incident that is not happening is worse than missing one that is.",
-    "Correlation version under test: semantic-correlation-v1.",
+    "Correlation version under test: hybrid-correlation-v1.",
     "Slices: `paraphrase` is the case deterministic correlation refuses — same incident, different words. `hard_conflict` is the opposite risk: semantic similarity would be high, and a deterministic conflict must win anyway."
   ]
 }

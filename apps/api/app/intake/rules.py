@@ -24,10 +24,16 @@ INTAKE_VERSION = "intake-v1"
 
 # Live intake runs the **deterministic** baseline.
 #
-# It is the product default the UI already uses; M6 measured the semantic version as
-# exactly zero delta on the authored set; and semantic correlation would add an embedding
-# call — latency and a failure mode — to every ticket submission for no measured gain.
-# Semantic remains available for batch comparison and is selectable by name.
+# Reaffirmed in M16 on measurement, not preference. Hybrid correlation was built and
+# evaluated on the same authored set and matched deterministic exactly (12/14, 0% false
+# attachment) while recovering **none** of the paraphrases it was built for — the
+# embedding model scores genuine paraphrases at cosine 0.66–0.74, at or below M6's
+# calibration floor, and scores the conflicting-identifier case *higher* than either of
+# them. Paying an embedding on a fifth of submissions to change nothing is not a trade
+# worth making.
+#
+# `hybrid` remains selectable and evaluated; see the milestone report for why it is not
+# the default.
 LIVE_CORRELATION_MODE = "deterministic"
 
 # Enough history to rebuild the candidates a new ticket might join. Four times the idle

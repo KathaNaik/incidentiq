@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Badge } from "@/components/badge";
+import { CorrelationPath } from "@/components/correlation-path";
 import { submitTicket, type TicketIntakeResult } from "@/lib/api";
 
 /**
@@ -185,6 +186,8 @@ function Outcome({
         </Row>
       </dl>
       <p className="mt-2 text-xs text-neutral-500">{correlation.reason}</p>
+
+      <CorrelationPath correlation={correlation} />
     </div>
   );
 }

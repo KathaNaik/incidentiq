@@ -43,9 +43,11 @@ from app.intake.models import (
     TicketSource,
     TriageSummary,
 )
+from app.correlation.rules import FALLBACK_POLICY_VERSION
 from app.intake.rules import (
     CANDIDATE_MARGIN,
     FUTURE_TOLERANCE,
+    LIVE_CORRELATION_MODE,
     REPLAY_WINDOW,
     RESERVED_SOURCES,
 )
@@ -72,10 +74,20 @@ def _aware(value: datetime | None) -> datetime:
 
 
 class TicketIntake:
-    def __init__(self, engine: Engine | None = None, known_services: frozenset[str] = frozenset()) -> None:
+    def __init__(
+        self,
+        engine: Engine | None = None,
+        known_services: frozenset[str] = frozenset(),
+        strategy: str = LIVE_CORRELATION_MODE,
+        similarity_factory=None,
+    ) -> None:
         self._engine = engine or get_engine()
         self._session = sessionmaker_for(self._engine)
         self._known_services = known_services
+        self._strategy = strategy
+        # A factory, not a provider: nothing is constructed — and certainly nothing
+        # embedded — unless a candidate actually passes fallback eligibility.
+        self._similarity_factory = similarity_factory
 
     # --- intake ---------------------------------------------------------------------
 
@@ -225,10 +237,15 @@ class TicketIntake:
                 .with_for_update()
             ).all()
 
-            result = correlate([_to_correlation_ticket(row) for row in rows])
-            group = next(
-                (c for c in result.candidates if ticket_id in c.ticket_ids), None
-            )
+            window = [_to_correlation_ticket(row) for row in rows]
+            if self._strategy == "hybrid":
+                result, group, staging = self._hybrid(window, ticket_id)
+            else:
+                result = correlate(window)
+                group = next(
+                    (c for c in result.candidates if ticket_id in c.ticket_ids), None
+                )
+                staging = {}
 
             if group is None:
                 decision = CorrelationDecision(
@@ -239,10 +256,12 @@ class TicketIntake:
                     score=None,
                     confidence=None,
                     created_new_candidate=False,
-                    reason=(
+                    reason=staging.get("reason")
+                    or (
                         "no active candidate met the linkage thresholds; the ticket "
                         "stands on its own, which is a valid operational state"
                     ),
+                    **staging.get("fields", {}),
                 )
                 arriving.candidate_id = None
                 self._record(decision, session=session)
@@ -265,6 +284,7 @@ class TicketIntake:
                         "inventing certainty"
                     ),
                     alternatives=alternatives,
+                    **staging.get("fields", {}),
                 )
                 arriving.candidate_id = None
                 self._record(decision, session=session)
@@ -295,11 +315,61 @@ class TicketIntake:
                     f"grouped with {group.ticket_count - 1} other report(s) at score "
                     f"{group.score} ({group.confidence.value} confidence)"
                 ),
+                **staging.get("fields", {}),
             )
             self._record(decision, session=session)
             session.flush()
             candidate = _candidate_payload(row)
         return decision, candidate
+
+    def _hybrid(self, window, ticket_id: str):
+        """Deterministic first, semantic only where the gate says it could help.
+
+        The similarity provider is constructed lazily here so that a submission which
+        never reaches fallback costs nothing at all — not even a model load.
+        """
+        from app.correlation.hybrid import correlate_hybrid
+
+        similarity = self._similarity_factory() if self._similarity_factory else None
+        outcome = correlate_hybrid(window, ticket_id, similarity)
+
+        result = outcome.result if outcome.result is not None else correlate(window)
+        group = (
+            next((c for c in result.candidates if ticket_id in c.ticket_ids), None)
+            if outcome.attached
+            else None
+        )
+
+        fields = {
+            "strategy": outcome.version,
+            "deterministic_stage": {
+                "attached": outcome.deterministic_attached,
+                "candidate_id": outcome.deterministic_candidate_id,
+                "score": outcome.deterministic_score,
+            },
+            "fallback_stage": {
+                "semantic_invoked": outcome.semantic_invoked,
+                "semantic_score": outcome.semantic_score,
+                "failed": outcome.semantic_failed,
+                "policy_version": FALLBACK_POLICY_VERSION,
+                "decisions": [
+                    {
+                        "candidate_id": decision.candidate_id,
+                        "eligible": decision.eligible,
+                        "reasons": list(decision.reasons),
+                        "blocking_reasons": list(decision.blocking_reasons),
+                    }
+                    for decision in outcome.fallback_decisions
+                ],
+            },
+            "embedding_model": outcome.embedding_model,
+        }
+        reason = None
+        if outcome.semantic_failed:
+            # The ticket survives. It is not attached, the failure is named, and nothing
+            # falls back to a deterministic attachment the deterministic stage refused.
+            reason = f"semantic fallback failed — {outcome.failure_reason}"
+        return result, group, {"fields": fields, "reason": reason}
 
     def _upsert_candidate(
         self, session, group: CandidateIncident
@@ -388,6 +458,10 @@ class TicketIntake:
             conflicting_signals=list(decision.conflicting_signals),
             reason=decision.reason,
             alternatives=list(decision.alternatives),
+            strategy=decision.strategy,
+            deterministic_stage=decision.deterministic_stage,
+            fallback_stage=decision.fallback_stage,
+            embedding_model=decision.embedding_model,
         )
         if session is not None:
             session.add(row)
@@ -425,6 +499,10 @@ class TicketIntake:
                 conflicting_signals=tuple(row.conflicting_signals or ()),
                 reason=row.reason,
                 alternatives=tuple(row.alternatives or ()),
+                strategy=row.strategy,
+                deterministic_stage=row.deterministic_stage,
+                fallback_stage=row.fallback_stage,
+                embedding_model=row.embedding_model,
             )
 
     def _candidate_of(self, ticket_id: str) -> dict | None:
