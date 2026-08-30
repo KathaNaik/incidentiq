@@ -182,3 +182,15 @@ def test_held_out_labels_were_not_altered() -> None:
     assert expecting == {"IV01", "IV02", "IV09", "IV12", "IV14", "IV16"}
     assert labels["IV01"]["allowed_remediation"] == ["rollback_deployment"]
     assert labels["IV12"]["allowed_remediation"] == ["restart_service"]
+
+
+def test_v2_is_the_default_investigator_and_v1_remains_reachable() -> None:
+    """The demo runs v2. v1 is not deleted, and asking for it by name still works.
+
+    v1's recorded numbers only stay reproducible while it can actually be selected, so
+    "superseded" must not quietly become "gone".
+    """
+    from app.investigation import DEFAULT_PROMPT_VERSION
+
+    assert DEFAULT_PROMPT_VERSION == PROMPT_VERSION_V2
+    assert select_prompt(PROMPT_VERSION) == (SYSTEM_PROMPT, PROMPT_VERSION)

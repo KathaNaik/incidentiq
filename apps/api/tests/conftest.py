@@ -6,7 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
-from app.dependencies import get_repository
+from app.dependencies import (
+    get_action_repository,
+    get_investigation_store,
+    get_repository,
+)
 from app.fixtures import load_dataset
 from app.main import create_app
 from app.repository import InMemoryRepository
@@ -29,8 +33,23 @@ def repository(northstar_dir: Path) -> InMemoryRepository:
 
 @pytest.fixture
 def client(repository: InMemoryRepository) -> Iterator[TestClient]:
+    """An API client with the durable stores replaced by in-memory fakes.
+
+    The fast suite must not need a database running. Contract-level behaviour is tested
+    here; the guarantees that are genuinely PostgreSQL's — the partial unique index that
+    prevents two concurrent investigations, the unique constraint that makes execution
+    idempotent across a restart — are tested in `test_persistence_pg.py` against a real
+    one, because a fake asserting them would be asserting itself.
+    """
+    from app.actions import ActionRepository
+    from tests.fakes import FakeInvestigationRunStore
+
     app = create_app()
     app.dependency_overrides[get_repository] = lambda: repository
+    actions = ActionRepository()
+    runs = FakeInvestigationRunStore()
+    app.dependency_overrides[get_action_repository] = lambda: actions
+    app.dependency_overrides[get_investigation_store] = lambda: runs
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

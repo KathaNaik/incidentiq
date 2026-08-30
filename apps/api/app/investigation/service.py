@@ -26,6 +26,7 @@ from app.investigation.prompt import (
     build_user_message,
     select_prompt,
 )
+from app.investigation.prompt_v2 import PROMPT_VERSION_V2
 from app.investigation.provider import InvestigationModel
 from app.investigation.rules import INVESTIGATION_VERSION
 from app.investigation.tools import (
@@ -35,6 +36,10 @@ from app.investigation.tools import (
     get_service_health,
 )
 from app.investigation.validate import validate_output
+
+# What the product runs. v1 stays importable and selectable by name so its recorded
+# results remain reproducible; it is not what an operator gets.
+DEFAULT_PROMPT_VERSION = PROMPT_VERSION_V2
 from app.retrieval import HistoricalIndex, query_from_tickets
 from app.retrieval.rules import DEFAULT_K
 
@@ -75,12 +80,15 @@ def investigate(
     candidate: CandidateIncident,
     registry: EvidenceRegistry,
     model: InvestigationModel,
-    prompt_version: str = PROMPT_VERSION,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> InvestigationResult:
     """One model call over fixed evidence, then validation.
 
-    `prompt_version` selects which investigator is being run. It defaults to v1 so that
-    re-running anything historical reproduces the historical configuration.
+    `prompt_version` selects which investigator is being run. The default is v2: v1
+    recommended remediation on none of the six held-out cases where an action was
+    justified, which left the approval and execution path with nothing to receive. v1 is
+    still selectable by name, and re-running anything historical against it reproduces
+    the historical configuration exactly.
     """
     system_prompt, prompt_version = select_prompt(prompt_version)
     summary = (

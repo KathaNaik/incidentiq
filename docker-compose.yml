@@ -1,0 +1,27 @@
+# PostgreSQL with pgvector, for local development.
+#
+# Only the database is containerised. The API and web app run on the host as they always
+# have — putting them in containers because a database appeared would add a build step to
+# every code change and buy nothing.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: incidentiq-postgres
+    environment:
+      POSTGRES_USER: incidentiq
+      POSTGRES_PASSWORD: incidentiq
+      POSTGRES_DB: incidentiq
+    ports:
+      # 5434 rather than the default 5432: this machine already runs other
+      # PostgreSQL containers, and a port collision is a confusing first-run failure.
+      - "5434:5432"
+    volumes:
+      - incidentiq-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incidentiq -d incidentiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  incidentiq-pgdata:

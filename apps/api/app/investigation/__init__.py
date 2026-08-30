@@ -33,12 +33,13 @@ from app.investigation.provider import (
     OpenAIInvestigationModel,
 )
 from app.investigation.rules import HISTORICAL_EVIDENCE_K, INVESTIGATION_VERSION
-from app.investigation.service import collect_evidence, investigate
+from app.investigation.service import DEFAULT_PROMPT_VERSION, collect_evidence, investigate
 from app.investigation.tools import ToolError, load_operations
 from app.investigation.validate import InvestigationValidationError, validate_output
 
 __all__ = [
     "HISTORICAL_EVIDENCE_K",
+    "DEFAULT_PROMPT_VERSION",
     "INVESTIGATION_VERSION",
     "PROMPT_VERSION",
     "PROMPT_VERSION_V2",

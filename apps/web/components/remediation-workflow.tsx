@@ -46,9 +46,14 @@ const EVENT_LABELS: Record<string, string> = {
 export function RemediationWorkflow({
   result: investigation,
   serviceId,
+  investigationRunId,
+  readOnly = false,
 }: {
   result: InvestigationResult;
   serviceId: string | null;
+  /** The stored run this recommendation came from. The action is linked to it. */
+  investigationRunId: string;
+  readOnly?: boolean;
 }) {
   const [action, setAction] = useState<IncidentAction | null>(null);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
@@ -109,11 +114,22 @@ export function RemediationWorkflow({
         ))}
       </ul>
 
-      {!action && (
+      {readOnly && (
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          This is a superseded investigation. Its recommendation is kept as a record of
+          what the model said at the time; actions are proposed from the current run.
+        </p>
+      )}
+
+      {!action && !readOnly && (
         <button
           type="button"
           disabled={busy}
-          onClick={() => run(() => proposeAction(investigation.incident_id, investigation, serviceId))}
+          onClick={() =>
+            run(() =>
+              proposeAction(investigation.incident_id, investigationRunId, serviceId),
+            )
+          }
           className="rounded border border-neutral-400 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-600"
         >
           {busy ? "Checking policy…" : "Check application policy"}
@@ -121,17 +137,25 @@ export function RemediationWorkflow({
       )}
 
       {policy && (
-        <div className="rounded border border-neutral-300 p-3 dark:border-neutral-700">
+        <div className="rounded border border-neutral-400 p-3 dark:border-neutral-600">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-sm font-medium">Application policy</h4>
+            <h4 className="text-sm font-medium">
+              Application policy — {action?.action_type.replace(/_/g, " ")}
+            </h4>
             <Badge tone={policy.eligible ? "info" : "danger"}>
               {policy.eligible ? "Eligible for approval" : "Not eligible"}
             </Badge>
-            <span className="text-xs text-neutral-500">
-              {policy.required_approvals} approval required · deterministic, no model
-              involved
-            </span>
+            <Badge tone={policy.effective_risk === "high" ? "danger" : "warn"}>
+              risk {policy.effective_risk}
+            </Badge>
           </div>
+          <p className="mt-1 text-xs text-neutral-500">
+            {policy.reasons.filter((r) => r.passed).length}/{policy.reasons.length}{" "}
+            checks passed · {policy.required_approvals} human approval required.{" "}
+            <strong>This is application code, not a second AI opinion.</strong> Each
+            check is a predicate over typed records, and the risk level is assigned here
+            rather than taken from the model.
+          </p>
           <ul className="mt-2 space-y-1 text-sm">
             {policy.reasons.map((reason) => (
               <li key={reason.check}>
@@ -144,7 +168,16 @@ export function RemediationWorkflow({
                 >
                   {reason.passed ? "✓" : "✗"}
                 </span>{" "}
+                <span className="font-mono text-xs text-neutral-500">
+                  {reason.check}
+                </span>{" "}
                 {reason.detail}
+                {reason.evidence_ids.length > 0 && (
+                  <span className="text-xs text-neutral-500">
+                    {" "}
+                    [{reason.evidence_ids.join(", ")}]
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -211,11 +244,33 @@ export function RemediationWorkflow({
         </div>
       )}
 
-      {status === "policy_rejected" && (
+      {(status === "policy_rejected" ||
+        (action && !action.policy.eligible && status !== "rejected")) && (
+        <div className="rounded border border-red-300 p-3 dark:border-red-900">
+          <p className="text-sm font-medium">No approval path for this action</p>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            The model recommended it and the application declined to make it actionable,
+            for the reasons marked ✗ above. There is deliberately no override button: a
+            policy an operator can click past is not a policy.
+          </p>
+        </div>
+      )}
+
+      {status === "rejected" && (
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          The model recommended this, and the application declined to make it
-          actionable. There is no approval path for it.
+          An operator rejected this action. It cannot be approved afterwards; propose a
+          fresh action if the situation changes.
         </p>
+      )}
+
+      {action?.execution && !action.execution.succeeded && (
+        <div className="rounded border border-red-300 p-3 dark:border-red-900">
+          <p className="text-sm font-medium">Simulated execution failed</p>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            The action reached the executor and did not succeed. Nothing was retried
+            automatically.
+          </p>
+        </div>
       )}
 
       {error && (
@@ -229,12 +284,23 @@ export function RemediationWorkflow({
   );
 }
 
+/**
+ * The audit trail, read as an actor boundary.
+ *
+ * The point is not that events happened but *who* caused each one: the model only ever
+ * recommends, the system proposes and executes, and every approval is a human. Showing
+ * the actor beside each event is what makes that boundary checkable rather than claimed.
+ */
 function AuditTimeline({ events }: { events: AuditEvent[] }) {
   return (
     <div>
       <h4 className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
         Audit trail
       </h4>
+      <p className="mt-1 text-xs text-neutral-500">
+        AI recommends → system evaluates policy → human approves → system executes.
+        Append-only; nothing here is edited or removed.
+      </p>
       <ol className="mt-2 space-y-1 text-sm">
         {events.map((event) => (
           <li key={event.id} className="flex flex-wrap gap-2">

@@ -12,8 +12,9 @@ from app.fixtures import load_dataset
 from app.repository import InMemoryRepository, Repository
 
 if TYPE_CHECKING:
-    from app.actions import ActionRepository
-    from app.retrieval import HistoricalIndex
+    from app.db.action_store import SqlActionRepository
+    from app.db.investigation_store import InvestigationRunStore
+    from app.db.retrieval_store import PgVectorHistoricalIndex
 
 
 @lru_cache
@@ -31,38 +32,51 @@ RepositoryDep = Annotated[Repository, Depends(get_repository)]
 
 
 @lru_cache
-def get_retrieval_index() -> "HistoricalIndex":
-    """The historical index, built once per process.
+def get_retrieval_index() -> "PgVectorHistoricalIndex":
+    """Historical retrieval, backed by PostgreSQL and pgvector.
 
-    Building embeds the corpus, which is slow the first time and fast afterwards because
-    the vectors are cached on disk. Tests substitute a stub-backed index through
-    `app.dependency_overrides`.
+    Nothing is built here. The vectors are already in the database, so process start
+    costs one embedding-model load rather than a corpus index rebuild, and a restart
+    costs nothing at all.
+
+    The in-memory `HistoricalIndex` remains in `app.retrieval.index` as a reference
+    implementation for regression comparison and offline evaluation. It is not reachable
+    from any request path — there is one runtime retrieval implementation, not two that
+    something might choose between.
     """
-    from app.embeddings import EmbeddingCache, LocalEmbeddingProvider
-    from app.retrieval import HistoricalIndex, load_corpus
+    from app.db.retrieval_store import PgVectorHistoricalIndex
+    from app.embeddings import LocalEmbeddingProvider
 
-    settings = get_settings()
-    provider = LocalEmbeddingProvider()
-    index = HistoricalIndex(
-        provider, EmbeddingCache(settings.embeddings_cache_dir, provider)
-    )
-    index.build(load_corpus(settings.fixtures_dir, settings.itsm_processed_dir))
-    return index
+    return PgVectorHistoricalIndex(LocalEmbeddingProvider())
 
 
-RetrievalIndexDep = Annotated["HistoricalIndex", Depends(get_retrieval_index)]
+RetrievalIndexDep = Annotated["PgVectorHistoricalIndex", Depends(get_retrieval_index)]
 
 
 @lru_cache
-def get_action_repository() -> "ActionRepository":
-    """The process-wide action store.
+def get_action_repository() -> "SqlActionRepository":
+    """The durable action store.
 
-    In-memory and prototype-local: action state and the audit trail are lost when the
-    API restarts. See `app.actions.repository` for what production would need instead.
+    Actions, approvals, execution results and audit events live in PostgreSQL, so they
+    survive a restart — and so does execution idempotency, which was already derived from
+    persisted status rather than an in-memory flag.
     """
-    from app.actions import ActionRepository
+    from app.db.action_store import SqlActionRepository
 
-    return ActionRepository()
+    return SqlActionRepository()
 
 
-ActionRepositoryDep = Annotated["ActionRepository", Depends(get_action_repository)]
+ActionRepositoryDep = Annotated["SqlActionRepository", Depends(get_action_repository)]
+
+
+@lru_cache
+def get_investigation_store() -> "InvestigationRunStore":
+    """Durable investigation runs."""
+    from app.db.investigation_store import InvestigationRunStore
+
+    return InvestigationRunStore()
+
+
+InvestigationStoreDep = Annotated[
+    "InvestigationRunStore", Depends(get_investigation_store)
+]

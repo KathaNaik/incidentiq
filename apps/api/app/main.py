@@ -11,6 +11,7 @@ from app.routers import (
     actions,
     correlation,
     dataset,
+    demo,
     evals,
     health,
     incidents,
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(investigation.router)
     app.include_router(actions.router)
     app.include_router(evals.router)
+    app.include_router(demo.router)
     return app
 
 

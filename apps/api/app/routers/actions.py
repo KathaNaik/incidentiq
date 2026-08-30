@@ -28,23 +28,25 @@ from app.actions import (
 )
 from app.actions.rules import DEMO_ACTOR_ID
 from app.config import Settings, get_settings
-from app.dependencies import ActionRepositoryDep
-from app.investigation import InvestigationResult, ToolError, load_operations
+from app.dependencies import ActionRepositoryDep, InvestigationStoreDep
+from app.investigation import ToolError, load_operations
 
 router = APIRouter(tags=["actions"])
 
 
 class ProposeActionRequest(BaseModel):
-    """An investigation result, handed back for the system to act on.
+    """Which stored investigation run to act on.
 
-    The client returns the investigation it was shown rather than a hand-built action:
-    the action's shape is derived from validated evidence here, so a caller cannot name
-    its own target or cite evidence the investigation never had.
+    The client names a run; it does not hand over model output. Before M13 the caller
+    posted back the investigation it had been shown, which meant the system trusted a
+    client-supplied recommendation. Now the run is loaded from the database, so the
+    recommendation, the evidence and the version metadata all come from the record that
+    was actually produced — and the action ends up linked to that exact run.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    investigation: InvestigationResult
+    investigation_run_id: str
     incident_status: str | None = None
     service_id: str | None = None
 
@@ -93,35 +95,59 @@ def propose(
     incident_id: str,
     request: Annotated[ProposeActionRequest, Body()],
     repository: ActionRepositoryDep,
+    store: InvestigationStoreDep,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ActionResponse:
-    """Proposes an action from an investigation's remediation recommendation.
+    """Proposes an action from a stored investigation run's recommendation.
 
     Always returns 200 when a recommendation exists, including when policy rejects it —
     a refused recommendation is a result the operator should see, not an error.
     """
-    if request.investigation.incident_id != incident_id:
+    run = store.get(request.investigation_run_id)
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown investigation run: {request.investigation_run_id}",
+        )
+    if run.incident_id != incident_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"investigation {run.id} belongs to {run.incident_id}, not {incident_id}",
+        )
+    if not run.succeeded:
+        raise HTTPException(
+            status_code=422,
             detail=(
-                f"investigation belongs to {request.investigation.incident_id}, "
-                f"not {incident_id}"
+                f"investigation {run.id} is {run.status} and produced no recommendation "
+                "to act on"
             ),
         )
 
     try:
         action = propose_action(
-            investigation=request.investigation,
+            investigation=run.as_result(),
             operations=_operations(settings),
             repository=repository,
             incident_status=request.incident_status,
             service_id=request.service_id,
+            investigation_run_id=run.id,
         )
     except ActionWorkflowError as error:
         raise HTTPException(
             status_code=422, detail=str(error)
         ) from error
     return ActionResponse(action=action)
+
+
+@router.get("/actions", response_model=list[Action])
+def list_actions(repository: ActionRepositoryDep) -> list[Action]:
+    """Every action this process has seen, oldest first.
+
+    Action state lives in memory and resets when the API restarts, so this is a view of
+    the current session rather than a history. The dashboard counts from it instead of
+    inventing numbers.
+    """
+    return list(repository.all())
 
 
 @router.get("/incidents/{incident_id}/actions", response_model=list[Action])

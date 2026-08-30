@@ -420,7 +420,8 @@ def test_investigation_records_observability_without_prompt_text() -> None:
     result = investigate(candidate=candidate, registry=registry, model=model)
 
     assert result.run.model == "stub-model"
-    assert result.run.prompt_version == "investigation-v1"
+    # v2 is what the product runs; the run record says which investigator produced it.
+    assert result.run.prompt_version == "investigation-v2"
     assert result.run.evidence_ids == registry.ids
     assert result.run.input_tokens == 100
     assert result.run.latency_ms == 12
@@ -527,14 +528,46 @@ def test_investigation_endpoint_reports_a_missing_provider(
     listed = client.get("/correlation/candidates").json()
     candidate_id = listed["candidates"][0]["id"]
 
-    response = client.post(f"/correlation/candidates/{candidate_id}/investigate")
+    response = client.post(f"/incidents/{candidate_id}/investigations")
 
-    assert response.status_code == 503
+    # The run is created and persisted before the provider is called, so a missing key
+    # produces a recorded *failure* rather than nothing having happened.
+    assert response.status_code == 502
     assert "OPENAI_API_KEY" in response.json()["detail"]
+
+    history = client.get(f"/incidents/{candidate_id}/investigations").json()
+    assert len(history) == 1
+    assert history[0]["status"] == "failed"
+    assert history[0]["failure_type"] == "provider_error"
+    assert history[0]["evidence_count"] > 0, (
+        "a failed run still records what would have been sent"
+    )
 
 
 def test_investigation_endpoint_404s_for_an_unknown_candidate(client: TestClient) -> None:
-    response = client.post("/correlation/candidates/cand-NOPE/investigate")
+    response = client.post("/incidents/cand-NOPE/investigations")
 
     assert response.status_code == 404
     assert "cand-NOPE" in response.json()["detail"]
+
+
+def test_reading_an_incident_never_starts_an_investigation(client: TestClient) -> None:
+    """The central behaviour change of M13.
+
+    Rendering a page used to cost eleven seconds and a set of tokens, and could return a
+    different answer each time. A GET must now be free and idempotent.
+    """
+    listed = client.get("/correlation/candidates").json()
+    candidate_id = listed["candidates"][0]["id"]
+
+    latest = client.get(f"/incidents/{candidate_id}/investigations/latest")
+    assert latest.status_code == 204, "no investigation yet is a normal state, not a 404"
+
+    assert client.get(f"/incidents/{candidate_id}/investigations").json() == []
+
+
+def test_an_unknown_investigation_run_is_a_404(client: TestClient) -> None:
+    response = client.get("/investigations/inv-doesnotexist")
+
+    assert response.status_code == 404
+    assert "inv-doesnotexist" in response.json()["detail"]

@@ -96,5 +96,30 @@ class ActionRepository:
             event for event in self._audit if event.incident_id == incident_id
         )
 
+    def reset(self) -> None:
+        """Discards all actions and audit events.
+
+        Only the demo reset calls this. Audit events are append-only everywhere else —
+        `record` never removes or edits one — and that property is the point of the audit
+        trail, so the one method that breaks it is named plainly rather than hidden
+        behind a general-purpose delete.
+        """
+        with self._lock:
+            self._actions.clear()
+            self._audit.clear()
+
+    def reset_workflow_state(self, investigation_store=None) -> int:
+        """Demo affordance. Mirrors the durable store's signature.
+
+        The in-memory investigation store used by the fast tests is a plain dict, so
+        clearing it is best-effort — the durable path is what the demo actually runs.
+        """
+        self.reset()
+        runs = getattr(investigation_store, "_runs", None)
+        removed = len(runs) if runs is not None else 0
+        if runs is not None:
+            runs.clear()
+        return removed
+
     def audit(self) -> Sequence[AuditEvent]:
         return tuple(self._audit)

@@ -248,7 +248,13 @@ export type InvestigationResult = {
   };
 };
 
-export type PolicyReason = { check: string; passed: boolean; detail: string };
+export type PolicyReason = {
+  check: string;
+  passed: boolean;
+  detail: string;
+  /** Evidence the check actually read. Empty for checks that read none. */
+  evidence_ids: string[];
+};
 
 export type ActionPolicyDecision = {
   eligible: boolean;
@@ -413,19 +419,83 @@ export async function fetchSimilarIncidents(
   );
 }
 
-export async function investigateCandidate(
-  candidateId: string,
-  mode: CorrelationMode = "deterministic",
-): Promise<InvestigationResult> {
+export type InvestigationRunSummary = {
+  id: string;
+  incident_id: string;
+  status: "pending" | "running" | "succeeded" | "failed";
+  investigator_version: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  created_at: string;
+  completed_at: string | null;
+  latency_ms: number | null;
+  evidence_count: number;
+  abstained: boolean | null;
+  recommended_action: string | null;
+  failure_type: string | null;
+  failure_message: string | null;
+};
+
+export type InvestigationRunDetail = InvestigationRunSummary & {
+  /** Null for a failed or in-flight run. */
+  result: InvestigationResult | null;
+};
+
+export type LatestInvestigation = {
+  current: InvestigationRunDetail | null;
+  active: InvestigationRunSummary | null;
+};
+
+/**
+ * Reads the stored investigation. Never starts one.
+ *
+ * `null` means this incident has not been investigated yet — a normal state of the
+ * workflow, which the page renders as a Run button rather than as an error.
+ */
+export async function fetchLatestInvestigation(
+  incidentId: string,
+): Promise<LatestInvestigation | null> {
   const response = await fetch(
-    `${API_BASE_URL}/correlation/candidates/${encodeURIComponent(candidateId)}/investigate?mode=${mode}`,
+    `${API_BASE_URL}/incidents/${encodeURIComponent(incidentId)}/investigations/latest`,
+    { cache: "no-store" },
+  );
+  if (response.status === 204) return null;
+  if (!response.ok) {
+    throw new Error(`GET latest investigation responded with ${response.status}`);
+  }
+  return (await response.json()) as LatestInvestigation;
+}
+
+export async function fetchInvestigationHistory(
+  incidentId: string,
+): Promise<InvestigationRunSummary[]> {
+  return getJson<InvestigationRunSummary[]>(
+    `/incidents/${encodeURIComponent(incidentId)}/investigations`,
+  );
+}
+
+export async function fetchInvestigationRun(
+  runId: string,
+): Promise<InvestigationRunDetail> {
+  return getJson<InvestigationRunDetail>(`/investigations/${encodeURIComponent(runId)}`);
+}
+
+/** The only call that spends a model request. Creates a new immutable run. */
+export async function runInvestigation(
+  incidentId: string,
+  mode: CorrelationMode = "deterministic",
+): Promise<InvestigationRunDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/incidents/${encodeURIComponent(incidentId)}/investigations?mode=${mode}`,
     { method: "POST", cache: "no-store" },
   );
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(body?.detail ?? `investigation failed with ${response.status}`);
+  const body = await response.json().catch(() => null);
+  if (!response.ok && response.status !== 409) {
+    const detail = (body as { detail?: string } | null)?.detail;
+    throw new Error(detail ?? `investigation failed with ${response.status}`);
   }
-  return (await response.json()) as InvestigationResult;
+  return body as InvestigationRunDetail;
 }
 
 async function postJson<T>(path: string, body?: unknown): Promise<T> {
@@ -443,14 +513,21 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Proposes an action from a *stored* investigation run.
+ *
+ * The client names a run rather than handing back model output: the server loads the
+ * recommendation from the record that was actually produced, and links the resulting
+ * action to that exact run.
+ */
 export async function proposeAction(
   incidentId: string,
-  investigation: InvestigationResult,
+  investigationRunId: string,
   serviceId: string | null,
 ): Promise<ActionResponse> {
   return postJson<ActionResponse>(
     `/incidents/${encodeURIComponent(incidentId)}/actions`,
-    { investigation, service_id: serviceId },
+    { investigation_run_id: investigationRunId, service_id: serviceId },
   );
 }
 
@@ -493,11 +570,29 @@ export async function load<T>(loader: () => Promise<T>): Promise<Loaded<T>> {
   try {
     return { ok: true, data: await loader() };
   } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    return { ok: false, error: describeFailure(error) };
   }
+}
+
+/**
+ * Turns a thrown value into something an operator can act on.
+ *
+ * A connection refused by a stopped backend arrives as the bare string "fetch failed",
+ * which tells the reader nothing about what to do. Everything else is passed through
+ * unchanged — the API's own error details are more specific than anything invented here,
+ * and a stack trace is never surfaced either way.
+ */
+function describeFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const cause =
+    error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
+  const network =
+    /fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|network|socket hang up/i;
+
+  if (network.test(message) || network.test(cause)) {
+    return `The API at ${API_BASE_URL} did not respond. It is probably not running.`;
+  }
+  return message || "Unknown error";
 }
 
 export type PolicyReplayVersion = {
@@ -530,4 +625,38 @@ export type PolicyReplayReport = {
 
 export async function fetchPolicyReplay(): Promise<PolicyReplayReport> {
   return getJson<PolicyReplayReport>("/evals/policy/replay");
+}
+
+export type DemoResetResult = {
+  reset: boolean;
+  cleared_actions: number;
+  cleared_audit_events: number;
+  note: string;
+};
+
+export async function fetchActions(): Promise<IncidentAction[]> {
+  return getJson<IncidentAction[]>("/actions");
+}
+
+export async function resetDemoState(): Promise<DemoResetResult> {
+  return postJson<DemoResetResult>("/demo/reset", {});
+}
+
+export type PolicyProbeResult = {
+  action_type: string;
+  hypothetical: boolean;
+  policy: ActionPolicyDecision;
+  note: string;
+};
+
+export async function probePolicy(
+  investigation: InvestigationResult,
+  actionType: string,
+  serviceId: string | null,
+): Promise<PolicyProbeResult> {
+  return postJson<PolicyProbeResult>("/demo/policy-probe", {
+    investigation,
+    action_type: actionType,
+    service_id: serviceId,
+  });
 }

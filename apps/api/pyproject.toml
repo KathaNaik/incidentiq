@@ -12,6 +12,10 @@ dependencies = [
     "huggingface-hub>=0.26",
     "pyarrow>=18",
     "openai>=3.5.0",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
 ]
 
 [dependency-groups]
@@ -32,3 +36,6 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "pg: needs a running PostgreSQL with pgvector (docker compose up -d)",
+]

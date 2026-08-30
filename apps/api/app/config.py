@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     # environment or from a gitignored .env; never committed, never logged.
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
 
+    # The durable operational datastore: investigation runs, actions, approvals,
+    # executions, audit events and the historical corpus with its vectors. Read from
+    # DATABASE_URL rather than the INCIDENTIQ_ prefix because that name is the
+    # convention every Postgres tool already understands.
+    #
+    # Unset is a legitimate state: triage, correlation and the evaluation artifacts need
+    # no database, and the endpoints that do return a 503 explaining what to start rather
+    # than failing obscurely at import time.
+    database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
+
 
 @lru_cache
 def get_settings() -> Settings:

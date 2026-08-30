@@ -33,6 +33,32 @@ docs/        DATA_SOURCES.md: dataset licenses and attribution
 - Node.js 20.9+ (developed on 23.11) and npm
 - [uv](https://docs.astral.sh/uv/) — manages the Python toolchain and virtualenv
 - Python 3.13 (uv installs it if missing)
+- Docker, for PostgreSQL with the pgvector extension
+
+## Start the database
+
+Investigation runs, actions, approvals, executions, audit events and the historical
+corpus all live in PostgreSQL. Only the database is containerised — the API and web app
+run on the host.
+
+```bash
+docker compose up -d                       # PostgreSQL 17 + pgvector on port 5434
+cd apps/api
+cp .env.example .env                       # DATABASE_URL, and OPENAI_API_KEY if you have one
+uv sync
+uv run alembic upgrade head                # empty database -> current schema, extension included
+uv run --group semantic python scripts/import_historical.py
+```
+
+Port 5434 rather than 5432 because a developer machine usually already has PostgreSQL
+somewhere, and a port collision is a confusing first-run failure.
+
+The import is safe to re-run: records are keyed by stable corpus id and embeddings are
+reused from the on-disk cache, so a second run takes well under a second.
+
+Schema changes go through Alembic. `create_all()` is deliberately not the strategy — an
+empty database plus migrations is the only supported path to a working schema, and a test
+verifies it.
 
 ## Run the backend
 
@@ -66,7 +92,10 @@ Read-only endpoints:
 | `POST /retrieval/historical-incidents` | past incidents resembling a described situation |
 | `GET /correlation/candidates/{id}/similar` | precedent for one candidate incident |
 | `GET /evals/retrieval` | the committed historical-retrieval evaluation |
-| `POST /correlation/candidates/{id}/investigate` | evidence-backed AI investigation (requires `OPENAI_API_KEY`) |
+| `POST /incidents/{id}/investigations` | run an investigation — the **only** endpoint that calls a model |
+| `GET /incidents/{id}/investigations` | run history, newest first |
+| `GET /incidents/{id}/investigations/latest` | the stored investigation, or 204 if none |
+| `GET /investigations/{id}` | one exact run, with the evidence snapshot it saw |
 | `GET /evals/investigation` | investigation metrics (`?version=v1`, `v2` or `baseline`) |
 | `POST /incidents/{id}/actions` | propose an action from a remediation recommendation |
 | `GET /incidents/{id}/actions` | actions proposed for an incident |
@@ -76,12 +105,25 @@ Read-only endpoints:
 | `GET /actions/{id}/audit` | the action's audit trail |
 | `GET /evals/policy` | action-policy suite results |
 | `GET /evals/policy/replay` | policy-v1 versus policy-v2 on identical recorded recommendations |
+| `GET /actions` | every action this process has seen (dashboard counts) |
+| `POST /demo/reset` | clears in-memory action and audit state (development only) |
+| `POST /demo/policy-probe` | what policy *would* decide about an action nobody recommended (development only) |
 
 Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
 and `/evals/correlation` takes `?version=`. The version is stamped on every response.
 
-Records come from the fixture directory in `data/demo/northstar_cloud`, loaded and
-validated at startup. There is no database yet.
+Tickets, services and incidents come from the fixture directory in
+`data/demo/northstar_cloud`, loaded and validated at startup — they are authored demo
+input, versioned with the code rather than stored in the database.
+
+Everything the product is *stateful* about lives in PostgreSQL and survives a restart:
+investigation runs with their evidence snapshots, actions, approvals, execution results,
+audit events, and the historical corpus with its vectors. Evaluation artifacts stay on
+disk: a benchmark result is a record of a measurement that already happened, and putting
+it somewhere mutable would invite it to change.
+
+`POST /demo/reset` clears workflow state so the walkthrough can be run twice. Both demo
+endpoints refuse to run when `INCIDENTIQ_ENVIRONMENT=production`.
 
 Port 8001 rather than the usual 8000, which is often already taken by another local
 service. If 8001 is busy too, pass a different `--port` and point the frontend at it via
@@ -103,7 +145,8 @@ shows an explicit "API unreachable" state rather than pretending.
 ## Checks
 
 ```bash
-cd apps/api && uv run pytest      # backend tests
+cd apps/api && uv run pytest              # backend tests (needs PostgreSQL for the `pg` suite)
+cd apps/api && uv run pytest -m "not pg"  # fast suite only — no database required
 cd apps/web && npm run typecheck  # tsc --noEmit
 cd apps/web && npm run lint       # eslint
 cd apps/web && npm run build      # production build
@@ -155,7 +198,10 @@ Two deterministic baselines, both rule-driven with no model or embeddings anywhe
 - **`historical-retrieval-v1`** — given a current incident, finds resolved incidents that
   looked like it, and shows what those turned out to be. Retrieval matches *symptoms
   only*; a historical cause and fix are displayed after a match, never used to make one.
-- **`investigation-v1`** — the only place a language model runs. It receives a fixed set
+- **`investigation-v2`** — the default investigator, and the only place a language model
+  runs. `investigation-v1` is preserved, selectable by name, and frozen; see the
+  experiment below.
+- **`investigation-v1`** — the original investigator, kept for reproducibility. It receives a fixed set
   of typed evidence, returns ranked hypotheses citing that evidence *by id*, and its
   output is validated against the registry before anyone sees it. It recommends
   remediation; it never executes anything.
@@ -186,6 +232,62 @@ uv run --group semantic python scripts/evaluate_investigation.py --model --promp
 Historical retrieval needs the ITSM corpus (`scripts/download_itsm.py` and
 `preprocess_itsm.py`); without it the index still builds from the authored Northstar
 records alone.
+
+### Durable investigations
+
+An investigation is a record, not a function call. `POST` creates one; every `GET` reads
+what was stored. Loading an incident page used to cost about eleven seconds and a set of
+tokens, and a reload could return a different answer than the one the operator was
+reading a moment earlier — a page render is now free and idempotent.
+
+Each run stores **the exact evidence it was shown**, as JSONB, and is immutable once it
+reaches `succeeded` or `failed`. Re-investigating inserts a new run and leaves every
+earlier one untouched, so "what did investigator-v2 see when it recommended this
+rollback" stays answerable after the operational world has moved on. An action links to
+the run that recommended it and is never repointed at a newer one.
+
+A failed re-run is kept and does not hide the last successful answer. Two concurrent
+requests cannot both call the model: a partial unique index on `(incident_id)` where the
+status is pending or running means the second request is handed the run already in
+flight.
+
+### Historical retrieval on pgvector
+
+Retrieval moved into PostgreSQL. **Not because 40 ms was slow** — it was not, and the
+measurements below say so. The reasons are architectural: PostgreSQL is now required for
+workflow state regardless; vectors survive a restart, so the API no longer rebuilds a
+corpus index at startup or holds every vector in memory; adding a historical incident
+becomes an `INSERT` rather than a rebuild; and ranking plus metadata filtering happen in
+one query.
+
+M7 ranks on `0.80·cosine + 0.08·service_overlap + 0.12·error_overlap`, not raw cosine, so
+ordering by vector distance alone would have quietly changed what the product returns.
+The whole expression is computed in one SQL statement instead — pgvector for the cosine
+term, array intersection for the overlaps, over tokens normalised at import by the same
+Python function the in-memory index used. A test asserts the two implementations return
+identical ids and scores.
+
+| | build | mean | p50 | p95 |
+|---|---|---|---|---|
+| In-memory index (M7) | ~75 s cold, 0.06 s warm cache | 37.9 ms | 37.5 ms | 41.0 ms |
+| pgvector exact | none — already in the database | 29.8 ms | 30.2 ms | 34.9 ms |
+| pgvector + HNSW | 0.1 s index build | 28.0 ms | 27.5 ms | 31.9 ms |
+
+751 records, 384 dimensions. About 13.6 ms of every row above is embedding the query,
+which all three pay equally.
+
+**Exact search is used; there is no ANN index.** HNSW saved 1.8 ms — roughly 6%, inside
+the noise — in exchange for an approximate recall tradeoff and an index to maintain. That
+is not a trade worth making at 751 rows. ANN can be introduced when corpus scale warrants
+it, and the measurement above is what should be repeated to decide.
+
+The in-memory `HistoricalIndex` remains in `app/retrieval/index.py` as a **reference
+implementation** for regression comparison and offline evaluation. It is not reachable
+from any request path — there is one runtime retrieval implementation, not two that
+something might choose between.
+
+pgvector did not make retrieval *better*; retrieval quality is unchanged, by design and by
+test. It made the system durable.
 
 ### Investigation and the model
 

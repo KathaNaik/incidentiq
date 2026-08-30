@@ -47,8 +47,13 @@ def propose_action(
     repository: ActionRepository,
     incident_status: str | None = None,
     service_id: str | None = None,
+    investigation_run_id: str | None = None,
 ) -> Action:
     """Turns a model recommendation into an action, then runs policy over it.
+
+    `investigation_run_id` ties the action to the exact run that recommended it. It is
+    never repointed afterwards: re-investigating the incident tomorrow must not silently
+    re-attribute an action a human already approved to a run that did not propose it.
 
     The action is created by the *system*, not the model: the model produced a
     recommendation, and this function decides whether that recommendation becomes
@@ -68,6 +73,7 @@ def propose_action(
             id=_event_id(),
             incident_id=investigation.incident_id,
             action_id=action_id,
+            investigation_run_id=investigation_run_id,
             event_type=AuditEventType.RECOMMENDATION_RECEIVED,
             actor_type=ActorType.MODEL,
             actor_id=f"{MODEL_ACTOR_PREFIX}{investigation.run.model}",
@@ -94,6 +100,7 @@ def propose_action(
     action = Action(
         id=action_id,
         incident_id=investigation.incident_id,
+        investigation_run_id=investigation_run_id,
         # An unsupported action type still gets recorded, as a rejected proposal — the
         # operator should see what was recommended and why it went nowhere.
         action_type=action_type or ActionType.RESTART_SERVICE,

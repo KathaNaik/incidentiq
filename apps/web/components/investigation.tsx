@@ -1,4 +1,5 @@
 import { Badge } from "@/components/badge";
+import { PolicyProbe } from "@/components/policy-probe";
 import { RemediationWorkflow } from "@/components/remediation-workflow";
 import type { EvidenceItem, InvestigationResult } from "@/lib/api";
 
@@ -25,9 +26,14 @@ const KIND_LABELS: Record<string, string> = {
 export function Investigation({
   result,
   serviceId,
+  investigationRunId,
+  readOnly = false,
 }: {
   result: InvestigationResult;
   serviceId: string | null;
+  investigationRunId: string;
+  /** True when viewing a superseded run: its conclusions are history, not a proposal. */
+  readOnly?: boolean;
 }) {
   const { output, evidence } = result;
   const byId = new Map(evidence.map((item) => [item.id, item]));
@@ -129,7 +135,14 @@ export function Investigation({
         </p>
       </div>
 
-      <RemediationWorkflow result={result} serviceId={serviceId} />
+      <RemediationWorkflow
+        result={result}
+        serviceId={serviceId}
+        investigationRunId={investigationRunId}
+        readOnly={readOnly}
+      />
+
+      {!readOnly && <PolicyProbe investigation={result} serviceId={serviceId} />}
 
       <p className="text-xs text-neutral-500">
         {result.version} · model {result.run.model} · prompt {result.run.prompt_version} ·{" "}

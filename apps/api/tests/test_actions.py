@@ -441,7 +441,7 @@ def _propose_via_api(client: TestClient):
     return client.post(
         f"/incidents/{investigation.incident_id}/actions",
         json={
-            "investigation": investigation.model_dump(mode="json"),
+            "investigation_run_id": seed_run(client, investigation),
             "service_id": "svc-auth",
         },
     )
@@ -489,7 +489,10 @@ def test_api_reports_a_policy_rejection_as_a_result_not_an_error(
     )
     response = client.post(
         f"/incidents/{investigation.incident_id}/actions",
-        json={"investigation": investigation.model_dump(mode="json"), "service_id": "svc-auth"},
+        json={
+            "investigation_run_id": seed_run(client, investigation),
+            "service_id": "svc-auth",
+        },
     )
 
     assert response.status_code == 200
@@ -501,14 +504,52 @@ def test_api_reports_a_policy_rejection_as_a_result_not_an_error(
     assert client.post(f"/actions/{action['id']}/approve").status_code == 409
 
 
+def seed_run(client: TestClient, investigation) -> str:
+    """Stores an investigation as a completed run and returns its id.
+
+    Actions are proposed from a *stored* run since M13 — the API no longer accepts model
+    output from a client — so an HTTP test has to put one in the store first.
+    """
+    from app.dependencies import get_investigation_store
+    from app.investigation.rules import INVESTIGATION_VERSION
+
+    store = client.app.dependency_overrides[get_investigation_store]()
+    run = store.begin(
+        incident_id=investigation.incident_id,
+        investigator_version=INVESTIGATION_VERSION,
+        prompt_version=investigation.run.prompt_version,
+        provider="openai",
+        model=investigation.run.model,
+        evidence=investigation.evidence,
+    )
+    store.complete(
+        run.id,
+        output=investigation.output,
+        model=investigation.run.model,
+        latency_ms=investigation.run.latency_ms,
+        input_tokens=investigation.run.input_tokens,
+        output_tokens=investigation.run.output_tokens,
+        reasoning_tokens=None,
+    )
+    return run.id
+
+
 def test_api_rejects_a_mismatched_incident(client: TestClient) -> None:
-    investigation = strong_investigation()
+    run_id = seed_run(client, strong_investigation())
     response = client.post(
-        "/incidents/cand-OTHER/actions",
-        json={"investigation": investigation.model_dump(mode="json")},
+        "/incidents/cand-OTHER/actions", json={"investigation_run_id": run_id}
     )
 
     assert response.status_code == 400
+
+
+def test_api_refuses_an_unknown_investigation_run(client: TestClient) -> None:
+    """A client cannot invent a run to act on, nor hand over its own model output."""
+    response = client.post(
+        "/incidents/cand-TEST/actions", json={"investigation_run_id": "inv-nope"}
+    )
+
+    assert response.status_code == 404
 
 
 def test_api_404s_for_unknown_actions(client: TestClient) -> None:
@@ -521,10 +562,24 @@ def test_api_404s_for_unknown_actions(client: TestClient) -> None:
 def test_investigation_without_remediation_cannot_propose(client: TestClient) -> None:
     """The current model behaviour: no recommendation means nothing to approve."""
     investigation = _investigation(remediation=None, evidence=(DEPLOYMENT, HEALTH))
+    run_id = seed_run(client, investigation)
     response = client.post(
         f"/incidents/{investigation.incident_id}/actions",
-        json={"investigation": investigation.model_dump(mode="json")},
+        json={"investigation_run_id": run_id},
     )
 
     assert response.status_code == 422
     assert "recommended no remediation" in response.json()["detail"]
+
+
+def test_a_proposed_action_names_the_run_that_recommended_it(client: TestClient) -> None:
+    """The linkage an auditor needs: which exact model run proposed this rollback."""
+    investigation = strong_investigation()
+    run_id = seed_run(client, investigation)
+    response = client.post(
+        f"/incidents/{investigation.incident_id}/actions",
+        json={"investigation_run_id": run_id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["action"]["investigation_run_id"] == run_id

@@ -142,6 +142,11 @@ class ExecutionResult(ActionModel):
 class Action(ActionModel):
     id: str
     incident_id: str
+    # The exact investigation run whose recommendation produced this action. An auditor
+    # asking "which model run and which evidence proposed this rollback" reads this, and
+    # re-investigating the incident later never repoints it — the run that proposed the
+    # action is a historical fact, not a pointer to the newest opinion.
+    investigation_run_id: str | None = None
     action_type: ActionType
     target: ActionTarget
     status: ActionStatus
@@ -160,6 +165,9 @@ class AuditEvent(ActionModel):
     id: str
     incident_id: str
     action_id: str | None
+    # Present when the event concerns one investigation run, so an auditor can walk from
+    # an executed rollback back to the exact model call and evidence behind it.
+    investigation_run_id: str | None = None
     event_type: AuditEventType
     actor_type: ActorType
     actor_id: str
