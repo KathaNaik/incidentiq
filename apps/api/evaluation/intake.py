@@ -53,6 +53,44 @@ def _ticket(row: dict) -> CorrelationTicket:
     )
 
 
+def evaluate_pairwise_case(case: dict, model) -> Outcome:
+    """What pairwise correlation does with this case's arriving ticket.
+
+    Same gate, same cases, same metrics as the hybrid run — only the ambiguous-slice
+    scorer differs, which is what makes the two comparable.
+    """
+    from app.correlation.hybrid import correlate_pairwise
+
+    seed = [_ticket(row) for row in case["seed"]]
+    arriving = _ticket(case["arriving"])
+    before = correlate(seed) if seed else None
+    existing = {t for c in before.candidates for t in c.ticket_ids} if before else set()
+
+    outcome = correlate_pairwise([*seed, arriving], arriving.id, model)
+    if not outcome.attached:
+        return Outcome(
+            case_id=case["id"],
+            expected=case["expected"],
+            actual="uncorrelated",
+            candidate_id=None,
+            detail=_hybrid_detail(outcome),
+            path=outcome.path,
+            semantic_invoked=outcome.semantic_invoked,
+        )
+
+    group = next(c for c in outcome.result.candidates if arriving.id in c.ticket_ids)
+    joined = bool(existing & {t for t in group.ticket_ids if t != arriving.id})
+    return Outcome(
+        case_id=case["id"],
+        expected=case["expected"],
+        actual="attached" if joined else "created_candidate",
+        candidate_id=group.id,
+        detail=_hybrid_detail(outcome),
+        path=outcome.path,
+        semantic_invoked=outcome.semantic_invoked,
+    )
+
+
 def evaluate_hybrid_case(case: dict, similarity: SemanticSimilarity | None) -> Outcome:
     """What hybrid correlation does with this case's arriving ticket.
 
@@ -169,6 +207,7 @@ def run_online_evaluation(
     similarity: SemanticSimilarity | None = None,
     *,
     hybrid: bool = False,
+    pairwise=None,
 ) -> EvalReport:
     """Attachment behaviour over the authored online set.
 
@@ -178,7 +217,12 @@ def run_online_evaluation(
     from app.correlation.rules import HYBRID_CORRELATION_VERSION
 
     cases = load_online_cases(directory)
-    if hybrid:
+    if pairwise is not None:
+        from app.correlation.rules import PAIRWISE_CORRELATION_VERSION
+
+        outcomes = [evaluate_pairwise_case(case, pairwise) for case in cases]
+        version = PAIRWISE_CORRELATION_VERSION
+    elif hybrid:
         outcomes = [evaluate_hybrid_case(case, similarity) for case in cases]
         version = HYBRID_CORRELATION_VERSION
     else:
@@ -188,7 +232,7 @@ def run_online_evaluation(
         )
 
     grouped = _rates(outcomes) + _slice_rates(cases, outcomes)
-    if hybrid:
+    if hybrid or pairwise is not None:
         grouped = grouped + _hybrid_rates(outcomes)
     failures = tuple(
         CaseFailure(

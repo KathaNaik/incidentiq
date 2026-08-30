@@ -1,0 +1,234 @@
+{
+  "suite": "pairwise-correlation",
+  "version": "pairwise-correlation-v1",
+  "model_class": "LogisticRegression",
+  "feature_schema": "pairwise-features-v1",
+  "feature_count": 26,
+  "feature_names": [
+    "service_same",
+    "service_conflict",
+    "service_unknown",
+    "minutes_to_nearest_member",
+    "minutes_to_first_member",
+    "time_score_nearest",
+    "within_active_window",
+    "issue_same",
+    "issue_conflict",
+    "issue_unknown",
+    "shared_identifier_count",
+    "identifier_conflict",
+    "shared_symptom_count",
+    "lexical_min",
+    "lexical_mean",
+    "lexical_max",
+    "candidate_size",
+    "content_min",
+    "content_mean",
+    "content_max",
+    "blended_min",
+    "blended_mean",
+    "blended_max",
+    "members_agreeing",
+    "members_conflicting",
+    "fraction_members_agreeing"
+  ],
+  "sklearn_version": "1.9.0",
+  "artifact_sha256": "ee49bd8194cddb53fdce3f68848e94eb1be1ef1f8c38f818bdac31871e02bf2b",
+  "threshold": 0.64,
+  "threshold_selection": {
+    "rule": "lowest development threshold with zero hard-negative false positives; recall maximised subject to that constraint",
+    "selected_threshold": 0.64,
+    "development_recall_at_threshold": 0.41,
+    "development_hard_negative_false_merges": 0,
+    "development_examples": 396,
+    "development_hard_negatives": 25
+  },
+  "dataset": {
+    "source": "polaris outage events (external, CC BY-SA, never committed)",
+    "note": "Polaris outage events only; product launches excluded. Positives are drawn inside the correlation window so a pair resembles a runtime decision. Only 8 event groups exist, so the effective sample size for generalisation is small however many pairs are produced.",
+    "events_used": 8,
+    "events_excluded_launches": 5,
+    "positives": 1559,
+    "negatives": 1537,
+    "hard_negatives": 231,
+    "negatives_time_aligned": true,
+    "split_events": {
+      "train": 5,
+      "development": 1,
+      "held_out": 2
+    }
+  },
+  "development": {
+    "split": "development",
+    "examples": 396,
+    "positives": 200,
+    "hard_negatives": 25,
+    "easy_negatives": 171,
+    "positive_min": 0.0578,
+    "positive_max": 0.9044,
+    "hard_negative_min": 0.2108,
+    "hard_negative_max": 0.6377,
+    "separation_margin": -0.5799,
+    "ordering_accuracy": 0.871,
+    "recall_at_threshold": 0.41,
+    "hard_negative_false_merges": 0,
+    "hard_negative_false_merge_rate": 0.0
+  },
+  "held_out": {
+    "split": "held_out",
+    "examples": 796,
+    "positives": 400,
+    "hard_negatives": 60,
+    "easy_negatives": 336,
+    "positive_min": 0.0411,
+    "positive_max": 0.9564,
+    "hard_negative_min": 0.2256,
+    "hard_negative_max": 0.8412,
+    "separation_margin": -0.8002,
+    "ordering_accuracy": 0.7416,
+    "recall_at_threshold": 0.305,
+    "hard_negative_false_merges": 7,
+    "hard_negative_false_merge_rate": 0.1167
+  },
+  "coefficients": [
+    {
+      "feature": "fraction_members_agreeing",
+      "weight": 0.9622
+    },
+    {
+      "feature": "content_min",
+      "weight": 0.5498
+    },
+    {
+      "feature": "content_max",
+      "weight": 0.4512
+    },
+    {
+      "feature": "service_conflict",
+      "weight": 0.3748
+    },
+    {
+      "feature": "lexical_mean",
+      "weight": 0.3718
+    },
+    {
+      "feature": "issue_unknown",
+      "weight": 0.3166
+    },
+    {
+      "feature": "lexical_max",
+      "weight": 0.2852
+    },
+    {
+      "feature": "blended_mean",
+      "weight": -0.2113
+    },
+    {
+      "feature": "issue_same",
+      "weight": 0.175
+    },
+    {
+      "feature": "candidate_size",
+      "weight": -0.171
+    },
+    {
+      "feature": "content_mean",
+      "weight": -0.168
+    },
+    {
+      "feature": "members_agreeing",
+      "weight": 0.1647
+    },
+    {
+      "feature": "service_same",
+      "weight": -0.1356
+    },
+    {
+      "feature": "issue_conflict",
+      "weight": 0.1287
+    },
+    {
+      "feature": "blended_min",
+      "weight": 0.0658
+    },
+    {
+      "feature": "members_conflicting",
+      "weight": 0.0654
+    },
+    {
+      "feature": "lexical_min",
+      "weight": 0.0552
+    },
+    {
+      "feature": "shared_symptom_count",
+      "weight": 0.0477
+    },
+    {
+      "feature": "blended_max",
+      "weight": -0.043
+    },
+    {
+      "feature": "minutes_to_nearest_member",
+      "weight": -0.0172
+    },
+    {
+      "feature": "time_score_nearest",
+      "weight": 0.0159
+    },
+    {
+      "feature": "minutes_to_first_member",
+      "weight": -0.006
+    },
+    {
+      "feature": "shared_identifier_count",
+      "weight": 0.0017
+    },
+    {
+      "feature": "service_unknown",
+      "weight": 0.0
+    },
+    {
+      "feature": "within_active_window",
+      "weight": 0.0
+    },
+    {
+      "feature": "identifier_conflict",
+      "weight": 0.0
+    }
+  ],
+  "candidates_compared": {
+    "logistic": {
+      "split": "development",
+      "examples": 396,
+      "positives": 200,
+      "hard_negatives": 25,
+      "easy_negatives": 171,
+      "positive_min": 0.0578,
+      "positive_max": 0.9044,
+      "hard_negative_min": 0.2108,
+      "hard_negative_max": 0.6377,
+      "separation_margin": -0.5799,
+      "ordering_accuracy": 0.871,
+      "recall_at_threshold": 0.41,
+      "hard_negative_false_merges": 0,
+      "hard_negative_false_merge_rate": 0.0
+    },
+    "tree": {
+      "split": "development",
+      "examples": 396,
+      "positives": 200,
+      "hard_negatives": 25,
+      "easy_negatives": 171,
+      "positive_min": 0.0579,
+      "positive_max": 0.9905,
+      "hard_negative_min": 0.0003,
+      "hard_negative_max": 0.9879,
+      "separation_margin": -0.9301,
+      "ordering_accuracy": 0.7464,
+      "recall_at_threshold": 0.01,
+      "hard_negative_false_merges": 0,
+      "hard_negative_false_merge_rate": 0.0
+    }
+  },
+  "caveat": "Eight event groups. The grouped split is correct and mandatory, but the effective sample size for generalisation is eight however many pairs are produced. Polaris `reported_category` is also not a Northstar service, so transfer to the authored cases is not guaranteed \u2014 the learned `service_conflict` weight is positive, which is domain nonsense and is evidence of exactly that mismatch."
+}

@@ -420,6 +420,80 @@ unlikely to change it. A discriminative approach — a pairwise classifier or a 
 trained on incident identity rather than text similarity — is the next thing worth trying,
 and is outside this milestone.
 
+#### Pairwise incident classification
+
+M17 concluded that cosine measures topical resemblance, not incident identity. M18 models
+the decision directly: *does this arriving ticket belong to this candidate?* — a small
+supervised classifier over the 26 structured signals the deterministic engine already
+computes, running behind the **unchanged** M16 gate so it scores exactly the slice where
+cosine failed.
+
+**Training data is the honest constraint.** The authored corpus yields about ten positives.
+Polaris is the only labelled source, and its events are not incidents at this granularity:
+six `launch_*` campaigns spanning 163–175 days, seven `outage_*` events spanning 3–4 days
+at 200–500 tickets each, against a product window of ninety minutes and a handful of
+members. Launches are excluded; outages are windowed so a training pair resembles a runtime
+decision. That leaves **eight event groups** — the grouped split is correct and mandatory,
+and the effective sample size for generalisation is eight however many pairs are produced.
+
+**Negative construction took three attempts, and each failure was caught by reading
+coefficients rather than accuracy**, which stayed high throughout:
+
+1. Unaligned sampling — Polaris outages sit years apart, so the model learned
+   `within_active_window` (+3.03) and scored a meaningless +0.97 separation. It had learned
+   "2024 or 2026".
+2. Aligning the wrong candidate to the arrival time gave negatives a zero-minute gap while
+   positives had one to ninety, so it learned the inverse: `time_score_nearest` at −5.68 —
+   *closer in time is less likely the same incident*.
+3. Shifting the negative candidate to reproduce the positive's gap structure exactly, so
+   every time feature is identical and content is the only variable.
+
+Only the third is a real experiment. The first two would have shipped a nonsense model with
+excellent metrics.
+
+**Result: better ordering, still not separable.**
+
+| | cosine (M17) | pairwise (M18) |
+|---|---|---|
+| Ordering, held-out | 50% | **74.2%** |
+| Ordering, authored cases | 50% | **66.7%** |
+| Separation margin, authored | −0.144 | −0.419 |
+| Paraphrase recall | 0/2 | **0/2** |
+
+Direct supervision does beat generic similarity on ordering — 50% to 74%, which is a real
+signal. But on the authored cases the paraphrases score 0.27–0.43 while the
+conflicting-identifier pair scores **0.689**, above both. The same failure as M17, and the
+dev-selected threshold did not transfer: seven hard-negative false merges on held-out.
+
+One learned weight is domain nonsense: `service_conflict` at **+0.375**, meaning a service
+conflict makes the same incident *more* likely. That is the mismatch showing through —
+Polaris `reported_category` is not a Northstar service, and within one outage different
+reporters pick different categories. So this experiment cannot cleanly separate "a
+discriminative model does not work" from "training on Polaris does not transfer".
+
+**Online results are unchanged**: 12/14, 0% false attachment, 0/2 paraphrases, 21.4%
+invocation — identical to deterministic and to both embedding strategies.
+
+**The architecture held, and that is the part worth keeping.** PR04 — the pair the
+classifier scored highest and must never merge — was blocked by the gate *before the model
+was consulted*. The classifier is a scorer; hard conflicts and complete-link cohesion remain
+the authority.
+
+| stage | mean | p50 |
+|---|---|---|
+| feature extraction | 2.46 ms | 2.47 ms |
+| classifier inference | **0.08 ms** | 0.08 ms |
+| full ambiguous path | 5.63 ms | 5.62 ms |
+| deterministic fast path | 1.26 ms | 1.26 ms |
+
+Against the embedding fallback's 19.3 ms warm and 533–1393 ms cold load, this is far
+cheaper — but cheap is not a reason to ship something that recovers nothing.
+
+**The live default stays deterministic.** The fitted artifact is gitignored: it is trained
+on CC BY-SA data, and this project flags rather than distributes anything adapted from that
+corpus. `scripts/train_pairwise.py` rebuilds it; sanitised metrics carrying no Polaris
+identifiers are committed.
+
 #### What live intake will and will not group
 
 The deterministic baseline is tuned for precision, and it shows. On the authored online

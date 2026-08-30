@@ -160,3 +160,10 @@ FALLBACK_POLICY_VERSION = "fallback-policy-v1"
 # the lexical signal has clearly stopped carrying evidence rather than merely being
 # modest — a genuine wording match on this corpus scores well above it.
 LEXICAL_WEAKNESS_MAX = 0.35
+
+# --- pairwise correlation (M18) ---------------------------------------------------------
+#
+# A fourth strategy. Same M16 gate, same hard conflicts, same cohesion — the only change is
+# what scores the ambiguous slice: a supervised classifier over structured signals instead
+# of embedding cosine.
+PAIRWISE_CORRELATION_VERSION = "pairwise-correlation-v1"

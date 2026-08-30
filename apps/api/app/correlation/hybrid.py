@@ -42,6 +42,7 @@ from app.correlation.models import (
 )
 from app.correlation.pairwise import Corpus, prepare, score_pair
 from app.correlation.rules import (
+    PAIRWISE_CORRELATION_VERSION as PAIRWISE_VERSION,
     CANDIDATE_IDLE_MINUTES,
     CONTENT_LINK_MIN,
     HYBRID_CORRELATION_VERSION,
@@ -253,6 +254,112 @@ def evaluate_fallback(
         reasons=tuple(reasons),
         blocking_reasons=tuple(dict.fromkeys(blocking)),
         deterministic_score=min((score.score for score in scores), default=None),
+    )
+
+
+def correlate_pairwise(
+    tickets: Sequence[CorrelationTicket],
+    arriving_id: str,
+    model=None,
+) -> HybridOutcome:
+    """Deterministic first; the pairwise classifier only where the M16 gate allows.
+
+    The gate is reused **unchanged**. That is what makes the comparison meaningful: the
+    classifier runs on exactly the slice where cosine failed, so the two are answering the
+    same question about the same tickets.
+
+    The classifier cannot overrule anything. A hard conflict blocks before it is consulted,
+    and complete-link cohesion still has to accept the resulting group.
+    """
+    deterministic = correlate(tickets)
+    attached = next(
+        (c for c in deterministic.candidates if arriving_id in c.ticket_ids), None
+    )
+    if attached is not None:
+        return HybridOutcome(
+            ticket_id=arriving_id,
+            version=PAIRWISE_VERSION,
+            deterministic_candidate_id=attached.id,
+            deterministic_attached=True,
+            deterministic_score=attached.score,
+            final_candidate_id=attached.id,
+            result=deterministic,
+        )
+
+    decisions = _fallback_decisions(tickets, arriving_id, deterministic)
+    eligible = {d.candidate_id for d in decisions if d.eligible}
+    if not eligible or model is None:
+        return HybridOutcome(
+            ticket_id=arriving_id,
+            version=PAIRWISE_VERSION,
+            fallback_decisions=decisions,
+            result=deterministic,
+        )
+
+    from app.pairwise import PairwiseModelError, extract
+
+    by_id = {ticket.id: ticket for ticket in tickets}
+    arriving = by_id[arriving_id]
+
+    best: tuple[float, str] | None = None
+    try:
+        for candidate in deterministic.candidates:
+            if candidate.id not in eligible:
+                continue
+            members = [
+                by_id[member_id]
+                for member_id in candidate.ticket_ids
+                if member_id in by_id and member_id != arriving_id
+            ]
+            if not members:
+                continue
+            score = model.score(extract(arriving, members))
+            if best is None or score > best[0]:
+                best = (score, candidate.id)
+    except PairwiseModelError as error:
+        return HybridOutcome(
+            ticket_id=arriving_id,
+            version=PAIRWISE_VERSION,
+            fallback_decisions=decisions,
+            semantic_failed=True,
+            failure_reason=f"pairwise model failed: {error}",
+            result=deterministic,
+        )
+
+    if best is None or best[0] < model.threshold:
+        return HybridOutcome(
+            ticket_id=arriving_id,
+            version=PAIRWISE_VERSION,
+            fallback_decisions=decisions,
+            semantic_invoked=True,
+            semantic_score=round(best[0], 4) if best else None,
+            embedding_model=f"{model.model_class}/{model.version}",
+            result=deterministic,
+        )
+
+    # Above threshold. Cohesion still has to accept it — the classifier says "plausibly
+    # belongs", complete linkage says "the group survives it", and both must agree.
+    score, candidate_id = best
+    group = next(c for c in deterministic.candidates if c.id == candidate_id)
+    return HybridOutcome(
+        ticket_id=arriving_id,
+        version=PAIRWISE_VERSION,
+        fallback_decisions=decisions,
+        semantic_invoked=True,
+        semantic_candidate_id=candidate_id,
+        semantic_score=round(score, 4),
+        embedding_model=f"{model.model_class}/{model.version}",
+        final_candidate_id=candidate_id,
+        result=deterministic.model_copy(
+            update={
+                "candidates": tuple(
+                    c.model_copy(update={"ticket_ids": (*c.ticket_ids, arriving_id)})
+                    if c.id == candidate_id
+                    else c
+                    for c in deterministic.candidates
+                )
+            }
+        ),
     )
 
 

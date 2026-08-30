@@ -14,6 +14,7 @@ from app.config import get_settings  # noqa: E402
 from evaluation.intake import (  # noqa: E402
     evaluate_case,
     evaluate_hybrid_case,
+    evaluate_pairwise_case,
     load_online_cases,
     run_online_evaluation,
 )
@@ -27,6 +28,11 @@ def main() -> int:
         "--model",
         default=None,
         help="embedding model id from the registry (bge-small, gte-base, bge-large)",
+    )
+    parser.add_argument(
+        "--pairwise",
+        action="store_true",
+        help="deterministic first, pairwise classifier on the ambiguous slice",
     )
     parser.add_argument(
         "--hybrid",
@@ -49,7 +55,17 @@ def main() -> int:
             settings.embeddings_cache_dir, spec.model_name if spec else None
         )
 
-    report = run_online_evaluation(directory, similarity, hybrid=args.hybrid)
+    pairwise = None
+    if args.pairwise:
+        from app.pairwise import load as load_pairwise
+
+        pairwise = load_pairwise(
+            Path(settings.evals_dir).parent.parent / "models" / "pairwise-correlation-v1.joblib"
+        )
+
+    report = run_online_evaluation(
+        directory, similarity, hybrid=args.hybrid, pairwise=pairwise
+    )
     stem = f"golden-intake-{report.version}"
     if args.model:
         stem += f"-{args.model}"
@@ -61,11 +77,12 @@ def main() -> int:
         print(f"  {metric.name:<30} {metric.accuracy:7.1%}  ({metric.correct}/{metric.total})")
     print()
     for case in load_online_cases(directory):
-        outcome = (
-            evaluate_hybrid_case(case, similarity)
-            if args.hybrid
-            else evaluate_case(case, similarity)
-        )
+        if args.pairwise:
+            outcome = evaluate_pairwise_case(case, pairwise)
+        elif args.hybrid:
+            outcome = evaluate_hybrid_case(case, similarity)
+        else:
+            outcome = evaluate_case(case, similarity)
         mark = "OK  " if outcome.correct else "MISS"
         print(
             f"  {mark} {outcome.case_id} [{case.get('slice', 'baseline'):13}] "

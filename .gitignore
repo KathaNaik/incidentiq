@@ -16,3 +16,8 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Pairwise model artifacts. Fitted on the CC BY-SA Polaris corpus, so the artifact is
+# kept reproducible rather than distributed — `scripts/train_pairwise.py` rebuilds it.
+# Sanitised metrics (no Polaris identifiers) are committed under data/evals/intake/.
+data/models/
