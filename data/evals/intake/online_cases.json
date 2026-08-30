@@ -1,0 +1,217 @@
+{
+  "dataset": "incidentiq-intake-online",
+  "eval_version": "intake-eval-v1",
+  "synthetic": true,
+  "note": "Authored online-intake cases. Each has a `seed` (tickets already in the window) and one `arriving` ticket, and asks what incremental correlation does with the arrival. Original content, no external dataset, no hidden labels in the ticket text. Small on purpose: this is acceptance and regression evidence, not a benchmark, and no broad claim should be made from eight cases.",
+  "records": [
+    {
+      "id": "ON01",
+      "scenario": "Second reporter of the same auth failure, different words",
+      "seed": [
+        {
+          "id": "S-101",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "SSO sign-in returns invalid assertion for the whole team",
+          "description": "Nobody on our workspace can sign in through their identity provider since about 09:00. Every attempt returns an invalid assertion error.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "S-102",
+          "created_at": "2026-09-01T09:14:00Z",
+          "title": "Cannot log in through our identity provider",
+          "description": "Sign-in through the identity provider is rejected for everyone on the workspace with an assertion error.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "A-103",
+        "created_at": "2026-09-01T09:22:00Z",
+        "title": "Sign-in through identity provider rejected, assertion error",
+        "description": "Nobody on our workspace can sign in through the identity provider. Every attempt is rejected with an invalid assertion error.",
+        "service_id": "svc-auth"
+      },
+      "expected": "created_candidate",
+      "note": "Three reporters, one failure, overlapping vocabulary. LABEL CORRECTED while authoring: the expectation was 'attached', but the two seed tickets do not clear the linkage threshold with each other, so no candidate exists for the arrival to join \u2014 verified by correlating the seed alone, independently of what the arrival then did. Grouping the arrival with the compatible seed ticket and forming a candidate is the correct outcome. The case still earns its place: it shows a candidate forming on the third report rather than the second."
+    },
+    {
+      "id": "ON02",
+      "scenario": "Unrelated report during an active incident",
+      "seed": [
+        {
+          "id": "S-201",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "SSO sign-in returns invalid assertion for the whole team",
+          "description": "Nobody on our workspace can sign in through their identity provider. Every attempt returns an invalid assertion error.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "S-202",
+          "created_at": "2026-09-01T09:14:00Z",
+          "title": "Cannot log in through our identity provider",
+          "description": "Sign-in through the identity provider is rejected for everyone with an assertion error.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "A-203",
+        "created_at": "2026-09-01T09:20:00Z",
+        "title": "Office printer on floor three is offline",
+        "description": "The shared printer will not accept jobs and shows an offline status on its panel."
+      },
+      "expected": "uncorrelated",
+      "note": "Nothing in common. Must stay on its own."
+    },
+    {
+      "id": "ON03",
+      "scenario": "Superficially similar wording, different failure",
+      "seed": [
+        {
+          "id": "S-301",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Sync workers stuck, queue growing",
+          "description": "Connector sync jobs start and never finish. Queue depth is climbing and nothing completes.",
+          "service_id": "svc-connector"
+        },
+        {
+          "id": "S-302",
+          "created_at": "2026-09-01T09:12:00Z",
+          "title": "No rows arriving in the warehouse",
+          "description": "Nothing has landed in the warehouse since midday. Sync jobs appear to be running but never complete.",
+          "service_id": "svc-connector"
+        }
+      ],
+      "arriving": {
+        "id": "A-303",
+        "created_at": "2026-09-01T09:20:00Z",
+        "title": "Scheduled report queue is growing and jobs never complete",
+        "description": "Our scheduled analytics reports queue up and never finish rendering. The queue keeps growing.",
+        "service_id": "svc-analytics"
+      },
+      "expected": "uncorrelated",
+      "note": "'queue growing, never complete' matches lexically, but a different service and a different failure. A merge here would invent an incident."
+    },
+    {
+      "id": "ON04",
+      "scenario": "Identical wording, a day later",
+      "seed": [
+        {
+          "id": "S-401",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "SSO sign-in returns invalid assertion for the whole team",
+          "description": "Nobody on our workspace can sign in through their identity provider. Every attempt returns an invalid assertion error.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "S-402",
+          "created_at": "2026-09-01T09:14:00Z",
+          "title": "Cannot log in through our identity provider",
+          "description": "Sign-in through the identity provider is rejected for everyone with an assertion error.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "A-403",
+        "created_at": "2026-09-02T09:20:00Z",
+        "title": "SSO sign-in returns invalid assertion for the whole team",
+        "description": "Nobody on our workspace can sign in through their identity provider. Every attempt returns an invalid assertion error.",
+        "service_id": "svc-auth"
+      },
+      "expected": "uncorrelated",
+      "note": "A day later is a different incident however similar the words. The idle window must refuse it."
+    },
+    {
+      "id": "ON05",
+      "scenario": "Second compatible report promotes a singleton to a candidate",
+      "seed": [
+        {
+          "id": "S-501",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Warehouse sync jobs stuck in running state",
+          "description": "Sync jobs start and never finish. The queue is growing and nothing completes.",
+          "service_id": "svc-connector"
+        }
+      ],
+      "arriving": {
+        "id": "A-502",
+        "created_at": "2026-09-01T09:13:00Z",
+        "title": "Sync jobs stuck running, queue growing",
+        "description": "Connector jobs start and never complete. Queue depth keeps climbing and nothing lands.",
+        "service_id": "svc-connector"
+      },
+      "expected": "created_candidate",
+      "note": "One report is a singleton; the second compatible one is what makes it an incident."
+    },
+    {
+      "id": "ON06",
+      "scenario": "First report of the day, nothing to join",
+      "seed": [],
+      "arriving": {
+        "id": "A-601",
+        "created_at": "2026-09-01T09:05:00Z",
+        "title": "Dashboard exports are truncated",
+        "description": "Our scheduled export stops partway through every run.",
+        "service_id": "svc-analytics"
+      },
+      "expected": "uncorrelated",
+      "note": "No active candidate exists. A lone report is a valid state, not a failure."
+    },
+    {
+      "id": "ON07",
+      "scenario": "Same service, different failure, same window",
+      "seed": [
+        {
+          "id": "S-701",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "SSO sign-in returns invalid assertion",
+          "description": "Nobody on our workspace can sign in through their identity provider. Every attempt returns an invalid assertion error.",
+          "service_id": "svc-auth"
+        },
+        {
+          "id": "S-702",
+          "created_at": "2026-09-01T09:14:00Z",
+          "title": "Cannot log in through our identity provider",
+          "description": "Sign-in through the identity provider is rejected for everyone with an assertion error.",
+          "service_id": "svc-auth"
+        }
+      ],
+      "arriving": {
+        "id": "A-703",
+        "created_at": "2026-09-01T09:21:00Z",
+        "title": "Password reset email never arrives",
+        "description": "A colleague requested a password reset an hour ago and the email has still not been delivered.",
+        "service_id": "svc-auth"
+      },
+      "expected": "uncorrelated",
+      "note": "Same service is not the same incident. Attaching on service alone would be the failure."
+    },
+    {
+      "id": "ON08",
+      "scenario": "Near-verbatim duplicate, minutes later",
+      "seed": [
+        {
+          "id": "S-801",
+          "created_at": "2026-09-01T09:05:00Z",
+          "title": "Sync workers stuck and queue growing",
+          "description": "Connector sync jobs start and never finish. Queue depth is climbing and nothing completes.",
+          "service_id": "svc-connector"
+        },
+        {
+          "id": "S-802",
+          "created_at": "2026-09-01T09:10:00Z",
+          "title": "Sync workers stuck, queue keeps growing",
+          "description": "Connector sync jobs start and never finish. The queue is climbing and nothing completes.",
+          "service_id": "svc-connector"
+        }
+      ],
+      "arriving": {
+        "id": "A-803",
+        "created_at": "2026-09-01T09:15:00Z",
+        "title": "Sync workers stuck and the queue keeps growing",
+        "description": "Connector sync jobs start and never finish. Queue depth is climbing and nothing completes at all.",
+        "service_id": "svc-connector"
+      },
+      "expected": "attached",
+      "note": "The clearest possible duplicate. If this does not attach, live intake attaches nothing."
+    }
+  ]
+}

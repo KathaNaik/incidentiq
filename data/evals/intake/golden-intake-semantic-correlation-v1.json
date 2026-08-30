@@ -1,0 +1,75 @@
+{
+  "suite": "intake",
+  "version": "semantic-correlation-v1",
+  "generated_at": "2026-08-30T10:48:18.714399Z",
+  "case_count": 8,
+  "metrics": [
+    {
+      "name": "correct_outcome_rate",
+      "correct": 7,
+      "total": 8,
+      "accuracy": 0.875,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "correct_attachment_rate",
+      "correct": 2,
+      "total": 3,
+      "accuracy": 0.6667,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "false_attachment_rate",
+      "correct": 0,
+      "total": 5,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "missed_attachment_rate",
+      "correct": 0,
+      "total": 3,
+      "accuracy": 0.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "correct_uncorrelated_rate",
+      "correct": 5,
+      "total": 5,
+      "accuracy": 1.0,
+      "abstained": 0,
+      "majority_baseline": null
+    },
+    {
+      "name": "candidate_creation_accuracy",
+      "correct": 1,
+      "total": 2,
+      "accuracy": 0.5,
+      "abstained": 0,
+      "majority_baseline": null
+    }
+  ],
+  "confusion": [],
+  "failures": [
+    {
+      "case_id": "ON01",
+      "metric": "intake_outcome",
+      "expected": "created_candidate",
+      "predicted": "attached",
+      "status": "Second reporter of the same auth failure, different words",
+      "explanation": "score 0.6304, 3 tickets, low confidence",
+      "signals": [],
+      "text": "Three reporters, one failure, overlapping vocabulary. LABEL CORRECTED while authoring: the expectation was 'attached', but the two seed tickets do not clear the linkage threshold with each other, so no candidate exists for the arrival to join — verified by correlating the seed alone, independently of what the arrival then did. Grouping the arrival with the compatible seed ticket and forming a candidate is the correct outcome. The case still earns its place: it shows a candidate forming on the third report rather than the second."
+    }
+  ],
+  "notes": [
+    "Authored online-intake cases: a window of tickets plus one arrival.",
+    "Eight cases. Acceptance and regression evidence, not a benchmark — no general claim should be drawn from a set this size.",
+    "False attachment is the metric that matters most: inventing an incident that is not happening is worse than missing one that is.",
+    "Correlation version under test: semantic-correlation-v1."
+  ]
+}

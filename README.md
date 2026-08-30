@@ -48,7 +48,11 @@ cp .env.example .env                       # DATABASE_URL, and OPENAI_API_KEY if
 uv sync
 uv run alembic upgrade head                # empty database -> current schema, extension included
 uv run --group semantic python scripts/import_historical.py
+uv run python scripts/seed_tickets.py            # authored Northstar tickets
 ```
+
+`seed_tickets.py` is idempotent and **distinct from `POST /demo/reset`**: seeding loads
+operational input, reset clears workflow state. Running one does not undo the other.
 
 Port 5434 rather than 5432 because a developer machine usually already has PostgreSQL
 somewhere, and a port collision is a confusing first-run failure.
@@ -107,7 +111,11 @@ Read-only endpoints:
 | `GET /evals/policy` | action-policy suite results |
 | `GET /evals/policy/replay` | policy-v1 versus policy-v2 on identical recorded recommendations |
 | `GET /actions` | every action this process has seen (dashboard counts) |
-| `POST /demo/reset` | clears in-memory action and audit state (development only) |
+| `POST /tickets` | submit a report — validate, persist, triage, correlate. No model call. |
+| `GET /intake/tickets` | runtime tickets with triage and correlation state |
+| `GET /intake/tickets/{id}` | one runtime ticket |
+| `GET /intake/candidates` | persisted candidate incidents and their membership |
+| `POST /demo/reset` | clears workflow state (development only) |
 | `POST /demo/policy-probe` | what policy *would* decide about an action nobody recommended (development only) |
 
 Both correlation endpoints take `?mode=deterministic` (the default) or `?mode=semantic`,
@@ -233,6 +241,72 @@ uv run --group semantic python scripts/evaluate_investigation.py --model --promp
 Historical retrieval needs the ITSM corpus (`scripts/download_itsm.py` and
 `preprocess_itsm.py`); without it the index still builds from the authored Northstar
 records alone.
+
+### Ticket intake
+
+**"Real intake" here means a typed runtime API and a form.** There is no ServiceNow,
+Slack, or email integration, and nothing in this milestone implies one — IncidentIQ does
+not talk to any third-party ticketing system.
+
+```
+POST /tickets   →  validate  →  persist  →  deterministic triage
+                →  replay the active window through correlation
+                →  attach / create a candidate / stay uncorrelated
+```
+
+**No model is called.** Intake is arithmetic and rule matching, which keeps it fast, free
+of token cost, and predictable enough to evaluate. Investigation stays an explicit
+operator decision.
+
+**Idempotency** is keyed on `external_id` and backed by a unique constraint. An identical
+resubmission returns the original outcome with 200 and correlates nothing twice; the same
+id with different content is a 409, because two reports cannot share one identity and
+overwriting the first would discard something somebody filed.
+
+**Two timestamps.** `created_at` is when the reporter observed the problem and is what
+correlation and the M14 chronology use; `received_at` is when we were told. A report filed
+late describes an old event, and arrival time is never allowed to redefine incident onset.
+
+**Correlation is not reimplemented.** Intake replays the tickets in the active window
+through the same `correlate()` the batch baseline uses — same signals, same thresholds,
+same complete-linkage and cohesion guardrails. A second scoring implementation would drift
+from the one M5 and M6 measured, and the evaluated number would stop describing the
+running system. "Incremental" here means feeding it a window rather than all history; the
+engine already processes chronologically and only offers a ticket to candidates that are
+still open.
+
+**Live mode is `deterministic-correlation-v1`**, chosen on measurement rather than
+preference: on the authored online set it scores 8/8 against semantic's 7/8, runs in about
+6 ms against 635 ms, and needs no embedding call — so no embedding failure mode exists at
+intake. Semantic remains available for batch comparison.
+
+**A candidate appears on the second compatible report, not the first.** One report is a
+singleton, which is a valid operational state shown as "uncorrelated" rather than hidden.
+The window a candidate stays open for is the correlation baseline's own
+`CANDIDATE_IDLE_MINUTES` (90), reused rather than redefined — a second number here would
+give live intake different semantics from the thing that was measured.
+
+**Candidate metadata is derived from members, never incremented**, so a count and its
+membership cannot drift apart. Titles are deterministic (`Auth integration incident`); no
+model names an incident.
+
+**The correlation decision is recorded at intake** — version, score, confidence, signals,
+reason — so "why was this grouped last Tuesday?" survives a later change to thresholds.
+
+Measured intake cost: **30.8 ms end to end** (p50 31.8, p95 42.1), of which triage is
+0.22 ms and correlation 5.9 ms over the replay window. The rest is HTTP and two database
+transactions.
+
+#### What live intake will and will not group
+
+The deterministic baseline is tuned for precision, and it shows. On the authored online
+set it scores 0% false attachment and 0% missed attachment — but complete linkage means a
+new report must clear the threshold against **every** existing member, and time decay
+against the oldest member tightens that further as a candidate ages.
+
+In practice a near-duplicate report attaches and a paraphrase often does not. That is the
+M5 tradeoff working as measured (pairwise recall 0.2593, precision 0.875), not a defect
+introduced here, and no threshold was moved to make a demo attach.
 
 ### Temporal evidence
 

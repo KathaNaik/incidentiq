@@ -21,6 +21,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     CheckConstraint,
+    Float,
     DateTime,
     ForeignKey,
     Identity,
@@ -330,4 +331,154 @@ class HistoricalIncidentRow(Base):
 
     __table_args__ = (
         UniqueConstraint("provenance", "source_record_id", name="uq_historical_source"),
+    )
+
+
+# --- runtime intake ---------------------------------------------------------------------
+
+
+class TicketRow(Base):
+    """A report, as the running system holds it.
+
+    Tickets moved into PostgreSQL in M15 so a previously unseen one can arrive through the
+    API and change live incident state. The authored Northstar tickets are seeded into the
+    same table rather than kept in a parallel fixture universe — one representation, with
+    `source` preserving where each came from.
+
+    Two timestamps, because they answer different questions. `created_at` is when the
+    reporter says the problem was observed and is what correlation and the M14 chronology
+    use. `received_at` is when IncidentIQ was told, and is never allowed to redefine
+    incident onset — a report filed an hour late describes an hour-old event.
+    """
+
+    __tablename__ = "tickets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # The caller's key, and the idempotency key. Unique so a retried submission cannot
+    # create a second ticket — enforced by the database rather than by a prior read.
+    external_id: Mapped[str | None] = mapped_column(String(128), unique=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    reported_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    # What the reporter claimed, kept separate from what triage predicted. Conflating them
+    # would make it impossible to tell a stated service from an inferred one.
+    reported_service_id: Mapped[str | None] = mapped_column(String(64))
+    service_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    priority: Mapped[str | None] = mapped_column(String(16))
+    issue_type: Mapped[str | None] = mapped_column(String(64))
+    triage_version: Mapped[str | None] = mapped_column(String(64))
+    # The signals behind the prediction, so a triage decision stays explicable.
+    triage_signals: Mapped[dict | None] = mapped_column(JSONColumn)
+
+    # Null is a real state: a ticket that matched nothing is uncorrelated, not broken.
+    candidate_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("candidate_incidents.id", ondelete="SET NULL"), index=True
+    )
+
+    candidate: Mapped["CandidateIncidentRow | None"] = relationship(
+        back_populates="tickets"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('api', 'northstar-authored', 'imported', 'external-eval')",
+            name="ck_tickets_source",
+        ),
+        Index("ix_tickets_created", "created_at"),
+    )
+
+
+class CandidateIncidentRow(Base):
+    """A grouping the correlation baseline proposed, persisted so it can grow.
+
+    Metadata is recomputed from members on every change rather than incremented, so a
+    count and its membership cannot drift apart.
+    """
+
+    __tablename__ = "candidate_incidents"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    correlation_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    service_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    issue_type: Mapped[str | None] = mapped_column(String(64))
+
+    # Derived from members. first/last_seen are reporter times, not receive times.
+    ticket_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    confidence: Mapped[str] = mapped_column(String(16), nullable=False, default="low")
+    distinct_reporters: Mapped[int | None] = mapped_column(Integer)
+
+    signals: Mapped[dict] = mapped_column(JSONColumn, nullable=False, default=dict)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
+    )
+
+    tickets: Mapped[list["TicketRow"]] = relationship(back_populates="candidate")
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'stale', 'resolved')", name="ck_candidates_status"
+        ),
+    )
+
+
+class CorrelationDecisionRow(Base):
+    """Why one ticket went where it did, at the moment it arrived.
+
+    Recorded rather than recomputed. Thresholds and correlation versions will change, and
+    a later change must not silently rewrite the reason a ticket was attached last Tuesday
+    — "why did IncidentIQ group this?" is a question about the past.
+    """
+
+    __tablename__ = "correlation_decisions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    candidate_id: Mapped[str | None] = mapped_column(String(64), index=True)
+
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    correlation_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    triage_version: Mapped[str | None] = mapped_column(String(64))
+
+    score: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[str | None] = mapped_column(String(16))
+    created_new_candidate: Mapped[bool] = mapped_column(nullable=False, default=False)
+
+    supporting_signals: Mapped[list] = mapped_column(JSONColumn, nullable=False, default=list)
+    conflicting_signals: Mapped[list] = mapped_column(JSONColumn, nullable=False, default=list)
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Runners-up worth keeping: enough to explain an ambiguous call without storing a row
+    # per rejected candidate.
+    alternatives: Mapped[list] = mapped_column(JSONColumn, nullable=False, default=list)
+
+    decided_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('attached', 'created_candidate', 'uncorrelated', "
+            "'ambiguous', 'failed')",
+            name="ck_correlation_decisions_outcome",
+        ),
     )

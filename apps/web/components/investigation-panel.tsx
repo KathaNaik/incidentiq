@@ -76,6 +76,10 @@ export function InvestigationPanel({
   }
 
   const shown = viewing ?? current;
+  // Reported by the server from the run's own evidence snapshot: which tickets are on the
+  // incident now that this run never saw. Nothing re-runs on its own — a model call is
+  // the operator's decision.
+  const staleness = initial?.staleness;
 
   if (busy && !shown) {
     return <RunningNotice />;
@@ -136,6 +140,19 @@ export function InvestigationPanel({
             Back to the current investigation
           </button>
         </p>
+      )}
+
+      {staleness?.stale && !isHistorical && (
+        <div className="rounded border border-amber-300 p-3 dark:border-amber-900">
+          <p className="text-sm font-medium">New evidence available</p>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            {staleness.reason}. This investigation is unchanged and still shows what the
+            model actually saw; re-running creates a new one.
+          </p>
+          <p className="mt-1 font-mono text-xs text-neutral-500">
+            {staleness.new_ticket_ids.join(", ")}
+          </p>
+        </div>
       )}
 
       {busy && <RunningNotice />}

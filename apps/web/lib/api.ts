@@ -454,9 +454,16 @@ export type InvestigationRunDetail = InvestigationRunSummary & {
   result: InvestigationResult | null;
 };
 
+export type InvestigationStaleness = {
+  stale: boolean;
+  new_ticket_ids: string[];
+  reason: string;
+};
+
 export type LatestInvestigation = {
   current: InvestigationRunDetail | null;
   active: InvestigationRunSummary | null;
+  staleness?: InvestigationStaleness;
 };
 
 /**
@@ -671,4 +678,100 @@ export async function probePolicy(
     action_type: actionType,
     service_id: serviceId,
   });
+}
+
+export type RuntimeTicketView = {
+  id: string;
+  external_id: string | null;
+  source: string;
+  title: string;
+  description: string;
+  reported_by: string;
+  status: string;
+  created_at: string;
+  received_at: string;
+  reported_service_id: string | null;
+  service_id: string | null;
+  priority: string | null;
+  issue_type: string | null;
+  triage_version: string | null;
+  candidate_id: string | null;
+  correlation_outcome: string | null;
+  correlation_reason: string | null;
+  correlation_version: string | null;
+  correlation_score: number | null;
+};
+
+export type TicketIntakeResult = {
+  ticket: {
+    id: string;
+    external_id: string | null;
+    source: string;
+    created_at: string;
+    received_at: string;
+    candidate_id: string | null;
+  };
+  triage: {
+    service_id: string | null;
+    priority: string | null;
+    issue_type: string | null;
+    version: string;
+    signals: Record<string, unknown>;
+  };
+  correlation: {
+    ticket_id: string;
+    candidate_id: string | null;
+    outcome: "attached" | "created_candidate" | "uncorrelated" | "ambiguous" | "failed";
+    correlation_version: string;
+    score: number | null;
+    confidence: string | null;
+    created_new_candidate: boolean;
+    supporting_signals: string[];
+    conflicting_signals: string[];
+    reason: string;
+    alternatives: string[];
+  };
+  candidate: Record<string, unknown> | null;
+  idempotent_replay: boolean;
+};
+
+export type CreateTicketInput = {
+  external_id: string;
+  title: string;
+  description: string;
+  created_at?: string;
+  reported_service_id?: string | null;
+};
+
+export async function fetchRuntimeTickets(
+  params: { uncorrelated?: boolean; service_id?: string; candidate_id?: string } = {},
+): Promise<RuntimeTicketView[]> {
+  const query = new URLSearchParams();
+  if (params.uncorrelated !== undefined) query.set("uncorrelated", String(params.uncorrelated));
+  if (params.service_id) query.set("service_id", params.service_id);
+  if (params.candidate_id) query.set("candidate_id", params.candidate_id);
+  const suffix = query.toString() ? `?${query}` : "";
+  return getJson<RuntimeTicketView[]>(`/intake/tickets${suffix}`);
+}
+
+export async function fetchRuntimeTicket(id: string): Promise<RuntimeTicketView> {
+  return getJson<RuntimeTicketView>(`/intake/tickets/${encodeURIComponent(id)}`);
+}
+
+/** Submits a real report. The server owns triage and correlation; this sends neither. */
+export async function submitTicket(
+  input: CreateTicketInput,
+): Promise<{ result: TicketIntakeResult; replayed: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/tickets`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = (body as { detail?: string } | null)?.detail;
+    throw new Error(detail ?? `Submission failed with ${response.status}`);
+  }
+  return { result: body as TicketIntakeResult, replayed: response.status === 200 };
 }

@@ -130,7 +130,10 @@ def list_investigations(
 
 @router.get("/incidents/{incident_id}/investigations/latest")
 def latest_investigation(
-    incident_id: str, store: InvestigationStoreDep, response: Response
+    incident_id: str,
+    store: InvestigationStoreDep,
+    repository: RepositoryDep,
+    response: Response,
 ):
     """The investigation an operator should be shown, or 204 if there is not one.
 
@@ -151,6 +154,41 @@ def latest_investigation(
     return {
         "current": _detail(run) if run is not None else None,
         "active": InvestigationRunSummary(**_summary(active)) if active else None,
+        "staleness": _staleness(run, repository),
+    }
+
+
+def _staleness(run: StoredRun | None, repository) -> dict:
+    """Whether reports have arrived since this investigation saw the world.
+
+    Compared by **ticket identity**, not by clock time. A run's snapshot names exactly
+    which tickets it was shown; anything on the candidate that is not in that list is
+    evidence the run never had. Comparing timestamps instead would call a run stale
+    because a back-dated report was filed, or miss one because a new report claims an old
+    observation time.
+
+    Reporting staleness never triggers anything. Re-running costs a model call, and that
+    stays the operator's decision.
+    """
+    if run is None or not hasattr(repository, "candidate_tickets"):
+        return {"stale": False, "new_ticket_ids": [], "reason": "no investigation yet"}
+
+    seen = {
+        item.source_id
+        for item in run.evidence
+        if item.kind.value == "ticket"
+    }
+    current = {row.id for row in repository.candidate_tickets(run.incident_id)}
+    arrived = sorted(current - seen)
+
+    return {
+        "stale": bool(arrived),
+        "new_ticket_ids": arrived,
+        "reason": (
+            f"{len(arrived)} report(s) arrived after this investigation"
+            if arrived
+            else "this investigation saw every report currently on the incident"
+        ),
     }
 
 

@@ -12,6 +12,7 @@ from app.fixtures import load_dataset
 from app.repository import InMemoryRepository, Repository
 
 if TYPE_CHECKING:
+    from app.intake import TicketIntake
     from app.db.action_store import SqlActionRepository
     from app.db.investigation_store import InvestigationRunStore
     from app.db.retrieval_store import PgVectorHistoricalIndex
@@ -21,14 +22,37 @@ if TYPE_CHECKING:
 def get_repository() -> Repository:
     """The process-wide repository.
 
-    Fixtures are read once at first use; the dataset is immutable, so there is nothing
-    to invalidate. Tests substitute their own repository with
-    `app.dependency_overrides[get_repository]`.
+    Tickets come from PostgreSQL since M15 — they arrive at runtime, so they are runtime
+    state. Services and incidents stay fixture-backed: nothing creates a service at
+    runtime, and a mutable table for authored configuration would only invite drift.
+
+    Falls back to the pure in-memory repository when no database is configured, so the
+    read-only parts of the product still run without one.
     """
-    return InMemoryRepository(load_dataset(get_settings().fixtures_dir))
+    from app.db.engine import DatabaseNotConfiguredError
+
+    dataset = load_dataset(get_settings().fixtures_dir)
+    try:
+        from app.db.ticket_store import SqlRepository
+
+        return SqlRepository(dataset)
+    except DatabaseNotConfiguredError:
+        return InMemoryRepository(dataset)
+
+
+@lru_cache
+def get_intake() -> "TicketIntake":
+    """Runtime ticket intake."""
+    from app.intake import TicketIntake
+
+    dataset = load_dataset(get_settings().fixtures_dir)
+    return TicketIntake(
+        known_services=frozenset(service.id for service in dataset.services)
+    )
 
 
 RepositoryDep = Annotated[Repository, Depends(get_repository)]
+IntakeDep = Annotated["TicketIntake", Depends(get_intake)]
 
 
 @lru_cache
