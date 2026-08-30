@@ -81,6 +81,16 @@ class InvestigationRunRow(Base):
 
     # Exactly what the model was shown. Never reconstructed from current fixtures.
     evidence_snapshot: Mapped[list] = mapped_column(JSONColumn, nullable=False)
+    # Which evidence contract this run was given. Runs recorded before M14 are
+    # evidence-v1 and stay that way: temporal evidence is never backfilled onto a
+    # historical run, because then nobody could tell why two runs differed.
+    evidence_schema_version: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="evidence-v1"
+    )
+    # The window and threshold configuration the temporal derivation used. A stored run
+    # must be interpretable with the constants it was produced under, not whatever the
+    # code says today.
+    temporal_config_version: Mapped[str | None] = mapped_column(String(32))
     # The validated InvestigationOutput. Null while pending/running, and on failure.
     structured_result: Mapped[dict | None] = mapped_column(JSONColumn)
 

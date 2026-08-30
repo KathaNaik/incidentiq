@@ -109,19 +109,24 @@ def get_recent_deployments(
 
 def get_service_health(
     fixtures: OperationsFixtures, service_id: str | None, around: datetime
-) -> ServiceHealthSnapshot | None:
-    """The health snapshot closest to the incident, within the signal window."""
+) -> tuple[ServiceHealthSnapshot, ...]:
+    """The health observations around the incident, in order.
+
+    A sequence rather than the single closest snapshot, which is what this returned before
+    M14. One reading answers "is it broken now"; it cannot answer "was it fine before that
+    deployment shipped", and that second question is what separates a deployment that
+    plausibly caused an incident from one that merely happened nearby.
+    """
     if service_id is None:
-        return None
-    candidates = [
+        return ()
+    matched = [
         snapshot
         for snapshot in fixtures.health
         if snapshot.service_id == service_id
         and abs(snapshot.observed_at - around) <= SIGNAL_WINDOW
     ]
-    if not candidates:
-        return None
-    return min(candidates, key=lambda item: (abs(item.observed_at - around), item.observed_at))
+    matched.sort(key=lambda item: item.observed_at)
+    return tuple(matched)
 
 
 def get_error_summary(

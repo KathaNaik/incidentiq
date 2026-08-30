@@ -155,7 +155,7 @@ def test_registry_is_built_from_the_candidate_and_its_evidence() -> None:
         candidate=candidate,
         tickets=tickets,
         deployments=(),
-        health=None,
+        health=(),
         errors=(),
         historical=(),
     )
@@ -353,7 +353,12 @@ def test_tools_are_deterministic_and_scoped_to_the_service() -> None:
     errors = get_error_summary(operations, "svc-auth", when)
 
     assert [item.id for item in deployments] == ["DEP-2041"]
-    assert health is not None and health.status == "degraded"
+    # A sequence now, in order: health history is what makes "was it fine before the
+    # deployment" answerable, which one snapshot could never be.
+    assert [snapshot.status for snapshot in health] == ["healthy", "degraded", "critical"]
+    assert [snapshot.observed_at for snapshot in health] == sorted(
+        snapshot.observed_at for snapshot in health
+    )
     assert errors[0].code == "ERR_SAML_INVALID_ASSERTION"
     assert get_recent_deployments(operations, "svc-auth", when) == deployments
 
@@ -364,7 +369,7 @@ def test_tools_return_nothing_when_the_service_is_unknown() -> None:
     when = datetime(2026, 8, 24, 9, 8, tzinfo=UTC)
 
     assert get_recent_deployments(operations, None, when) == ()
-    assert get_service_health(operations, None, when) is None
+    assert get_service_health(operations, None, when) == ()
     assert get_error_summary(operations, None, when) == ()
 
 

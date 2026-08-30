@@ -1,7 +1,7 @@
 {
   "dataset": "northstar-cloud",
   "synthetic": true,
-  "note": "Synthetic operational telemetry for the fictional Northstar Cloud. Authored for IncidentIQ — not derived from any external dataset, and not a feed from any real monitoring system. Every record here is fabricated, and the provenance string on each says so wherever it is displayed.",
+  "note": "Synthetic operational telemetry for the fictional Northstar Cloud. Authored for IncidentIQ \u2014 not derived from any external dataset, and not a feed from any real monitoring system. Every record here is fabricated, and the provenance string on each says so wherever it is displayed. Health is an authored SEQUENCE of observations rather than a single snapshot: answering 'was the service healthy before that deployment?' needs a before as well as an after, and every timestamp here was written by hand rather than generated at runtime.",
   "deployments": [
     {
       "id": "DEP-2041",
@@ -39,6 +39,16 @@
   "health": [
     {
       "service_id": "svc-auth",
+      "observed_at": "2026-08-24T08:40:00Z",
+      "status": "healthy",
+      "signals": [
+        "sign-in success rate 99.4%",
+        "SAML assertion validation nominal",
+        "latency p95 180ms"
+      ]
+    },
+    {
+      "service_id": "svc-auth",
       "observed_at": "2026-08-24T09:10:00Z",
       "status": "degraded",
       "signals": [
@@ -48,12 +58,43 @@
       ]
     },
     {
+      "service_id": "svc-auth",
+      "observed_at": "2026-08-24T09:25:00Z",
+      "status": "critical",
+      "signals": [
+        "sign-in success rate 8%",
+        "assertion validation failing for all issuers",
+        "token exchange rejections climbing"
+      ]
+    },
+    {
       "service_id": "svc-analytics",
       "observed_at": "2026-08-24T09:10:00Z",
       "status": "healthy",
       "signals": [
-        "dashboard render success rate 99.7%",
-        "p95 load time 1.8s (baseline 1.9s)"
+        "query success rate 99.8%",
+        "dashboard render p95 1.2s",
+        "no elevated error rate"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-25T14:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "query success rate 99.7%",
+        "data freshness lag 26h (baseline 1h)",
+        "no elevated error rate"
+      ]
+    },
+    {
+      "service_id": "svc-connector",
+      "observed_at": "2026-08-25T12:20:00Z",
+      "status": "healthy",
+      "signals": [
+        "sync completion rate 98%",
+        "queue depth stable",
+        "worker heartbeats nominal"
       ]
     },
     {
@@ -67,12 +108,13 @@
       ]
     },
     {
-      "service_id": "svc-analytics",
-      "observed_at": "2026-08-25T14:10:00Z",
-      "status": "healthy",
+      "service_id": "svc-connector",
+      "observed_at": "2026-08-25T14:00:00Z",
+      "status": "critical",
       "signals": [
-        "dashboard render success rate 99.6%",
-        "data freshness lag 19 hours (baseline under 1 hour)"
+        "sync completion rate 11%",
+        "queue depth 4,200 and climbing",
+        "no worker heartbeat for 38 minutes"
       ]
     }
   ],

@@ -199,11 +199,21 @@ export type RetrievalResult = {
 
 export type EvidenceItem = {
   id: string;
-  kind: "ticket" | "correlation" | "deployment" | "health" | "error" | "historical";
+  kind:
+    | "ticket"
+    | "correlation"
+    | "deployment"
+    | "health"
+    | "error"
+    | "historical"
+    /** Derived by the application from the timestamps on the others. */
+    | "temporal";
   summary: string;
   source_id: string;
   provenance: string;
   observed_at: string | null;
+  service_id?: string | null;
+  attributes?: Record<string, string>;
 };
 
 export type Hypothesis = {
@@ -427,6 +437,8 @@ export type InvestigationRunSummary = {
   prompt_version: string;
   provider: string;
   model: string;
+  evidence_schema_version: string;
+  temporal_config_version: string | null;
   created_at: string;
   completed_at: string | null;
   latency_ms: number | null;

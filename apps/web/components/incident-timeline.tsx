@@ -106,6 +106,17 @@ export function IncidentTimeline({
 
   entries.sort((a, b) => a.at.localeCompare(b.at));
 
+  // The gap to the previous entry. Chronology is easier to read as intervals than as a
+  // column of clock times, and the intervals are what make a causal sequence visible.
+  const gaps = entries.map((entry, index) =>
+    index === 0
+      ? null
+      : Math.round(
+          (new Date(entry.at).getTime() - new Date(entries[index - 1].at).getTime()) /
+            60000,
+        ),
+  );
+
   if (entries.length === 0) {
     return (
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
@@ -122,6 +133,11 @@ export function IncidentTimeline({
           className="flex gap-3 border-l border-neutral-300 pb-3 pl-4 last:pb-0 dark:border-neutral-700"
         >
           <div className="min-w-0 flex-1">
+            {gaps[index] !== null && gaps[index]! > 0 && (
+              <p className="mb-0.5 text-xs text-neutral-400 dark:text-neutral-600">
+                +{gaps[index]}m
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs whitespace-nowrap text-neutral-500">
                 {formatTimestamp(entry.at)}

@@ -22,6 +22,9 @@ class EvidenceKind(StrEnum):
     HEALTH = "health"
     ERROR = "error"
     HISTORICAL = "historical"
+    # Derived by the application from the timestamps on the evidence above. Not an
+    # observation — a computed relationship between observations.
+    TEMPORAL = "temporal"
 
 
 class NextStepAction(StrEnum):
@@ -76,6 +79,12 @@ class EvidenceItem(InvestigationModelBase):
     summary: str
     source_id: str
     provenance: str
+    # Typed structure alongside the prose summary. The summary is what the model reads;
+    # these are what application code reads, so deriving chronology never means parsing
+    # a sentence this system wrote earlier. Optional so evidence snapshots recorded
+    # before M14 still validate — they were produced without them.
+    service_id: str | None = None
+    attributes: dict[str, str] = Field(default_factory=dict)
     observed_at: datetime | None = None
 
 

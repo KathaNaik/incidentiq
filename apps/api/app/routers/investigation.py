@@ -58,6 +58,8 @@ class InvestigationRunSummary(BaseModel):
     prompt_version: str
     provider: str
     model: str
+    evidence_schema_version: str
+    temporal_config_version: str | None
     created_at: str
     completed_at: str | None
     latency_ms: int | None
@@ -88,6 +90,8 @@ def _summary(run: StoredRun) -> dict:
         "prompt_version": run.prompt_version,
         "provider": run.provider,
         "model": run.model,
+        "evidence_schema_version": run.evidence_schema_version,
+        "temporal_config_version": run.temporal_config_version,
         "created_at": run.created_at.isoformat(),
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
         "latency_ms": run.latency_ms,
@@ -166,6 +170,35 @@ def get_investigation(
             detail=f"Unknown investigation run: {investigation_id}",
         )
     return _detail(run)
+
+
+@router.get("/investigations/{investigation_id}/timeline")
+def investigation_timeline(investigation_id: str, store: InvestigationStoreDep) -> dict:
+    """The chronology of one stored run, recomputed from *its* evidence snapshot.
+
+    A separate endpoint rather than a field on the run because the timeline is a view over
+    the snapshot, not another thing stored beside it — deriving it twice from the same
+    immutable evidence gives the same answer, and storing it twice would invite the two to
+    disagree.
+
+    Recomputed from the snapshot, never from current fixtures: a run from last week must
+    show the chronology it actually saw.
+    """
+    run = store.get(investigation_id)
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown investigation run: {investigation_id}",
+        )
+
+    from app.temporal import build_timeline
+
+    timeline = build_timeline(incident_id=run.incident_id, evidence=run.evidence)
+    return {
+        "investigation_id": run.id,
+        "evidence_schema_version": run.evidence_schema_version,
+        "timeline": timeline.model_dump(mode="json"),
+    }
 
 
 # --- write: the only path that calls a model -------------------------------------------

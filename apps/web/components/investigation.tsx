@@ -1,5 +1,6 @@
 import { Badge } from "@/components/badge";
 import { PolicyProbe } from "@/components/policy-probe";
+import { TemporalEvidence } from "@/components/temporal-evidence";
 import { RemediationWorkflow } from "@/components/remediation-workflow";
 import type { EvidenceItem, InvestigationResult } from "@/lib/api";
 
@@ -10,6 +11,7 @@ const KIND_LABELS: Record<string, string> = {
   health: "Service health",
   error: "Error signature",
   historical: "Past incident",
+  temporal: "Derived chronology",
 };
 
 /**
@@ -37,6 +39,9 @@ export function Investigation({
 }) {
   const { output, evidence } = result;
   const byId = new Map(evidence.map((item) => [item.id, item]));
+  // What was seen, versus what was derived from when it was seen. Two different kinds of
+  // thing, so two sections.
+  const observed = evidence.filter((item) => item.kind !== "temporal");
 
   return (
     <section className="space-y-4">
@@ -46,22 +51,26 @@ export function Investigation({
         </h2>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
           A language model was given the {evidence.length} pieces of evidence below and
-          asked what they support. It cites evidence by id, and any citation it invented
-          would have been rejected before reaching this page.
+          asked what they support — {observed.length} observations plus{" "}
+          {evidence.length - observed.length} temporal relationships the application
+          computed for it. It cites evidence by id, and any citation it invented would
+          have been rejected before reaching this page.
         </p>
       </div>
 
       {/* ---- observed evidence: facts, not conclusions ---- */}
       <details className="rounded border border-neutral-300 p-4 dark:border-neutral-700">
         <summary className="cursor-pointer text-sm font-medium">
-          Observed evidence ({evidence.length})
+          Observed evidence ({observed.length})
         </summary>
         <ul className="mt-3 space-y-2">
-          {evidence.map((item) => (
+          {observed.map((item) => (
             <EvidenceRow key={item.id} item={item} />
           ))}
         </ul>
       </details>
+
+      <TemporalEvidence evidence={evidence} />
 
       {/* ---- model output: clearly a hypothesis ---- */}
       {output.abstain ? (

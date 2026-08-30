@@ -34,28 +34,74 @@ from app.investigation import (
     collect_evidence,
     investigate,
 )
-from app.investigation.tools import OperationsFixtures
+from app.investigation.tools import (
+    DeploymentRecord,
+    ErrorSummary,
+    OperationsFixtures,
+    ServiceHealthSnapshot,
+)
 from app.retrieval import HistoricalIndex
 from evaluation.models import CaseFailure, EvalReport, MetricSummary
 
 CASES_FILE = "investigation_cases.json"
 LABELS_FILE = "investigation_labels.json"
+# Each eval version is a separate pair of files. A metric belongs to the version it was
+# measured against, and the only way to keep that true is to never edit an older one.
+EVAL_FILES = {
+    "v1": ("investigation_cases.json", "investigation_labels.json"),
+    "v2": ("investigation_cases_v2.json", "investigation_labels_v2.json"),
+    "v3": ("investigation_cases_v3.json", "investigation_labels_v3.json"),
+}
 DEV_CASES_FILE = "dev_remediation_cases.json"
 DEV_LABELS_FILE = "dev_remediation_labels.json"
 MAX_REPORTED = 12
 
 
-def load_cases(directory: Path, *, dev: bool = False) -> tuple[dict, ...]:
-    return tuple(_payload(directory / (DEV_CASES_FILE if dev else CASES_FILE))["records"])
+def load_cases(
+    directory: Path, *, dev: bool = False, eval_version: str = "v1"
+) -> tuple[dict, ...]:
+    name = DEV_CASES_FILE if dev else EVAL_FILES[eval_version][0]
+    return tuple(_payload(directory / name)["records"])
 
 
-def load_labels(directory: Path, *, dev: bool = False) -> dict[str, dict]:
-    return {
-        record["case_id"]: record
-        for record in _payload(directory / (DEV_LABELS_FILE if dev else LABELS_FILE))[
-            "records"
-        ]
-    }
+def load_labels(
+    directory: Path, *, dev: bool = False, eval_version: str = "v1"
+) -> dict[str, dict]:
+    name = DEV_LABELS_FILE if dev else EVAL_FILES[eval_version][1]
+    return {record["case_id"]: record for record in _payload(directory / name)["records"]}
+
+
+def _attribution_correct(expectation: str, output) -> bool:
+    """Did the model place the deployment correctly in the causal story?
+
+    Graded from **structured output only**: which evidence ids the leading hypothesis
+    cites, and which action was recommended. Both are exact.
+
+    An earlier version of this matched keywords in the hypothesis text and scored
+    "stalled workers, no release involved" as blaming a release — negation is precisely
+    what keyword matching cannot do, and a metric that misreads a sentence is worse than
+    no metric. Citing `deployment:DEP-3008` is unambiguous in a way that mentioning the
+    word "release" is not.
+    """
+    leading_citations = (
+        set(output.hypotheses[0].supporting_evidence_ids) if output.hypotheses else set()
+    )
+    blames_deployment = any(
+        value.startswith("deployment:") for value in leading_citations
+    )
+    recommends_rollback = (
+        output.remediation is not None
+        and output.remediation.action_type.value == "rollback_deployment"
+    )
+
+    if expectation == "deployment_plausible":
+        # The chronology supports a release as the initiating cause; saying so is correct.
+        return blames_deployment or recommends_rollback
+    if expectation in ("deployment_implausible", "no_deployment"):
+        # The chronology rules a release out, or there is none. Blaming one is the failure
+        # this metric exists to catch.
+        return not blames_deployment and not recommends_rollback
+    return True
 
 
 def _payload(path: Path) -> dict:
@@ -65,6 +111,34 @@ def _payload(path: Path) -> dict:
     if not payload.get("synthetic"):
         raise ValueError(f"{path.name} is not marked synthetic")
     return payload
+
+
+def case_operations(case: dict, shared: OperationsFixtures) -> OperationsFixtures:
+    """The operational world one case is investigated against.
+
+    A case may carry its own `operations` block. That is what makes temporal evaluation
+    possible at all: evidence collection is service-scoped, so two cases on the same
+    service in the shared Northstar fixtures receive byte-identical operational signals
+    however differently their tickets read. IV04 and IV12 were exactly that, and no label
+    adjudication could fix it — the *evidence* had to differ.
+
+    An authored block is observational data — deployments, health readings, error
+    signatures with their times. It carries no labels and never states an expected action.
+    Cases without one fall back to the shared fixtures, so nothing that existed before
+    changes behaviour.
+    """
+    block = case.get("operations")
+    if not block:
+        return shared
+    return OperationsFixtures(
+        deployments=tuple(
+            DeploymentRecord.model_validate(row) for row in block.get("deployments", [])
+        ),
+        health=tuple(
+            ServiceHealthSnapshot.model_validate(row) for row in block.get("health", [])
+        ),
+        errors=tuple(ErrorSummary.model_validate(row) for row in block.get("errors", [])),
+    )
 
 
 def case_candidate(case: dict) -> tuple[CandidateIncident, tuple[CorrelationTicket, ...]]:
@@ -131,7 +205,10 @@ def run_baseline(
         label = labels[case["id"]]
         candidate, tickets = case_candidate(case)
         registry = collect_evidence(
-            candidate=candidate, tickets=tickets, operations=operations, index=index
+            candidate=candidate,
+            tickets=tickets,
+            operations=case_operations(case, operations),
+            index=index,
         )
         historical = [
             item for item in registry.items if item.kind.value == "historical"
@@ -183,15 +260,20 @@ def run_investigation_evaluation(
     model: InvestigationModel,
     prompt_version: str = PROMPT_VERSION,
     dev: bool = False,
+    eval_version: str = "v1",
 ) -> EvalReport:
     """The authored suite against a model and a prompt version.
 
     `dev` runs the development set instead of the held-out one. Keeping both behind the
     same function means the metric definitions cannot drift between tuning and
     measurement.
+
+    `eval_version` selects which held-out set. Versions are not interchangeable: eval-v3
+    supplies temporal evidence that v1 and v2 runs never saw, so a v3 number and a v2
+    number answer different questions and the report says which.
     """
-    cases = load_cases(directory, dev=dev)
-    labels = load_labels(directory, dev=dev)
+    cases = load_cases(directory, dev=dev, eval_version=eval_version)
+    labels = load_labels(directory, dev=dev, eval_version=eval_version)
 
     valid = 0
     remediation_expected = 0
@@ -201,6 +283,10 @@ def run_investigation_evaluation(
     recorded: list[dict] = []
     leading_correct = 0
     top3_correct = 0
+    # Temporal grading. Only counted for cases whose label states an expectation, so a
+    # v1/v2 case without one never silently scores as correct.
+    attribution_graded = 0
+    attribution_correct = 0
     graded = 0
     abstain_correct = 0
     unsupported_citations = 0
@@ -216,7 +302,10 @@ def run_investigation_evaluation(
         label = labels[case["id"]]
         candidate, tickets = case_candidate(case)
         registry = collect_evidence(
-            candidate=candidate, tickets=tickets, operations=operations, index=index
+            candidate=candidate,
+            tickets=tickets,
+            operations=case_operations(case, operations),
+            index=index,
         )
 
         try:
@@ -250,6 +339,13 @@ def run_investigation_evaluation(
                 "case_id": case["id"],
                 "abstain": output.abstain,
                 "hypotheses": [h.summary for h in output.hypotheses],
+                # Citations, not just summaries. A grading change should be recomputable
+                # from the record instead of costing another held-out run.
+                "leading_citations": (
+                    list(output.hypotheses[0].supporting_evidence_ids)
+                    if output.hypotheses
+                    else []
+                ),
                 "remediation": (
                     output.remediation.action_type.value if output.remediation else None
                 ),
@@ -260,6 +356,12 @@ def run_investigation_evaluation(
                 else [],
             }
         )
+
+        expectation = label.get("temporal_expectation")
+        if expectation:
+            attribution_graded += 1
+            if _attribution_correct(expectation, output):
+                attribution_correct += 1
 
         allowed_actions = set(label["allowed_remediation"])
         if allowed_actions:
@@ -275,7 +377,7 @@ def run_investigation_evaluation(
                     recommendation=output.remediation,
                     investigation=output,
                     evidence=result.evidence,
-                    operations=operations,
+                    operations=case_operations(case, operations),
                     service_id=case.get("service_id"),
                 )
                 if decision.eligible:
@@ -415,6 +517,18 @@ def run_investigation_evaluation(
             else 0.0,
         ),
     )
+
+    if attribution_graded:
+        # Only present when the set carries temporal expectations. A metric reported as
+        # zero-of-zero on an older set would read as a result rather than an absence.
+        metrics = metrics + (
+            MetricSummary(
+                name="deployment_attribution_accuracy",
+                correct=attribution_correct,
+                total=attribution_graded,
+                accuracy=round(attribution_correct / attribution_graded, 4),
+            ),
+        )
 
     median_latency = sorted(latencies)[len(latencies) // 2] if latencies else 0
     return EvalReport(

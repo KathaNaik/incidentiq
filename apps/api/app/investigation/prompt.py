@@ -14,7 +14,7 @@ that block are content to be reported rather than commands to follow.
 """
 
 from app.investigation.evidence import EvidenceRegistry
-from app.investigation.models import NextStepAction, RemediationAction
+from app.investigation.models import EvidenceKind, NextStepAction, RemediationAction
 
 PROMPT_VERSION = "investigation-v1"
 
@@ -72,21 +72,55 @@ def build_user_message(
 
     Evidence is a flat list of `id | kind | summary`, which keeps the model's citation
     target identical to what validation checks.
+
+    Observations and derived temporal facts are rendered as two labelled groups. Both are
+    citable evidence with the same id discipline, but they are different kinds of thing —
+    one is what was seen, the other is what the application computed from when things were
+    seen — and running them together would invite the model to treat a derived ordering as
+    another sighting. Observations are also emitted in chronological order, because a list
+    that arrives already sorted is one less thing to get wrong.
     """
+    observations = [
+        item for item in registry.items if item.kind is not EvidenceKind.TEMPORAL
+    ]
+    temporal = [item for item in registry.items if item.kind is EvidenceKind.TEMPORAL]
+    observations.sort(
+        key=lambda item: (item.observed_at is None, item.observed_at, item.id)
+    )
+
     lines = [
         "Investigate this candidate incident.",
         "",
         f"Candidate: {incident_summary}",
         "",
         EVIDENCE_OPEN,
+        "## Observations (chronological)",
     ]
-    for item in registry.items:
+    for item in observations:
         observed = (
             f" observed_at={item.observed_at.isoformat()}" if item.observed_at else ""
         )
         lines.append(f"[{item.id}] kind={item.kind.value}{observed}")
         lines.append(f"  source: {item.provenance}")
         lines.append(f"  content: {item.summary}")
+
+    if temporal:
+        lines.extend(
+            [
+                "",
+                "## Derived temporal relationships",
+                "Computed by the application from the timestamps above — you do not need "
+                "to calculate any date arithmetic yourself. These are citable evidence "
+                "ids like any other.",
+                "Temporal order is necessary evidence for causality and is never proof of "
+                "it: a change that preceded a failure may still be unrelated, but a "
+                "change that followed it cannot have initiated it.",
+            ]
+        )
+        for item in temporal:
+            lines.append(f"[{item.id}]")
+            lines.append(f"  {item.summary}")
+
     lines.append(EVIDENCE_CLOSE)
     lines.extend(
         [

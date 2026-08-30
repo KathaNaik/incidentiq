@@ -36,6 +36,8 @@ class FakeInvestigationRunStore:
         provider: str,
         model: str,
         evidence: Sequence[EvidenceItem],
+        evidence_schema_version: str = "evidence-v2",
+        temporal_config_version: str | None = "temporal-window-v1",
     ) -> StoredRun:
         active = self.active(incident_id)
         if active is not None:
@@ -49,6 +51,8 @@ class FakeInvestigationRunStore:
             provider=provider,
             model=model,
             status=RunStatus.RUNNING.value,
+            evidence_schema_version=evidence_schema_version,
+            temporal_config_version=temporal_config_version,
             created_at=now,
             started_at=now,
             completed_at=None,

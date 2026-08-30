@@ -96,6 +96,7 @@ Read-only endpoints:
 | `GET /incidents/{id}/investigations` | run history, newest first |
 | `GET /incidents/{id}/investigations/latest` | the stored investigation, or 204 if none |
 | `GET /investigations/{id}` | one exact run, with the evidence snapshot it saw |
+| `GET /investigations/{id}/timeline` | chronology recomputed from that run's own snapshot |
 | `GET /evals/investigation` | investigation metrics (`?version=v1`, `v2` or `baseline`) |
 | `POST /incidents/{id}/actions` | propose an action from a remediation recommendation |
 | `GET /incidents/{id}/actions` | actions proposed for an incident |
@@ -233,6 +234,65 @@ Historical retrieval needs the ITSM corpus (`scripts/download_itsm.py` and
 `preprocess_itsm.py`); without it the index still builds from the authored Northstar
 records alone.
 
+### Temporal evidence
+
+Two incidents can end in identical current state — a deployment exists, the service is
+degraded, an error signature is firing — and have opposite causal stories. Deploy at
+10:04 then errors at 10:09 supports blaming the release. Errors at 09:40 then deploy at
+10:04 rules it out. Before M14 those collapsed into nearly the same investigation
+context, and that ambiguity was the reason IV04 and IV12 could not be told apart.
+
+**Chronology is computed in application code, never by the model.** Subtracting
+timestamps is arithmetic; a model asked to do it will usually be right, and "usually" is
+not something to build a rollback argument on. The model receives the observations *and*
+the derived relationships, and reasons about plausibility on top of facts it did not have
+to compute.
+
+**Incident onset** — the rule, stated once:
+
+> Onset is the earliest **symptom**: the first error signature to begin, the first
+> degraded health reading, or the first correlated ticket, whichever came first.
+> A deployment is never a symptom.
+
+That last clause is load-bearing. A candidate cause allowed to define onset precedes it by
+construction — the bug that produced "deployment preceded incident onset by 0m" in M13,
+and passed a vacuous policy check in M11. A regression test holds it.
+
+**Evidence window**: onset − 60 min to onset + 30 min, with a 30-minute attribution window
+inside which a deployment is still a plausible initiating cause, and a 60-second
+simultaneity tolerance so clock skew is not read as sequence. All four live in
+[temporal/rules.py](apps/api/app/temporal/rules.py) and are Northstar numbers, not
+production defaults — a real estate would want them to vary by service and change type.
+
+**Derived relationships** become citable evidence with system-minted ids
+(`temporal:deployment_precedes_error_onset:deployment:DEP-2041:error:ERR_SAML_INVALID_ASSERTION`),
+validated like any other citation. Only comparisons that bear on the two questions the
+product asks are derived — could this deployment have started it, and did we see it before
+the customers did — so the registry gains a handful of items rather than a quadratic pile.
+
+**Deployment attribution** answers one narrow question: is the ordering consistent with
+this release having initiated the incident? Four necessary conditions, none sufficient —
+right service, precedes onset, inside the attribution window, no symptom predating it.
+
+The wording throughout is deliberate. `temporally_compatible` never means *caused*: a
+change that preceded a failure may still be unrelated, while a change that followed one
+cannot have initiated it. The first is a lead; only the second is dispositive. Verdicts
+belong to the model, and are labelled as its opinion wherever they appear.
+
+Health is now an authored **sequence** rather than one snapshot. One reading answers "is
+it broken"; it cannot answer "was it fine before that deployment shipped", and that second
+question is the whole difference between a release that plausibly caused an incident and
+one that merely happened nearby.
+
+**Cost**: deriving the whole chronology takes 0.062 ms — against 73.8 ms for evidence
+collection overall, which is dominated by retrieval. Eight relationships are derived where
+the naive all-pairs ceiling would be 64, because only the comparisons the product asks
+about are computed.
+
+All of it is synthetic. These are authored Northstar observations with hand-written event
+times, not a feed from any monitoring system. Real telemetry is noisier, arrives late, and
+disagrees with itself; nothing here has been tested against that.
+
 ### Durable investigations
 
 An investigation is a record, not a function call. `POST` creates one; every `GET` reads
@@ -241,7 +301,11 @@ tokens, and a reload could return a different answer than the one the operator w
 reading a moment earlier — a page render is now free and idempotent.
 
 Each run stores **the exact evidence it was shown**, as JSONB, and is immutable once it
-reaches `succeeded` or `failed`. Re-investigating inserts a new run and leaves every
+reaches `succeeded` or `failed`. It also records which *evidence contract* it was given —
+`evidence-v1` for everything before M14, `evidence-v2` for runs with temporal evidence —
+alongside the temporal window configuration in force. Temporal evidence is never
+backfilled onto a historical run: a run recorded under v1 stays v1, so two runs that
+disagree can be explained by what each was shown rather than guessed at. Re-investigating inserts a new run and leaves every
 earlier one untouched, so "what did investigator-v2 see when it recommended this
 rollback" stays answerable after the operational world has moved on. An action links to
 the run that recommended it and is never repointed at a newer one.
@@ -388,6 +452,12 @@ the errors point at a dependency. `action-policy-v1` allowed every one of those.
 
 #### Evaluation versions
 
+**A number belongs to the evidence contract it was measured under.** eval-v3 supplies
+temporal evidence that v1 and v2 runs never saw, so a v3 metric and a v2 metric answer
+different questions. Comparing them as though only the model changed would be the central
+mistake this milestone is set up to avoid — the prompt did not change at all.
+
+
 `investigation-eval-v1` (`investigation_cases.json` / `investigation_labels.json`) is
 frozen and hash-pinned by a test; every recorded metric stays attributable to it.
 
@@ -403,6 +473,89 @@ same way, because fixing one and not the others would trade one inconsistency fo
 
 The remaining `remediation_unsafe` cases are the ones where acting would genuinely do harm:
 a healthy service, or no identified service at all.
+
+`investigation-eval-v3` carries every v2 case forward and changes exactly two things. It
+adds `operations` blocks to **IV04 and IV12**, and it adds TC01–TC08, eight original cases
+that probe causal order specifically: a release before the errors and a release after them,
+a release ten hours stale, two releases with only one in the window, a wedged worker with
+no release at all, a credential failure following a configuration change, an external
+dependency failing first, and reports arriving two hours after the machine noticed.
+
+**IV04 and IV12 are separated by evidence, not by relabelling.** They were
+indistinguishable for a structural reason: evidence collection is service-scoped, both are
+`svc-connector`, and so both received byte-identical operational signals however
+differently their tickets read. No adjudication of labels could fix that. In eval-v3 they
+carry their own authored chronologies:
+
+| | IV12 | IV04 |
+|---|---|---|
+| 12:20 | healthy | healthy |
+| 12:41 | `ERR_SYNC_STALLED` begins | — |
+| 12:58 | — | `DEP-2051` ships, rotating a credential reference |
+| 13:02 | — | `ERR_TOKEN_EXPIRED` begins |
+| 13:20 | degraded | degraded |
+| Deployment in window | none — the only release is 9h earlier | yes, 4 minutes before onset |
+| Failure mechanism | wedged worker | credential |
+
+Different mechanism, different deployment proximity, different ordering. Neither block
+states which action is correct — a test asserts the words "restart" and "rollback" appear
+in neither.
+
+#### eval-v3 result
+
+One run, `gpt-5.6-terra`, prompt `investigation-v2` **unchanged**, evidence-v2, 27 cases.
+The prompt did not move; only the evidence did.
+
+| | |
+|---|---|
+| Deployment attribution accuracy | **100% (8/8)** |
+| Leading-hypothesis accuracy | 100% (15/15) |
+| Top-3 accuracy | 100% (15/15) |
+| Remediation recall | 100% (13/13) |
+| Policy-eligible recall | 100% (13/13) |
+| Remediation precision | 76.5% (13/17) |
+| Abstention accuracy | 74.1% (20/27) |
+| Structured-output validity | 92.6% (25/27) |
+| Unsupported citations | 7.4% (2/27) |
+| Unsupported remediation | 14.8% (4/27) |
+
+**These are not comparable to the eval-v2 numbers.** Different cases, and — more
+importantly — different evidence. That is the point of versioning both.
+
+**The question this milestone actually asked** was whether explicit chronology resolves
+cases that were observationally indistinguishable. It did:
+
+- **IV04 → `rollback_deployment`**, where under eval-v2 it recommended `restart_service`.
+  Given a configuration change four minutes before a credential failure, the model stopped
+  proposing a restart and named the release.
+- **IV12 → `restart_service`**, unchanged. Wedged worker, no release in the window.
+- **TC02, the causality trap** — errors 24 minutes *before* the deployment — produced **no
+  remediation**. The model did not blame the later release.
+- **TC06**, external dependency failing first: no remediation.
+- TC01, TC05, TC07 correctly named the release; TC08 correctly chose restart.
+
+Two complications, neither patched after the fact:
+
+**IV04's label is now questionable for its own evidence.** It was authored as "one vague
+ticket, nothing to conclude" and carries `expect_abstain: true`. eval-v3 gave it a clear
+chronology, and on that chronology answering is defensible — so the model is scored wrong
+twice (abstention, unsupported remediation) for behaviour that may be correct. Enriching
+the evidence changed what the right answer is. The label has not been adjusted, because
+adjusting it after seeing the result is exactly the move that makes a benchmark
+meaningless.
+
+**TC03 and TC04 failed structured-output validation** because the model truncated a
+111-character evidence id. Relationship ids were composed from two full evidence ids, and
+a health evidence id embeds an ISO timestamp — colons inside a colon-delimited id. The
+guardrail worked: the citations were rejected rather than accepted. The id scheme has
+since been shortened to under 80 characters with a test enforcing it, **and that fix is
+unmeasured** — it landed after the official run, and re-running to collect a nicer number
+would defeat the one-run discipline.
+
+**IV17–IV19 have never been run against any model.** They were authored in eval-v2 to test
+the policy boundary and no investigator has been scored on them. Any metric including them
+is a first measurement under eval-v3, and nothing should read as though they were part of
+an earlier result.
 
 What the model is and is not trusted with:
 

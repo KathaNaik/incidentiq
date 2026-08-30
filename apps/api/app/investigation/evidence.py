@@ -24,6 +24,7 @@ from app.retrieval.models import RetrievalHit
 
 CORRELATION_PROVENANCE = "IncidentIQ deterministic correlation"
 TICKET_PROVENANCE = "Reported ticket (user-provided text)"
+TEMPORAL_PROVENANCE = "IncidentIQ deterministic temporal analysis"
 
 
 class EvidenceRegistry:
@@ -65,7 +66,7 @@ def build_registry(
     candidate: CandidateIncident,
     tickets: Sequence[CorrelationTicket],
     deployments: Sequence[DeploymentRecord],
-    health: ServiceHealthSnapshot | None,
+    health: Sequence[ServiceHealthSnapshot],
     errors: Sequence[ErrorSummary],
     historical: Sequence[RetrievalHit],
 ) -> EvidenceRegistry:
@@ -85,6 +86,8 @@ def build_registry(
                 source_id=ticket.id,
                 provenance=TICKET_PROVENANCE,
                 observed_at=ticket.created_at,
+                service_id=ticket.service_id,
+                attributes={"ticket_id": ticket.id},
             )
         )
 
@@ -96,6 +99,7 @@ def build_registry(
             source_id=candidate.id,
             provenance=CORRELATION_PROVENANCE,
             observed_at=candidate.first_seen,
+            service_id=candidate.service_id,
         )
     )
 
@@ -113,21 +117,32 @@ def build_registry(
                 source_id=deployment.id,
                 provenance=SYNTHETIC_PROVENANCE,
                 observed_at=deployment.deployed_at,
+                service_id=deployment.service_id,
+                attributes={
+                    "deployment_id": deployment.id,
+                    "version": deployment.version,
+                    "status": deployment.status,
+                },
             )
         )
 
-    if health is not None:
+    # Every health observation in the window, not just the closest one. The sequence is
+    # what makes "healthy at 08:40, degraded at 09:10" visible as a change rather than as
+    # a state.
+    for snapshot in health:
         items.append(
             EvidenceItem(
-                id=f"health:{health.service_id}@{health.observed_at.isoformat()}",
+                id=f"health:{snapshot.service_id}@{snapshot.observed_at.isoformat()}",
                 kind=EvidenceKind.HEALTH,
                 summary=(
-                    f"{health.service_id} health {health.status} at "
-                    f"{health.observed_at.isoformat()}: {'; '.join(health.signals)}"
+                    f"{snapshot.service_id} health {snapshot.status} at "
+                    f"{snapshot.observed_at.isoformat()}: {'; '.join(snapshot.signals)}"
                 ),
-                source_id=health.service_id,
+                source_id=snapshot.service_id,
                 provenance=SYNTHETIC_PROVENANCE,
-                observed_at=health.observed_at,
+                observed_at=snapshot.observed_at,
+                service_id=snapshot.service_id,
+                attributes={"status": snapshot.status},
             )
         )
 
@@ -144,6 +159,12 @@ def build_registry(
                 source_id=error.code,
                 provenance=SYNTHETIC_PROVENANCE,
                 observed_at=error.first_seen,
+                service_id=error.service_id,
+                attributes={
+                    "error_code": error.code,
+                    "count": str(error.count),
+                    "last_seen": error.last_seen.isoformat(),
+                },
             )
         )
 
@@ -163,7 +184,88 @@ def build_registry(
             )
         )
 
+    # --- derived temporal evidence ---------------------------------------------------
+    #
+    # Added last, over the observations just assembled, so every temporal fact points at
+    # evidence the model can also read directly. These carry system-minted ids like any
+    # other evidence: the model may cite them, and citing one that was not supplied fails
+    # validation exactly as an invented deployment id would.
+    items.extend(temporal_evidence(incident_id=candidate.id, evidence=items))
+
     return EvidenceRegistry(items)
+
+
+def temporal_evidence(
+    *, incident_id: str, evidence: Sequence[EvidenceItem]
+) -> list[EvidenceItem]:
+    """Chronology, as citable evidence items.
+
+    Deliberately a small set. Every pair of observations could be compared; only the
+    comparisons that bear on "could this deployment have started it" and "did we see it
+    before the customers did" are derived, so the registry gains a handful of items rather
+    than a quadratic pile.
+    """
+    from app.temporal import build_timeline
+
+    timeline = build_timeline(incident_id=incident_id, evidence=evidence)
+    derived: list[EvidenceItem] = []
+
+    if timeline.onset_at is not None:
+        derived.append(
+            EvidenceItem(
+                id=f"temporal:onset:{incident_id}",
+                kind=EvidenceKind.TEMPORAL,
+                summary=(
+                    f"Incident symptom onset {timeline.onset_at.isoformat()}. "
+                    f"{timeline.onset_basis}."
+                ),
+                source_id=incident_id,
+                provenance=TEMPORAL_PROVENANCE,
+                observed_at=timeline.onset_at,
+                attributes={
+                    "onset_evidence_id": timeline.onset_evidence_id or "",
+                    "config_version": timeline.config_version,
+                },
+            )
+        )
+
+    for relationship in timeline.relationships:
+        derived.append(
+            EvidenceItem(
+                id=relationship.id,
+                kind=EvidenceKind.TEMPORAL,
+                summary=f"{relationship.detail}.",
+                source_id=relationship.relationship_type.value,
+                provenance=TEMPORAL_PROVENANCE,
+                attributes={
+                    "delta_seconds": str(relationship.delta_seconds),
+                    "compatibility": relationship.compatibility.value,
+                    "subject": relationship.subject_evidence_id,
+                    "object": relationship.object_evidence_id,
+                },
+            )
+        )
+
+    for attribution in timeline.attributions:
+        derived.append(
+            EvidenceItem(
+                id=f"temporal:attribution:{attribution.deployment_id}",
+                kind=EvidenceKind.TEMPORAL,
+                summary=(
+                    f"Deployment {attribution.deployment_id} on {attribution.service_id}: "
+                    f"{attribution.detail}."
+                ),
+                source_id=attribution.deployment_id,
+                provenance=TEMPORAL_PROVENANCE,
+                attributes={
+                    "temporally_plausible": str(attribution.temporally_plausible).lower(),
+                    "seconds_before_onset": str(attribution.seconds_before_onset),
+                    "compatibility": attribution.compatibility.value,
+                },
+            )
+        )
+
+    return derived
 
 
 def _correlation_summary(candidate: CandidateIncident) -> str:

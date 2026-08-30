@@ -31,6 +31,12 @@ from ingestion.io import write_json  # noqa: E402
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--eval-version",
+        default="v1",
+        choices=["v1", "v2", "v3"],
+        help="which held-out set; v3 supplies temporal evidence (default: v1)",
+    )
     parser.add_argument("--baseline", action="store_true", help="run the retrieval-only baseline")
     parser.add_argument("--model", action="store_true", help="run the AI investigator")
     parser.add_argument(
@@ -83,13 +89,20 @@ def main() -> int:
                     settings.investigation_model, settings.openai_api_key
                 ),
                 prompt_version=args.prompt,
+                eval_version=args.eval_version,
                 dev=args.dev,
             )
         except InvestigationModelError as error:
             print(f"error: {error}", file=sys.stderr)
             return 1
         suffix = "dev" if args.dev else "golden"
-        reports.append((report, directory / f"{suffix}-{report.version}.json"))
+        # The filename carries the eval version as well as the prompt version. A run is
+        # identified by both — the same prompt over different evidence is a different
+        # measurement, and overwriting one with the other would lose that.
+        stem = f"{suffix}-{report.version}"
+        if args.eval_version != "v1" and not args.dev:
+            stem += f"-eval-{args.eval_version}"
+        reports.append((report, directory / f"{stem}.json"))
 
     for report, path in reports:
         write_json(path, report)

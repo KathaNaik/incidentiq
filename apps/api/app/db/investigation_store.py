@@ -29,6 +29,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.db.engine import get_engine, sessionmaker_for
 from app.db.models import InvestigationRunRow
+from app.investigation.rules import CURRENT_EVIDENCE_SCHEMA
+from app.temporal.rules import TEMPORAL_CONFIG_VERSION
 from app.investigation.models import (
     EvidenceItem,
     InvestigationOutput,
@@ -71,6 +73,8 @@ class StoredRun:
     provider: str
     model: str
     status: str
+    evidence_schema_version: str
+    temporal_config_version: str | None
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
@@ -137,6 +141,8 @@ class InvestigationRunStore:
         provider: str,
         model: str,
         evidence: Sequence[EvidenceItem],
+        evidence_schema_version: str = CURRENT_EVIDENCE_SCHEMA,
+        temporal_config_version: str | None = TEMPORAL_CONFIG_VERSION,
     ) -> StoredRun:
         """Claims the incident and records the evidence, before the model is called.
 
@@ -165,6 +171,8 @@ class InvestigationRunStore:
                 model=model,
                 status=RunStatus.RUNNING.value,
                 started_at=datetime.now(UTC),
+                evidence_schema_version=evidence_schema_version,
+                temporal_config_version=temporal_config_version,
                 evidence_snapshot=[
                     item.model_dump(mode="json") for item in evidence
                 ],
@@ -288,6 +296,8 @@ def _to_stored(row: InvestigationRunRow) -> StoredRun:
         provider=row.provider,
         model=row.model,
         status=row.status,
+        evidence_schema_version=row.evidence_schema_version,
+        temporal_config_version=row.temporal_config_version,
         created_at=_aware(row.created_at),
         started_at=_aware(row.started_at),
         completed_at=_aware(row.completed_at),
