@@ -137,6 +137,26 @@ def _candidate_snapshot(candidate: CandidateIncidentRow, members: Sequence[Ticke
     }
 
 
+def _ambiguous_decision(candidate_id: str):
+    """The eligibility record for a candidate intake named directly.
+
+    Used when correlation reached an *ambiguous* outcome: the structural gate never
+    evaluated this pairing, because from its point of view the ticket clustered
+    successfully. The reason recorded here says exactly that, rather than borrowing
+    signals from a comparison nobody made.
+    """
+    from app.correlation.hybrid import FallbackDecision
+
+    return FallbackDecision(
+        candidate_id=candidate_id,
+        eligible=True,
+        reasons=(
+            "two or more candidates scored within the ambiguity margin; automatic "
+            "correlation declined to choose between them",
+        ),
+    )
+
+
 class ReviewService:
     def __init__(self, engine: Engine | None = None) -> None:
         self._engine = engine or get_engine()
@@ -145,23 +165,54 @@ class ReviewService:
     # --- creation -----------------------------------------------------------------------
 
     def create_for_intake(
-        self, ticket_id: str, window: Sequence[CorrelationTicket]
+        self,
+        ticket_id: str,
+        window: Sequence[CorrelationTicket],
+        *,
+        candidate_ids: Sequence[str] | None = None,
     ) -> list[CorrelationReview]:
-        """Creates reviews for candidates the M16 gate found plausible.
+        """Creates reviews for candidates that could plausibly own this ticket.
 
         Called from intake after a ticket fails to attach automatically. Returns an empty
         list when every candidate has a hard conflict, which is the common case and is the
         reason operators are not flooded.
+
+        Two ways the candidates are chosen:
+
+        - **`candidate_ids` given** — intake already knows which durable incidents were
+          plausible. That is the ambiguous case: the engine *did* cluster the ticket, and
+          intake declined to act because a second candidate scored within
+          `CANDIDATE_MARGIN`. The gate below cannot reconstruct that, because from its
+          point of view the ticket clustered fine; left to itself it reads that as
+          "attached automatically" and asks nobody, which is how the one report the system
+          explicitly could not place became the one report no operator ever sees.
+        - **`candidate_ids` omitted** — the M16 structural gate decides, which is the
+          uncorrelated case it was built for.
         """
         from app.correlation import correlate
         from app.correlation.hybrid import _fallback_decisions
 
         deterministic = correlate(list(window))
-        if any(ticket_id in c.ticket_ids for c in deterministic.candidates):
-            return []  # attached automatically; nothing ambiguous to ask about
 
-        decisions = _fallback_decisions(list(window), ticket_id, deterministic)
-        eligible = [decision for decision in decisions if decision.eligible]
+        if candidate_ids is None:
+            if any(ticket_id in c.ticket_ids for c in deterministic.candidates):
+                return []  # attached automatically; nothing ambiguous to ask about
+            decisions = _fallback_decisions(list(window), ticket_id, deterministic)
+            eligible = [decision for decision in decisions if decision.eligible]
+        else:
+            by_candidate = {
+                decision.candidate_id: decision
+                for decision in _fallback_decisions(
+                    list(window), ticket_id, deterministic
+                )
+            }
+            # The signals are reused where the gate happened to evaluate the same
+            # candidate, so a review still carries real numbers rather than blanks.
+            eligible = [
+                by_candidate.get(identifier) or _ambiguous_decision(identifier)
+                for identifier in candidate_ids
+            ]
+
         if not eligible:
             return []
 

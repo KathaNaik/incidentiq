@@ -211,12 +211,13 @@ class TicketIntake:
         the reason recorded, rather than losing a report over a grouping decision.
         """
         try:
-            decision, candidate, window = self._run_correlation(ticket_id)
-            if window is not None:
+            decision, candidate, review_input = self._run_correlation(ticket_id)
+            if review_input is not None:
                 # After the transaction, so the locks are released and the ticket is
                 # already durable. Review capture is supplementary; it must never be
                 # able to cost somebody their report.
-                self._open_reviews(ticket_id, window)
+                window, plausible = review_input
+                self._open_reviews(ticket_id, window, candidate_ids=plausible)
             return decision, candidate
         except Exception as error:  # noqa: BLE001 - the ticket must survive any failure
             decision = CorrelationDecision(
@@ -233,7 +234,13 @@ class TicketIntake:
             return decision, None
 
     def _run_correlation(self, ticket_id: str):
-        """Returns (decision, candidate, window-needing-review-or-None)."""
+        """Returns (decision, candidate, review-input-or-None).
+
+        Review input is `(window, candidate_ids)`. `candidate_ids` is None when the
+        eligibility gate should choose which candidates to ask about, and an explicit
+        list when intake already knows — the ambiguous case, where the engine clustered
+        the ticket but intake declined to act on the grouping.
+        """
         with self._session.begin() as session:
             # SELECT ... FOR UPDATE on the arriving ticket serialises intake for the
             # window it belongs to, so two near-simultaneous related reports cannot each
@@ -286,7 +293,7 @@ class TicketIntake:
                 )
                 arriving.candidate_id = None
                 self._record(decision, session=session)
-                return decision, None, window if needs_review else None
+                return decision, None, (window, None) if needs_review else None
 
             # Ambiguity: another group in the same window is nearly as good a home.
             alternatives = _close_alternatives(result.candidates, group)
@@ -309,7 +316,24 @@ class TicketIntake:
                 )
                 arriving.candidate_id = None
                 self._record(decision, session=session)
-                return decision, None, None
+                # Ambiguous reports go to review too. This used to return no window, so
+                # a ticket the system explicitly could not place was also the one ticket
+                # nobody was asked about — it simply sat uncorrelated with a reason
+                # nobody would read. "Two candidates are equally plausible" is the
+                # clearest possible case for asking a person.
+                #
+                # Correlation semantics are untouched: the decision is still AMBIGUOUS
+                # and the ticket is still attached to nothing. Only its visibility to an
+                # operator changes.
+                #
+                # The candidates are resolved here rather than rediscovered later. The
+                # engine's clusters are transient and its ids are derived from whichever
+                # ticket happens to be earliest; only intake can say which *durable*
+                # incidents those clusters correspond to.
+                plausible = self._durable_candidates(
+                    session, [group, *_groups_for(result, alternatives)]
+                )
+                return decision, None, (window, plausible)
 
             row, created_new = self._upsert_candidate(session, group)
 
@@ -337,7 +361,10 @@ class TicketIntake:
                     )
                     arriving.candidate_id = None
                     self._record(decision, session=session)
-                    return decision, None, window
+                    # The gate picks the candidates here: this ticket did not qualify for
+                    # the one it clustered with, so the question worth asking an operator
+                    # is the ordinary structural one.
+                    return decision, None, (window, None)
 
             for member_id in group.ticket_ids:
                 member = session.get(TicketRow, member_id)
@@ -419,7 +446,7 @@ class TicketIntake:
             reason = f"semantic fallback failed — {outcome.failure_reason}"
         return result, group, {"fields": fields, "reason": reason}
 
-    def _open_reviews(self, ticket_id: str, window) -> list:
+    def _open_reviews(self, ticket_id: str, window, *, candidate_ids=None) -> list:
         """Creates reviews for plausible candidates, if any.
 
         Deliberately defensive: a review is supplementary data capture, and failing to
@@ -429,9 +456,33 @@ class TicketIntake:
         try:
             from app.review import ReviewService
 
-            return ReviewService(self._engine).create_for_intake(ticket_id, window)
+            return ReviewService(self._engine).create_for_intake(
+                ticket_id, window, candidate_ids=candidate_ids
+            )
         except Exception:  # noqa: BLE001 - review capture never blocks intake
             return []
+
+    def _durable_candidates(self, session, groups) -> list[str]:
+        """Which persisted incidents these freshly computed clusters correspond to.
+
+        Read-only, and by membership overlap for the same reason `_upsert_candidate`
+        matches that way: a cluster's id is derived from its earliest member, so it is not
+        a stable name for an incident an operator is already looking at. A cluster with no
+        durable counterpart contributes nothing — there is no incident to ask about yet.
+        """
+        found: list[str] = []
+        for group in groups:
+            if group is None:
+                continue
+            row = session.scalars(
+                select(CandidateIncidentRow)
+                .join(TicketRow, TicketRow.candidate_id == CandidateIncidentRow.id)
+                .where(TicketRow.id.in_(group.ticket_ids))
+                .order_by(CandidateIncidentRow.created_at)
+            ).first()
+            if row is not None and row.status == "active" and row.id not in found:
+                found.append(row.id)
+        return found
 
     def _upsert_candidate(
         self, session, group: CandidateIncident
@@ -737,6 +788,12 @@ def _title(
     subject = service.removeprefix("svc-").replace("-", " ").title() if service else "Multi-service"
     kind = issue.replace("_", " ") if issue else "unclassified"
     return f"{subject} {kind} incident"
+
+
+def _groups_for(result, alternative_ids: Sequence[str]):
+    """The clusters behind the ids `_close_alternatives` reported."""
+    by_id = {candidate.id: candidate for candidate in result.candidates}
+    return [by_id[identifier] for identifier in alternative_ids if identifier in by_id]
 
 
 def _close_alternatives(

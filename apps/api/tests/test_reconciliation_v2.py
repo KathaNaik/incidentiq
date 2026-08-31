@@ -168,7 +168,10 @@ def test_v2_refuses_the_unrelated_ticket(clean, reviews) -> None:
 
     result = submit(intake, D_UNRELATED, 28)
 
-    assert result.correlation.outcome is not CorrelationOutcome.ATTACHED
+    # Specifically UNCORRELATED, not merely "not attached": a correlation *failure* is
+    # also not an attachment, and asserting the weaker property let a crash pass as a
+    # correct refusal once already.
+    assert result.correlation.outcome is CorrelationOutcome.UNCORRELATED
     assert result.correlation.candidate_id is None
     assert len(members_of(candidate_id)) == 3
 
@@ -351,3 +354,84 @@ def test_v2_calls_no_model(clean, reviews, monkeypatch) -> None:
     confirmed_incident(intake, reviews)
     submit(intake, D_UNRELATED, 28)
     submit(intake, E_GENUINE, 30)
+
+
+# --- M20: evaluating the known ambiguity consequence ------------------------------------
+
+
+def test_the_ambiguity_consequence_stays_resolvable_by_an_operator(clean, reviews) -> None:
+    """The limitation M19 documented, followed all the way to its end state.
+
+    v2 refuses the unrelated ticket, which leaves it standalone in the active window
+    where the stateless engine can still cluster it with the confirmed paraphrase. A
+    later genuine report then sits within CANDIDATE_MARGIN of two groupings and is called
+    ambiguous instead of attaching.
+
+    M20's question was not whether that is ideal but whether it strands the workflow.
+    Written first, it did: the ambiguous branch raised no review, so the one report the
+    system had explicitly failed to place was also the one nobody was asked about. That
+    is fixed — ambiguity now reaches the queue — and correlation semantics are unchanged.
+    The residual cost is one extra operator decision.
+    """
+    intake = intake_v2(clean)
+    candidate_id = confirmed_incident(intake, reviews)
+
+    refused = submit(intake, D_UNRELATED, 28)
+    assert refused.correlation.outcome is CorrelationOutcome.UNCORRELATED
+
+    genuine = submit(intake, E_GENUINE, 30)
+
+    # Safety outcome: it fails toward a person, never toward the wrong incident.
+    assert genuine.correlation.outcome is CorrelationOutcome.AMBIGUOUS
+    assert genuine.correlation.candidate_id is None
+    assert genuine.ticket.id not in members_of(candidate_id)
+
+    # Workflow friction: one extra decision, and it is answerable.
+    pending = [r for r in reviews.pending() if r.ticket_id == genuine.ticket.id]
+    assert pending, "an ambiguous report must raise a review, not vanish"
+
+    offered = {review.candidate_id: review for review in pending}
+    assert candidate_id in offered, "the correct incident must be among the options"
+
+    decision = reviews.confirm(offered[candidate_id].id, reason="same_symptoms")
+
+    assert decision.attached is True
+    assert genuine.ticket.id in members_of(candidate_id)
+
+
+def test_an_ambiguous_report_reaches_the_review_queue(clean, reviews) -> None:
+    """Regression for the M20 finding, stated on its own.
+
+    An ambiguous outcome means two candidates were equally plausible. That is the
+    clearest possible case for asking an operator, and it previously asked nobody.
+    """
+    intake = intake_v2(clean)
+    confirmed_incident(intake, reviews)
+    submit(intake, D_UNRELATED, 28)
+
+    genuine = submit(intake, E_GENUINE, 30)
+    assert genuine.correlation.outcome is CorrelationOutcome.AMBIGUOUS
+
+    assert any(r.ticket_id == genuine.ticket.id for r in reviews.pending())
+
+
+def test_no_intake_path_reports_a_correlation_failure(clean, reviews) -> None:
+    """`failed` means correlation raised. No ordinary flow should ever produce it.
+
+    Guards the whole intake surface rather than one branch: every return path from
+    `_run_correlation` has to satisfy the same contract, and the one that did not was
+    invisible because the tests around it asserted "not attached" instead of naming the
+    outcome they expected.
+    """
+    intake = intake_v2(clean)
+    confirmed_incident(intake, reviews)
+
+    outcomes = [
+        submit(intake, D_UNRELATED, 28).correlation,
+        submit(intake, E_GENUINE, 30).correlation,
+        submit(intake, HARD_CONFLICT, 33, service="svc-analytics").correlation,
+        submit(intake, C2_PARAPHRASE, 36).correlation,
+    ]
+
+    failures = [c for c in outcomes if c.outcome is CorrelationOutcome.FAILED]
+    assert not failures, [f"{c.ticket_id}: {c.reason}" for c in failures]
