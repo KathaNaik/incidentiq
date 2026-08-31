@@ -9,6 +9,7 @@ import {
   load,
   fetchActions,
   fetchCandidates,
+  fetchCorrelationReviews,
   fetchIncidents,
   fetchServices,
   fetchTickets,
@@ -40,6 +41,11 @@ export default async function DashboardPage() {
   // Its absence must not blank the page, so it loads separately.
   const actions = await load(fetchActions);
 
+  // Reviews are a queue an operator is expected to clear, so the count belongs beside the
+  // other things waiting on a person. Loaded separately for the same reason as actions:
+  // an empty or unreachable review queue must not blank the dashboard.
+  const reviews = await load(() => fetchCorrelationReviews(true));
+
   if (!result.ok) {
     return (
       <div className="space-y-6">
@@ -52,6 +58,7 @@ export default async function DashboardPage() {
 
   const { incidents, tickets, services, correlation } = result.data;
   const rows = actions.ok ? actions.data : [];
+  const pendingReviews = reviews.ok ? reviews.data : [];
 
   const activeIncidents = incidents.filter((i) => i.status !== "resolved");
   const openTickets = tickets.filter((t) => t.status !== "resolved");
@@ -65,7 +72,7 @@ export default async function DashboardPage() {
       <Header />
       <ApiStatus />
 
-      <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatTile label="Open tickets" value={openTickets.length} />
         <StatTile label="Active incidents" value={activeIncidents.length} />
         <StatTile
@@ -77,6 +84,13 @@ export default async function DashboardPage() {
           label="Awaiting approval"
           value={awaitingApproval.length}
           tone={awaitingApproval.length > 0 ? "warn" : "neutral"}
+        />
+        <StatTile
+          label="Needs review"
+          value={pendingReviews.length}
+          hint="correlation undecided"
+          tone={pendingReviews.length > 0 ? "warn" : "neutral"}
+          href="/reviews"
         />
         <StatTile
           label="Executed this session"
@@ -136,25 +150,41 @@ function StatTile({
   value,
   hint,
   tone = "neutral",
+  href,
 }: {
   label: string;
   value: number;
   hint?: string;
   tone?: "neutral" | "warn";
+  /** Given when the count is a queue somebody is expected to go and clear. */
+  href?: string;
 }) {
-  return (
-    <div
-      className={`rounded border p-4 ${
-        tone === "warn"
-          ? "border-amber-400 dark:border-amber-800"
-          : "border-neutral-300 dark:border-neutral-700"
-      }`}
-    >
+  const className = `block rounded border p-4 ${
+    tone === "warn"
+      ? "border-amber-400 dark:border-amber-800"
+      : "border-neutral-300 dark:border-neutral-700"
+  }`;
+
+  const body = (
+    <>
       <p className="text-2xl font-semibold tabular-nums">{value}</p>
       <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{label}</p>
       {hint && <p className="text-xs text-neutral-500">{hint}</p>}
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${className} hover:border-neutral-500 dark:hover:border-neutral-500`}
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
 }
 
 function Header() {

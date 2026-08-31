@@ -825,3 +825,149 @@ export type EmbeddingBakeoff = {
 export async function fetchEmbeddingBakeoff(): Promise<EmbeddingBakeoff> {
   return getJson<EmbeddingBakeoff>("/evals/embedding-bakeoff");
 }
+
+// --- operator correlation review ---------------------------------------------------
+
+export type ReviewStatus = "pending" | "confirmed" | "rejected" | "stale";
+export type ReviewDecision =
+  | "confirm_same_incident"
+  | "reject_different_incident";
+
+/** A candidate member as the operator saw it, not as it is now. */
+export type ReviewSnapshotMember = {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  service_id: string | null;
+  issue_type: string | null;
+};
+
+export type CorrelationReview = {
+  id: string;
+  ticket_id: string;
+  candidate_id: string;
+  status: ReviewStatus;
+  decision: ReviewDecision | null;
+  decision_reason: string | null;
+  decision_note: string | null;
+  actor: string | null;
+  correlation_version: string;
+  review_policy_version: string;
+  feature_schema: string;
+  /** Pins the review to one exact candidate membership. */
+  candidate_fingerprint: string;
+  ticket_snapshot: {
+    id: string;
+    external_id: string | null;
+    title: string;
+    description: string;
+    created_at: string;
+    received_at: string;
+    service_id: string | null;
+    issue_type: string | null;
+    priority: string | null;
+    source: string;
+    triage_version: string | null;
+    reported_service_id: string | null;
+  };
+  candidate_snapshot: {
+    id: string;
+    title: string;
+    status: string;
+    score: number;
+    confidence: string;
+    service_id: string | null;
+    issue_type: string | null;
+    ticket_count: number;
+    first_seen: string;
+    last_seen: string;
+    correlation_version: string;
+    members: ReviewSnapshotMember[];
+  };
+  correlation_snapshot: {
+    eligible: boolean;
+    reasons: string[];
+    blocking_reasons: string[];
+    deterministic_score: number | null;
+    correlation_version: string;
+    review_policy_version: string;
+  };
+  feature_snapshot: Record<string, number>;
+  created_at: string;
+  decided_at: string | null;
+  resulting_membership: {
+    candidate_id: string;
+    member_ids: string[];
+    fingerprint: string;
+  } | null;
+};
+
+export type ReviewDecisionResult = {
+  result: {
+    review: CorrelationReview;
+    attached: boolean;
+    candidate: {
+      id: string;
+      title: string;
+      ticket_count: number;
+      first_seen: string;
+      last_seen: string;
+      status: string;
+    } | null;
+    investigation_stale: boolean;
+    superseded_review_ids: string[];
+  };
+  actor: { actor: string; note: string };
+};
+
+export const CONFIRM_REASONS = [
+  { value: "same_symptoms", label: "Same symptoms" },
+  { value: "same_mechanism", label: "Same mechanism" },
+  { value: "same_rollout_or_outage", label: "Same rollout or outage" },
+  { value: "other", label: "Other" },
+] as const;
+
+export const REJECT_REASONS = [
+  { value: "different_mechanism", label: "Different mechanism" },
+  { value: "different_service", label: "Different service" },
+  { value: "timing_incompatible", label: "Timing incompatible" },
+  { value: "insufficient_evidence", label: "Insufficient evidence" },
+  { value: "other", label: "Other" },
+] as const;
+
+export async function fetchCorrelationReviews(
+  pendingOnly = true,
+): Promise<CorrelationReview[]> {
+  return getJson<CorrelationReview[]>(
+    `/correlation-reviews?pending_only=${pendingOnly}`,
+  );
+}
+
+export async function fetchCorrelationReview(
+  reviewId: string,
+): Promise<CorrelationReview> {
+  return getJson<CorrelationReview>(
+    `/correlation-reviews/${encodeURIComponent(reviewId)}`,
+  );
+}
+
+export async function confirmCorrelationReview(
+  reviewId: string,
+  body: { reason?: string; note?: string } = {},
+): Promise<ReviewDecisionResult> {
+  return postJson<ReviewDecisionResult>(
+    `/correlation-reviews/${encodeURIComponent(reviewId)}/confirm`,
+    body,
+  );
+}
+
+export async function rejectCorrelationReview(
+  reviewId: string,
+  body: { reason?: string; note?: string } = {},
+): Promise<ReviewDecisionResult> {
+  return postJson<ReviewDecisionResult>(
+    `/correlation-reviews/${encodeURIComponent(reviewId)}/reject`,
+    body,
+  );
+}

@@ -115,6 +115,10 @@ Read-only endpoints:
 | `GET /intake/tickets` | runtime tickets with triage and correlation state |
 | `GET /intake/tickets/{id}` | one runtime ticket |
 | `GET /intake/candidates` | persisted candidate incidents and their membership |
+| `GET /correlation-reviews` | the review queue (`?pending_only=false` for decided ones too) |
+| `GET /correlation-reviews/{id}` | one review with the snapshot it was raised against |
+| `POST /correlation-reviews/{id}/confirm` | operator: same incident — attaches the ticket |
+| `POST /correlation-reviews/{id}/reject` | operator: different incident — records the label |
 | `POST /demo/reset` | clears workflow state (development only) |
 | `POST /demo/policy-probe` | what policy *would* decide about an action nobody recommended (development only) |
 
@@ -150,6 +154,14 @@ npm run dev
 The app serves on <http://localhost:3000>. The Dashboard calls the backend's `/health`
 from the browser and reports whether the API is reachable — with the backend stopped it
 shows an explicit "API unreachable" state rather than pretending.
+
+| Page | What it is for |
+|---|---|
+| `/` | operations dashboard — counts, incident queue, what is waiting on a person |
+| `/incidents` | detected incidents, and one incident end to end |
+| `/tickets` | the runtime ticket queue, with triage and correlation state |
+| `/reviews` | [correlation review](#operator-correlation-review) — the groupings automation declined to decide |
+| `/evals` | measured results, in the order the system was built |
 
 ## Checks
 
@@ -372,6 +384,88 @@ reason — so "why was this grouped last Tuesday?" survives a later change to th
 Measured intake cost: **30.8 ms end to end** (p50 31.8, p95 42.1), of which triage is
 0.22 ms and correlation 5.9 ms over the replay window. The rest is HTTP and two database
 transactions.
+
+### Operator correlation review
+
+Correlation has a middle. Near-duplicates attach on their own, clear conflicts are refused
+on their own, and neither needs a person. What is left is the slice where a plausible
+candidate exists and the deterministic pass declined to commit — reports that are probably
+the same incident said in different words, which is exactly the case
+[M16, M17 and M18 each failed to recover automatically](#embeddings).
+
+**Review at `/reviews`.** Each item asks one question against one candidate, and the two
+answers are *Same incident* and *Different incident*. Not approve and deny: nothing is
+being authorised here, a question about the world is being answered, and a button labelled
+"Approve" would produce labels whose meaning depended on what the operator thought they
+were approving.
+
+A ticket waiting on review shows as **Needs review** in the ticket queue and on the ticket
+itself, and the dashboard carries the pending count beside the other things waiting on a
+person.
+
+**What a decision is recorded against.** Candidate membership moves. A label saying only
+"these two belong together" would, a week later, describe a grouping nobody actually
+judged. So each review stores an immutable snapshot — the arriving report, the candidate
+and its members, the deterministic signals, and the `pairwise-features-v1` values computed
+at the time — and a fingerprint over the ordered member ids. Everything the operator sees
+comes from that snapshot rather than from current state.
+
+If the candidate changes before the operator answers, the review goes **stale** rather than
+applying a human answer to a different question. A fresh review is raised against the new
+state.
+
+**Confirming attaches the ticket** through the same membership path automatic correlation
+uses, recomputes candidate metadata, and marks any existing investigation stale — nothing
+is re-run, because a model call stays the operator's decision. Other pending reviews for
+that ticket close, since a report cannot belong to two mutually exclusive incidents.
+
+**Rejecting means "not this candidate"** — not "this belongs to nothing". The ticket stays
+where it was, the candidate is untouched, and any other pending review for the same ticket
+stays open.
+
+There is no authenticated identity in this prototype. Every decision is attributed to a
+fixed demo operator, and the API says so in its response rather than implying a real user.
+
+#### Labels and export
+
+Decisions are the point as much as the attachment is. They are Northstar-native labels at
+the boundary the system actually keeps getting wrong:
+
+> Given ticket T and candidate C **as they existed at decision time**, should T be grouped
+> into C?
+
+That is not the question Polaris event labels answer, which is why M18's borrowed
+supervision sat at the wrong granularity.
+
+```bash
+cd apps/api
+uv run python scripts/export_correlation_labels.py
+```
+
+Writes `northstar-correlation-labels-v1` to `data/evals/labels/` — gitignored, because it
+is regenerated from whatever reviews the local database holds and would otherwise publish
+runtime ticket text. Features are kept separate from provenance, and an explicit forbidden
+key list keeps decisions, actors, outcomes and root causes out of the feature block, so a
+future model cannot train on the answer.
+
+Two honest caveats the exporter prints itself:
+
+- **The sample is deliberately not random.** Reviews exist only where the structural gate
+  found a candidate plausible and automation declined. The base rate carries no information
+  about correlation in general.
+- **Nothing is retrained automatically, and a handful of clicked examples is not a
+  dataset.** The exporter states how many labels exist and declines to call them
+  model-ready; a supervised fallback should wait for enough independent labels to support a
+  grouped train/dev/test split with hard negatives across several services and mechanisms.
+
+**Known limitation, carried to M20.** A ticket refused by v2 stays standalone in the
+window, where the stateless engine can still cluster it with a confirmed paraphrase. A
+later genuine report can then land within `CANDIDATE_MARGIN` of two groupings and be called
+*ambiguous* instead of attaching — it goes to review rather than into the wrong incident.
+It fails toward human review rather than toward a false attachment, which makes it
+something final hardening should evaluate rather than a reason to reopen correlation
+semantics. Reproduced in
+[test_reconciliation_v2.py](apps/api/tests/test_reconciliation_v2.py).
 
 #### hybrid-correlation-v1, and why it is not the default
 

@@ -3,7 +3,12 @@ import Link from "next/link";
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
 import { TicketIntakeForm } from "@/components/ticket-intake-form";
-import { load, fetchRuntimeTickets, fetchServices } from "@/lib/api";
+import {
+  load,
+  fetchCorrelationReviews,
+  fetchRuntimeTickets,
+  fetchServices,
+} from "@/lib/api";
 import { formatTimestamp, serviceLabel, serviceNames } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +37,13 @@ export default async function TicketsPage() {
     ]);
     return { tickets, services };
   });
+
+  // Loaded separately so an unreachable review queue degrades to "no pending reviews"
+  // rather than blanking the ticket list.
+  const reviews = await load(() => fetchCorrelationReviews(true));
+  const awaitingReview = new Set(
+    reviews.ok ? reviews.data.map((review) => review.ticket_id) : [],
+  );
 
   if (!result.ok) {
     return (
@@ -123,6 +135,13 @@ export default async function TicketsPage() {
                         >
                           <Badge tone="info">attached</Badge>{" "}
                           <span className="font-mono text-xs">{ticket.candidate_id}</span>
+                        </Link>
+                      ) : awaitingReview.has(ticket.id) ? (
+                        <Link href="/reviews" className="underline underline-offset-2">
+                          <Badge tone="warn">needs review</Badge>
+                          <span className="block text-xs text-neutral-500">
+                            waiting on an operator
+                          </span>
                         </Link>
                       ) : (
                         <>

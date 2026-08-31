@@ -4,7 +4,14 @@ import { notFound } from "next/navigation";
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
 import { TriagePanel } from "@/components/triage-panel";
-import { load, fetchRuntimeTicket, fetchServices, fetchTicketTriage } from "@/lib/api";
+import { CorrelationReviewCard } from "@/components/correlation-review";
+import {
+  load,
+  fetchCorrelationReviews,
+  fetchRuntimeTicket,
+  fetchServices,
+  fetchTicketTriage,
+} from "@/lib/api";
 import { formatTimestamp, serviceLabel, serviceNames } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +36,13 @@ export default async function TicketPage({
     ]);
     return { ticket, services };
   });
+
+  // The ticket renders with or without this; a review is an extra question about it,
+  // not part of the record.
+  const reviews = await load(() => fetchCorrelationReviews(true));
+  const openReviews = reviews.ok
+    ? reviews.data.filter((review) => review.ticket_id === ticketId)
+    : [];
 
   if (!result.ok) {
     if (result.error.includes("404")) notFound();
@@ -104,6 +118,10 @@ export default async function TicketPage({
             rewrite it.
           </p>
         </div>
+
+        {openReviews.map((review) => (
+          <CorrelationReviewCard key={review.id} review={review} />
+        ))}
       </section>
 
       <section className="space-y-2">
