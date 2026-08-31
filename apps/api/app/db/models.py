@@ -489,3 +489,87 @@ class CorrelationDecisionRow(Base):
             name="ck_correlation_decisions_outcome",
         ),
     )
+
+
+class CorrelationReviewRow(Base):
+    """An ambiguous grouping decision put to a human, and what they decided.
+
+    This exists because M18 established that borrowed labels do not fit: Polaris events
+    span days at hundreds of tickets, while the product decides over minutes and a
+    handful. A review captures the label at exactly the boundary the runtime asks about.
+
+    **The snapshots are the point.** A review is not (ticket, candidate, yes/no) — a
+    candidate changes, so that triple would describe a decision nobody made. The
+    decision-time ticket, candidate membership, correlation signals and feature vector
+    are all frozen here at creation, so the label stays reconstructible after the
+    operational world moves on.
+
+    `candidate_fingerprint` is a hash of the ordered member ids plus the correlation
+    version. If the candidate gains a ticket before the operator decides, the fingerprint
+    no longer matches and the review goes stale rather than silently applying a human
+    judgement to a different candidate.
+    """
+
+    __tablename__ = "correlation_reviews"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    candidate_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+
+    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    # Semantic on purpose. "approve/deny" would read as an action-policy approval, which
+    # this is not — it is an assertion about whether two things are the same incident.
+    decision: Mapped[str | None] = mapped_column(String(32))
+    decision_reason: Mapped[str | None] = mapped_column(String(64))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+
+    # No authentication exists in this prototype. The actor is a fixed demo identity and
+    # the column says so rather than implying a signed-in user.
+    actor: Mapped[str | None] = mapped_column(String(128))
+
+    correlation_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    review_policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    feature_schema: Mapped[str] = mapped_column(String(64), nullable=False)
+    candidate_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    # Frozen at creation. Never recomputed from current state.
+    ticket_snapshot: Mapped[dict] = mapped_column(JSONColumn, nullable=False)
+    candidate_snapshot: Mapped[dict] = mapped_column(JSONColumn, nullable=False)
+    correlation_snapshot: Mapped[dict] = mapped_column(JSONColumn, nullable=False)
+    feature_snapshot: Mapped[dict] = mapped_column(JSONColumn, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # What actually changed as a result, if anything. Null for a rejection.
+    resulting_membership: Mapped[dict | None] = mapped_column(JSONColumn)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'confirmed', 'rejected', 'stale')",
+            name="ck_correlation_reviews_status",
+        ),
+        CheckConstraint(
+            "decision IS NULL OR decision IN "
+            "('confirm_same_incident', 'reject_different_incident')",
+            name="ck_correlation_reviews_decision",
+        ),
+        # A decided review must say when and by whom; a pending one must not.
+        CheckConstraint(
+            "(status IN ('pending', 'stale') AND decision IS NULL) OR "
+            "(status IN ('confirmed', 'rejected') AND decision IS NOT NULL "
+            " AND decided_at IS NOT NULL)",
+            name="ck_correlation_reviews_decision_complete",
+        ),
+        # One review per (ticket, candidate, candidate state). A changed candidate is a
+        # different question and may legitimately get its own review and its own answer.
+        UniqueConstraint(
+            "ticket_id",
+            "candidate_id",
+            "candidate_fingerprint",
+            name="uq_correlation_reviews_snapshot",
+        ),
+    )

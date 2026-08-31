@@ -202,7 +202,13 @@ class TicketIntake:
         the reason recorded, rather than losing a report over a grouping decision.
         """
         try:
-            return self._run_correlation(ticket_id)
+            decision, candidate, window = self._run_correlation(ticket_id)
+            if window is not None:
+                # After the transaction, so the locks are released and the ticket is
+                # already durable. Review capture is supplementary; it must never be
+                # able to cost somebody their report.
+                self._open_reviews(ticket_id, window)
+            return decision, candidate
         except Exception as error:  # noqa: BLE001 - the ticket must survive any failure
             decision = CorrelationDecision(
                 ticket_id=ticket_id,
@@ -217,7 +223,8 @@ class TicketIntake:
             self._record(decision)
             return decision, None
 
-    def _run_correlation(self, ticket_id: str) -> tuple[CorrelationDecision, dict | None]:
+    def _run_correlation(self, ticket_id: str):
+        """Returns (decision, candidate, window-needing-review-or-None)."""
         with self._session.begin() as session:
             # SELECT ... FOR UPDATE on the arriving ticket serialises intake for the
             # window it belongs to, so two near-simultaneous related reports cannot each
@@ -248,6 +255,11 @@ class TicketIntake:
                 staging = {}
 
             if group is None:
+                # The ticket did not attach. Whether that is worth an operator's time is
+                # decided after this transaction commits — creating a review here would
+                # open a second transaction while this one still holds FOR UPDATE locks
+                # on the same rows, and wait on itself forever.
+                needs_review = True
                 decision = CorrelationDecision(
                     ticket_id=ticket_id,
                     candidate_id=None,
@@ -265,7 +277,7 @@ class TicketIntake:
                 )
                 arriving.candidate_id = None
                 self._record(decision, session=session)
-                return decision, None
+                return decision, None, window if needs_review else None
 
             # Ambiguity: another group in the same window is nearly as good a home.
             alternatives = _close_alternatives(result.candidates, group)
@@ -288,9 +300,10 @@ class TicketIntake:
                 )
                 arriving.candidate_id = None
                 self._record(decision, session=session)
-                return decision, None
+                return decision, None, None
 
             row, created_new = self._upsert_candidate(session, group)
+
             for member_id in group.ticket_ids:
                 member = session.get(TicketRow, member_id)
                 if member is not None:
@@ -320,7 +333,7 @@ class TicketIntake:
             self._record(decision, session=session)
             session.flush()
             candidate = _candidate_payload(row)
-        return decision, candidate
+        return decision, candidate, None
 
     def _hybrid(self, window, ticket_id: str):
         """Deterministic first, semantic only where the gate says it could help.
@@ -370,6 +383,20 @@ class TicketIntake:
             # falls back to a deterministic attachment the deterministic stage refused.
             reason = f"semantic fallback failed — {outcome.failure_reason}"
         return result, group, {"fields": fields, "reason": reason}
+
+    def _open_reviews(self, ticket_id: str, window) -> list:
+        """Creates reviews for plausible candidates, if any.
+
+        Deliberately defensive: a review is supplementary data capture, and failing to
+        create one must never cost the operator their ticket. The failure is surfaced by
+        the empty queue rather than by a lost report.
+        """
+        try:
+            from app.review import ReviewService
+
+            return ReviewService(self._engine).create_for_intake(ticket_id, window)
+        except Exception:  # noqa: BLE001 - review capture never blocks intake
+            return []
 
     def _upsert_candidate(
         self, session, group: CandidateIncident

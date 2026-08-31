@@ -13,6 +13,7 @@ from app.repository import InMemoryRepository, Repository
 
 if TYPE_CHECKING:
     from app.intake import TicketIntake
+    from app.review import ReviewService
     from app.db.action_store import SqlActionRepository
     from app.db.investigation_store import InvestigationRunStore
     from app.db.retrieval_store import PgVectorHistoricalIndex
@@ -44,6 +45,7 @@ def get_repository() -> Repository:
 def get_intake() -> "TicketIntake":
     """Runtime ticket intake."""
     from app.intake import TicketIntake
+    from app.review import ReviewService
 
     dataset = load_dataset(get_settings().fixtures_dir)
     settings = get_settings()
@@ -65,6 +67,17 @@ def get_intake() -> "TicketIntake":
 
 RepositoryDep = Annotated[Repository, Depends(get_repository)]
 IntakeDep = Annotated["TicketIntake", Depends(get_intake)]
+
+
+@lru_cache
+def get_review_service() -> "ReviewService":
+    """Correlation reviews. Reads and writes only; no model is ever loaded."""
+    from app.review import ReviewService
+
+    return ReviewService()
+
+
+ReviewServiceDep = Annotated["ReviewService", Depends(get_review_service)]
 
 
 @lru_cache

@@ -21,3 +21,9 @@ __pycache__/
 # kept reproducible rather than distributed — `scripts/train_pairwise.py` rebuilds it.
 # Sanitised metrics (no Polaris identifiers) are committed under data/evals/intake/.
 data/models/
+
+# Exported operator correlation labels. Generated from whatever reviews the local
+# database holds, so the file is reproducible rather than committed —
+# `scripts/export_correlation_labels.py` rebuilds it. Committing it would also publish
+# runtime ticket text.
+data/evals/labels/

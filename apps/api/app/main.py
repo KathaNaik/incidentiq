@@ -18,6 +18,7 @@ from app.routers import (
     intake,
     investigation,
     retrieval,
+    reviews,
     services,
     tickets,
     triage,
@@ -48,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(services.router)
     app.include_router(tickets.router)
     app.include_router(intake.router)
+    app.include_router(reviews.router)
     app.include_router(incidents.router)
     app.include_router(triage.router)
     app.include_router(correlation.router)
