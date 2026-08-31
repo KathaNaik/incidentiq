@@ -61,8 +61,16 @@ class LocalEmbeddingProvider:
                 "baseline does not need it."
             ) from error
 
+        # In the container image the model is baked at a known path at build time, so a
+        # cold instance answers the first historical-retrieval query without reaching the
+        # internet. Unset locally, where fastembed's own default cache is correct.
+        from app.config import get_settings
+
+        cache_dir = get_settings().embedding_model_cache_dir
+        options = {"cache_dir": str(cache_dir)} if cache_dir else {}
+
         try:
-            self._model = TextEmbedding(model_name=self._model_name)
+            self._model = TextEmbedding(model_name=self._model_name, **options)
         except Exception as error:
             raise EmbeddingError(
                 f"could not load embedding model {self._model_name}: {error}. "

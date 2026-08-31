@@ -10,6 +10,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
+from app.db.engine import normalize_database_url
 from app.db.models import Base
 
 config = context.config
@@ -27,7 +28,9 @@ def _url() -> str:
             "DATABASE_URL is not set. Start PostgreSQL with `docker compose up -d` and "
             "copy apps/api/.env.example to apps/api/.env."
         )
-    return url
+    # Same normalization the application uses, so a provider's `postgres://` URL migrates
+    # and serves with one value rather than two hand-edited ones.
+    return normalize_database_url(url)
 
 
 def run_migrations_offline() -> None:

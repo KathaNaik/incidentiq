@@ -15,10 +15,11 @@ collection of things that happened, and creating one is a deliberate act.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from app.config import Settings, get_settings
+from app.limits import RateLimiter, enforce
 from app.correlation import CorrelationTicket, correlate
 from app.correlation.models import CandidateIncident
 from app.correlation.semantic import default_similarity
@@ -40,6 +41,14 @@ from app.routers.correlation import Mode
 router = APIRouter(tags=["investigation"])
 
 PROVIDER = "openai"
+
+# The only endpoint in the system that spends money. See `app/limits.py` for what this
+# guard is and — just as importantly — what it is not.
+_settings = get_settings()
+_investigation_limiter = RateLimiter(
+    limit=_settings.investigation_rate_limit,
+    window_seconds=_settings.investigation_rate_window_seconds,
+)
 
 
 class InvestigationRunSummary(BaseModel):
@@ -249,6 +258,7 @@ def investigation_timeline(investigation_id: str, store: InvestigationStoreDep) 
 )
 def create_investigation(
     incident_id: str,
+    request: Request,
     repository: RepositoryDep,
     index: RetrievalIndexDep,
     store: InvestigationStoreDep,
@@ -262,6 +272,8 @@ def create_investigation(
     A re-run is the same call again: it creates a new run with a fresh evidence snapshot
     and leaves every earlier run exactly as it was.
     """
+    enforce(_investigation_limiter, request, "investigations")
+
     candidate, tickets = _candidate(incident_id, repository, settings, mode)
 
     try:

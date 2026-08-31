@@ -81,6 +81,38 @@ class Settings(BaseSettings):
     # merge it allows stays reproducible.
     correlation_reconciliation: Literal["v1", "v2"] = "v2"
 
+    # --- production runtime ------------------------------------------------------------
+
+    # Connection pooling. Small on purpose: Vercel scales instances horizontally, so the
+    # database sees pool_size x instances, and a per-instance pool sized for a
+    # long-running server is how a serverless deployment exhausts a managed database.
+    db_pool_size: int = 2
+    db_max_overflow: int = 3
+    db_pool_recycle_seconds: int = 280
+
+    # Where fastembed keeps the ONNX model. Set in the container image so the evaluated
+    # model is baked at build time; unset locally, where fastembed's own default cache is
+    # the right behaviour. A production instance that had to download a model on the
+    # first investigation would turn a cold start into a multi-second download that can
+    # also simply fail.
+    embedding_model_cache_dir: Path | None = None
+
+    # Path prefix the API is served under. Empty locally, where FastAPI owns the whole
+    # origin. In the deployed setup the web app and the API share one origin and the
+    # platform routes `/api/*` here *without stripping the prefix*, so the app has to
+    # own it. Mounting is used rather than a platform path-rewrite because a mount is
+    # deterministic, testable locally, and cannot silently stop matching.
+    api_path_prefix: str = ""
+
+    # How many investigations one client may start per window. The investigation endpoint
+    # is the only one that spends money, and the deployment is public.
+    investigation_rate_limit: int = 5
+    investigation_rate_window_seconds: int = 3600
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
 
 @lru_cache
 def get_settings() -> Settings:
