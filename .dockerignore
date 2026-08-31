@@ -1,0 +1,42 @@
+# Build context is the repository root (see apps/api/Dockerfile.vercel). Keep it small,
+# and keep secrets and licensed corpora out of the image entirely.
+
+.git/
+.github/
+.claude/
+.vercel/
+
+# Secrets. Never in a build context, never in an image layer.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Frontend — a separate Vercel service with its own build.
+apps/web/
+
+# Python local state
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# Backend material that is not the running service. Tests, offline harnesses and dataset
+# ingestion do not serve requests.
+apps/api/tests/
+apps/api/evaluation/
+apps/api/ingestion/
+apps/api/scripts/
+apps/api/alembic/versions/__pycache__/
+
+# Licensed corpora and derived caches. The historical corpus the product serves lives in
+# PostgreSQL; data/processed holds CC BY-SA material that must not be redistributed, and
+# data/raw is downloaded rather than shipped.
+data/processed/
+data/raw/
+data/models/
+data/evals/labels/
+
+*.log
+.DS_Store

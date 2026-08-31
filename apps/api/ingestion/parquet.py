@@ -18,9 +18,11 @@ def read_parquet_rows(path: Path) -> list[dict]:
 
     try:
         import pyarrow.parquet as pq
-    except ImportError as error:  # pragma: no cover - dependency is declared
+    except ImportError as error:  # pragma: no cover - offline-only dependency
         raise IngestionError(
-            "pyarrow is not installed; run `uv sync` in apps/api"
+            "pyarrow is not installed; run `uv sync --group ingest` in apps/api. It is "
+            "not a runtime dependency — only offline dataset preparation reads parquet, "
+            "and keeping it out of the production image saves 122 MB."
         ) from error
 
     try:

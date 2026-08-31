@@ -27,3 +27,11 @@ data/models/
 # `scripts/export_correlation_labels.py` rebuilds it. Committing it would also publish
 # runtime ticket text.
 data/evals/labels/
+.vercel
+.env*
+
+# Installed by the Vercel/Neon marketplace integration, not part of this project.
+.agents/
+skills-lock.json
+.claude/skills/neon
+.claude/skills/neon-postgres

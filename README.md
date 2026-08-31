@@ -1,17 +1,109 @@
 # IncidentIQ
 
-AI-assisted incident investigation for technical operations teams.
+Correlates operational reports, retrieves precedent, builds timestamped evidence, and
+proposes evidence-backed remediation for human approval.
 
-IncidentIQ turns fragmented technical support tickets plus operational context into a
-correlated incident, an evidence-backed root-cause hypothesis, and a recommended
-remediation that a human approves before anything runs.
+**Live demo: <https://incidentiq-pi.vercel.app>**
 
-**Status:** the full workflow runs end to end. Tickets correlate into candidate incidents,
-a language model investigates one against typed evidence it must cite by id, deterministic
-action-specific policy decides whether its recommendation may be approved, and a human
-approves before a simulated execution. Every stage has a measured baseline and an
-evaluation artifact; the deterministic stages use no model at all. Execution is simulated
-throughout — no infrastructure is contacted.
+Actions are simulated end to end — nothing contacts real infrastructure. Running an AI
+investigation is the only operation that calls a paid model, so it is explicit, rate
+limited, and never automatic.
+
+## The problem
+
+An incident does not arrive as an incident. It arrives as eleven tickets from nine people
+who each describe one symptom of it, spread across a queue that also contains everything
+else happening that morning. The expensive part of the first thirty minutes is not fixing
+anything — it is working out that these reports are one event, what changed just before
+them, and whether the thing you are about to restart is the thing that is broken.
+
+## What it does
+
+```
+ticket intake
+  → deterministic triage            service, issue type, priority — rules, no model
+  → deterministic correlation       time, service, entities, weighted overlap
+  → operator review when ambiguous  the decisions automation should not make alone
+  → historical precedent            pgvector over past incidents, matched on symptoms
+  → temporal evidence               what changed, when, relative to onset
+  → bounded AI investigation        one call, typed evidence, cited by id
+  → deterministic action policy     business logic, not a model
+  → human approval                  consequential actions are gated
+  → simulated execution             idempotent, audited, contacts nothing
+```
+
+**Status:** the full workflow runs end to end against durable infrastructure. Every stage
+has a measured baseline and a committed evaluation artifact, the deterministic stages use
+no model at all, and execution is simulated throughout — no infrastructure is contacted.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Browser[Browser] --> Web["Next.js<br/>Vercel service"]
+    Web -->|"same origin /api/*"| API["FastAPI<br/>Vercel container service"]
+
+    API --> DB[("PostgreSQL + pgvector<br/>tickets · candidates · reviews<br/>investigations · actions · audit<br/>historical corpus + vectors")]
+    API --> Det["Deterministic core<br/>triage · correlation · policy"]
+    API --> Rev["Review workflow<br/>immutable snapshots"]
+    API --> Ret["Historical retrieval<br/>bge-small, baked into the image"]
+    API --> Tmp["Temporal evidence<br/>onset · deployment attribution"]
+    API -.->|"only on explicit request"| LLM["OpenAI investigator<br/>one bounded call"]
+    API --> Exec["Simulated executor<br/>nothing is contacted"]
+```
+
+One Vercel project, two services, one public origin. The browser calls `/api/*` and the
+platform routes it to the backend, so there is no CORS in production and preview
+deployments route correctly without per-environment configuration.
+
+## Why deterministic, with selective AI
+
+A language model is used in exactly one place: synthesising typed evidence into ranked
+root-cause hypotheses. Everything a model would be a worse choice for stays code.
+
+| Deterministic | Why not a model |
+|---|---|
+| Triage, correlation, cohesion | Arithmetic over timestamps and text. Reproducible, ~6 ms, and auditable. |
+| Action policy | Business logic. Anything below 100% on its suite is a defect, not a limitation. |
+| Approval, execution, audit | State transitions and authorization. A model has no place in either. |
+| Evidence collection | Database lookups. The model receives evidence; it does not choose what exists. |
+
+The model's output is treated as untrusted: it must cite evidence **by id**, every
+citation is validated against the registry it was given, and a recommendation it cannot
+support is rejected by policy before a human ever sees an approve button.
+
+## Evaluation
+
+Measured results, including the ones that did not work. Full detail and per-slice numbers
+are on the deployed `/evals` page and in the sections below.
+
+| Capability | Result |
+|---|---|
+| Triage | Authored golden set; abstains rather than guessing |
+| Correlation (deterministic) | 8/8 baseline slice, 4/4 hard conflicts, **0 false merges** |
+| Paraphrase recall | **0/2** — the honest gap, and the reason operator review exists |
+| Semantic correlation | No improvement; paraphrases score *below* the calibration floor |
+| Embedding bake-off | Three models, all non-separable — a bigger model did not fix it |
+| Pairwise classifier | Ordering 50% → 74.2%, but separation still negative and labels did not transfer |
+| Historical retrieval | Strong on the authored set; the external benchmark is easy and says so |
+| Investigation v1 → v2 | Remediation recall 0% → 100%, unsupported recommendations 0% → 18.8% |
+| Action policy | Deterministic suite; blocks unsupported actions, not bad diagnoses |
+
+Four negative results are load-bearing and are not buried: embeddings did not recover
+paraphrases, stronger embeddings did not either, borrowed supervision did not transfer,
+and the current ambiguity behaviour costs an extra operator decision. Each is written up
+where it happened.
+
+## Safety
+
+- Model recommendations are **untrusted input**, validated against the evidence registry.
+- The action policy is **separate from the model** and deterministic.
+- Consequential actions require **explicit human approval**.
+- Execution is **simulated** and idempotent — no infrastructure is contacted, and the UI
+  never implies otherwise.
+- The system can **abstain**, and does.
+- Correlation prefers a missed link over a false merge, because inventing an incident
+  sends people chasing something that is not happening.
 
 ## Repository layout
 
@@ -162,6 +254,107 @@ shows an explicit "API unreachable" state rather than pretending.
 | `/tickets` | the runtime ticket queue, with triage and correlation state |
 | `/reviews` | [correlation review](#operator-correlation-review) — the groupings automation declined to decide |
 | `/evals` | measured results, in the order the system was built |
+
+## Deployment
+
+Live at **<https://incidentiq-pi.vercel.app>**.
+
+One Vercel project, two services, one public origin:
+
+| Service | Root | Runtime | Serves |
+|---|---|---|---|
+| `web` | `apps/web/` | Next.js | everything except `/api/*` |
+| `api` | repository root | container (`Dockerfile.vercel`) | `/api/*` |
+
+The database is **Neon PostgreSQL 18.6 with pgvector 0.8.6**, provisioned through the
+Vercel marketplace integration.
+
+### Why a container for the backend
+
+Measured, not assumed. The production dependency set is ~244 MB installed — onnxruntime
+alone is 75 MB — and the evaluated embedding model adds 67 MB. That is past what the
+source-packaged Python runtime is meant to carry, and onnxruntime ships native binaries
+that want a real filesystem. The image is 878 MB against a 15 GB platform limit.
+
+Only what the running service imports is installed. `pyarrow` (122 MB, offline dataset
+preparation) and scikit-learn plus scipy (117 MB, the M18 experiment) are in optional
+dependency groups and are not in the image; both stay reproducible with
+`uv sync --group ingest` / `--group pairwise`.
+
+### The embedding model is baked at build time
+
+Historical retrieval uses `BAAI/bge-small-en-v1.5` (384-d) — the evaluated model, not
+changed for deployment. The image downloads it during the build into `/opt/models` and the
+build fails if it cannot, because a silently model-less image would only reveal itself on
+a user's first investigation. Verified with `docker run --network none`: a container with
+no internet embeds at the correct dimension.
+
+fastembed resolves that name to its own quantised ONNX build
+(`qdrant/bge-small-en-v1.5-onnx-q`, ~65 MB on disk), which is the same artifact local
+evaluation used — so deployed vectors are comparable to the committed ones.
+
+### Deploying from a clean checkout
+
+```bash
+# 1. Provision a managed Postgres with pgvector, then point at its DIRECT (unpooled) URL.
+cd apps/api
+DATABASE_URL='<direct-url>' uv run --group semantic python scripts/provision.py
+#    migrate -> seed Northstar tickets -> import the 745-record MIT corpus with vectors
+#    Every step is idempotent. Measured: 5.4s + 3.0s + 3.5s.
+
+# 2. Configure the deployment (values are encrypted, never committed):
+vercel env add DATABASE_URL production            # the POOLED url, for the running app
+vercel env add OPENAI_API_KEY production
+vercel env add INCIDENTIQ_ENVIRONMENT production  # value: production
+
+# 3. Deploy.
+vercel deploy --prod
+
+# 4. Verify — read-only by default, never spends money or mutates state.
+uv run python scripts/smoke.py --base-url https://<deployment>
+```
+
+**Migrations never run on startup.** The platform scales the backend horizontally, so a
+migration on boot would have every instance racing to alter the same schema. `/ready`
+compares the database's Alembic revision against the one the build ships and returns 503
+with an actionable log line if they differ, rather than failing later on a mysterious SQL
+error.
+
+**Pooled vs direct.** Migrations use the *direct* connection — schema changes and long
+transactions do not belong on a transaction pooler. The running application uses the
+*pooled* URL with a deliberately small pool (`pool_size=2`, `max_overflow=3`,
+`pool_recycle=280s`): the database sees pool size × live instances, and a per-instance
+pool sized for a long-running server is how a serverless deployment exhausts a managed
+database's connection limit.
+
+### Same-origin routing
+
+The browser calls `/api/*` and the platform rewrites it to the backend service, so
+production needs no CORS and preview deployments route correctly with no per-environment
+configuration. The API mounts itself under `/api` (`INCIDENTIQ_API_PATH_PREFIX`) because
+the platform passes the original path through; mounting is used rather than a platform
+path-rewrite because a mount is deterministic and testable locally. Server components need
+an absolute origin, so they use `VERCEL_URL`; `NEXT_PUBLIC_API_BASE_URL` overrides
+everything and is how a local production build is pointed back at a local API.
+
+### Public demo safety
+
+The deployment is public and one endpoint spends money, so `POST /incidents/{id}/investigations`
+is rate limited to 5 per client per hour. That guard is honest about what it is: in-process
+and keyed on a forwarded address, so it is a brake on casual abuse rather than a quota.
+Standing up Redis to rate limit a portfolio demo would cost more than the thing it
+protects. Everything expensive behind it is already gated — one bounded call, human
+approval, simulated execution.
+
+`POST /demo/reset` returns **403** in production and is not weakened for convenience. If
+the demo database ever needs clearing, that is an operator command, not a public endpoint.
+
+### Preview deployments
+
+Previews share the production database, because isolating them would mean provisioning and
+seeding a database per branch for a prototype. That is a real limitation and it is stated
+rather than hidden: a preview deployment can mutate demo state. Production correctness was
+the priority for this submission.
 
 ## Checks
 

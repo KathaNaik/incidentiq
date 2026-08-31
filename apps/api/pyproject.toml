@@ -10,7 +10,6 @@ dependencies = [
     # Offline ingestion of the external datasets. Kept in the main dependency set so a
     # plain `uv sync` is enough to reproduce a download — no hidden setup step.
     "huggingface-hub>=0.26",
-    "pyarrow>=18",
     "openai>=3.5.0",
     "sqlalchemy>=2.0",
     "alembic>=1.14",
@@ -19,6 +18,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+# Offline dataset ingestion only. `pyarrow` is 122 MB and no runtime path imports it —
+# only `ingestion/parquet.py`, which runs on a developer machine to prepare corpora.
+ingest = ["pyarrow>=18"]
 dev = [
     "httpx>=0.27",
     "pytest>=8.0",

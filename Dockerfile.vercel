@@ -1,0 +1,106 @@
+# IncidentIQ API — production image for Vercel Services.
+#
+# Lives at the repository root because Vercel uses the Dockerfile's own directory as the
+# build context. The running service reads two small directories outside apps/api — the
+# authored Northstar fixtures and the committed evaluation artifacts — so the context has
+# to span both. Copying them at their repository-relative paths means `REPO_ROOT` resolves
+# correctly inside the container with no path overrides. Everything else the product is
+# stateful about is in PostgreSQL.
+#
+# Container rather than the native Python runtime, decided on measurement. The production
+# dependency set is ~244 MB installed (onnxruntime alone is 75 MB) and the evaluated
+# embedding model adds 67 MB, which is past what the source-packaged Python runtime is
+# meant to carry; onnxruntime also ships native binaries that want a real filesystem.
+#
+# Two deliberate choices:
+#
+#   1. Install only what the running application imports. pyarrow (122 MB) is offline
+#      dataset preparation and scikit-learn plus scipy (117 MB) are the M18 experiment.
+#      No runtime path imports either, so neither is here. Both stay reproducible in the
+#      repository with `uv sync --group ingest` / `--group pairwise`.
+#   2. Bake the embedding model at build time. Historical retrieval needs
+#      BAAI/bge-small-en-v1.5 (384-d, ~67 MB), and a cold instance downloading it during
+#      somebody's first investigation would turn a cold start into a download that can
+#      also simply fail.
+
+FROM python:3.13-slim AS builder
+
+# uv resolves from the committed lockfile, so the image gets the versions the tests ran
+# against rather than whatever is newest on build day.
+COPY --from=ghcr.io/astral-sh/uv:0.9.6 /uv /usr/local/bin/uv
+
+# The environment is built at /opt/venv rather than beside the code. Two reasons: it
+# keeps dependencies out of the application tree, and it sits outside the `**/.venv/`
+# pattern in .dockerignore — which the platform's builder (buildah) applies to
+# `COPY --from=<stage>` as well as to the build context, silently producing a runtime
+# image with no environment and a container that exits 127 on "uvicorn: not found".
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+
+WORKDIR /app/apps/api
+
+# Dependencies first, in their own layer: application code changes far more often than
+# the lockfile, so this keeps the expensive install cached across ordinary edits.
+COPY apps/api/pyproject.toml apps/api/uv.lock ./
+RUN uv sync --locked --no-dev --no-install-project --group semantic
+
+COPY apps/api/ ./
+RUN uv sync --locked --no-dev --no-editable --group semantic
+
+# Bake the evaluated model. Downloading here rather than at runtime is the entire point,
+# so the build must fail if it cannot be fetched — a silently model-less image would only
+# reveal itself on a user's first historical-retrieval query.
+RUN mkdir -p /opt/models \
+ && /opt/venv/bin/python -c "\
+from fastembed import TextEmbedding; \
+m = TextEmbedding(model_name='BAAI/bge-small-en-v1.5', cache_dir='/opt/models'); \
+v = list(m.embed(['warm the model so the image ships a usable cache']))[0]; \
+assert len(v) == 384, f'unexpected dimension {len(v)}'; \
+print('baked bge-small-en-v1.5, dimension', len(v))"
+
+
+FROM python:3.13-slim AS runtime
+
+# No uv, no compilers, no build tooling in the final layer.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    INCIDENTIQ_ENVIRONMENT=production \
+    INCIDENTIQ_EMBEDDING_MODEL_CACHE_DIR=/opt/models \
+    INCIDENTIQ_API_PATH_PREFIX=/api
+
+WORKDIR /app/apps/api
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/apps/api /app/apps/api
+COPY --from=builder /opt/models /opt/models
+
+# The two directories the running service reads, kept at their repository-relative paths
+# so the default settings resolve without overrides. Deliberately not data/processed or
+# data/raw: those are licensed corpora and derived caches, and the historical corpus the
+# product actually serves lives in PostgreSQL.
+COPY data/demo /app/data/demo
+COPY data/evals /app/data/evals
+
+# Unprivileged. Nothing writes outside the model cache, which is read-only once baked.
+RUN useradd --create-home --uid 10001 incidentiq \
+ && chown -R incidentiq:incidentiq /app /opt/models /opt/venv
+USER incidentiq
+
+# Vercel routes container traffic to port 80 unless PORT says otherwise. Honouring $PORT
+# keeps the image runnable anywhere, including `docker run -e PORT=8001`.
+ENV PORT=80
+EXPOSE 80
+
+# The interpreter is named by absolute path rather than found on PATH. The platform
+# injects its own environment into the running container, which can replace PATH and
+# leave `uvicorn` unresolvable even though the image is built correctly — an exit 127
+# that looks nothing like the configuration problem it is. PYTHONPATH is set for the
+# same reason: the import must not depend on the working directory the platform chooses.
+#
+# No --reload, one worker. The platform scales by running more instances, so a second
+# worker inside one instance would only multiply database connections.
+ENV PYTHONPATH=/app/apps/api
+CMD ["/bin/sh", "-c", "exec /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80} --workers 1 --no-access-log"]

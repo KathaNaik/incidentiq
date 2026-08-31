@@ -4,8 +4,39 @@
  * The base URL is read from the environment so the web app never assumes the API is
  * co-located with it.
  */
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+/**
+ * Where the API lives, which is not one answer.
+ *
+ * In production the web app and the API are two services in one Vercel deployment behind
+ * a single origin: the platform rewrites `/api/*` to the backend, so the browser can use
+ * a relative URL and never needs to know the backend's hostname. That is what keeps
+ * preview deployments working without per-environment configuration, and why production
+ * needs no CORS at all.
+ *
+ * A server component has no origin to resolve a relative URL against — it is rendering
+ * inside the deployment, not in a page — so it needs an absolute one. `VERCEL_URL` is the
+ * deployment's own hostname and is not exposed to the browser.
+ *
+ * `NEXT_PUBLIC_API_BASE_URL` overrides everything, which is how a local production build
+ * (`npm run build && npm start`) is pointed back at a local FastAPI.
+ */
+function resolveApiBaseUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (explicit) return explicit;
+
+  if (typeof window !== "undefined") {
+    // NODE_ENV is inlined at build time, so `next dev` keeps talking to a local API
+    // while a deployed bundle uses the same origin it was served from.
+    return process.env.NODE_ENV === "production" ? "/api" : "http://localhost:8001";
+  }
+
+  const deployment = process.env.VERCEL_URL;
+  if (deployment) return `https://${deployment}/api`;
+
+  return "http://localhost:8001";
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export type TicketStatus = "open" | "in_progress" | "resolved";
 export type TicketPriority = "low" | "medium" | "high" | "critical";

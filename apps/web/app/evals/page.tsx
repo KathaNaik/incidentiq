@@ -86,6 +86,37 @@ export default async function EvalsPage() {
 
       <Group
         step={3}
+        title="Correlation safety — reconciliation"
+        lead="A defect operator review exposed, and the versioned fix for it. No weight or threshold changed; only which question membership overlap is allowed to answer."
+      >
+        <Caveats
+          items={[
+            {
+              title: "v1 let identity reconciliation imply membership",
+              detail:
+                "Intake maps each recomputed cluster onto a durable candidate by membership overlap, then assigned every cluster member to it. A ticket that clustered with one member inherited the whole incident: measured at 0.405 and 0.458 against the members it actually joined, against a 0.60 threshold. Operator review made it reachable, because confirming a low-overlap paraphrase is a reliable way to make durable membership diverge from what the stateless engine recomputes.",
+            },
+            {
+              title: "deterministic-correlation-v2 fixes it without retuning",
+              detail:
+                "An arriving ticket must clear the engine's own attachment rule against the candidate's automatically established members. Judging against full membership was ruled out by measurement, not preference: a genuine later report scored 0.5366 against the widened membership and would have been refused. Against the automatic core the unrelated ticket still scores 0.4054 and the genuine one 0.6256.",
+            },
+            {
+              title: "The authored online set could not have caught it",
+              detail:
+                "That suite runs the correlation engine over a seed plus an arriving ticket with no database and no durable candidate, so it never exercises reconciliation at all. v1 and v2 score identically on it by construction. That is a statement about the set's coverage, not evidence that v2 is safe — the PostgreSQL suites are what cover it.",
+            },
+            {
+              title: "The residual cost is one operator decision",
+              detail:
+                "A refused ticket stays standalone in the active window, where the engine can still cluster it with a confirmed paraphrase. A later genuine report then lands within the ambiguity margin of two groupings and is called ambiguous rather than attached. It fails toward human review, never toward a false merge, and ambiguous reports now raise a review rather than sitting unseen.",
+            },
+          ]}
+        />
+      </Group>
+
+      <Group
+        step={4}
         title="Historical retrieval"
         lead="Given a current incident, how often does a past incident with the same root cause appear in the top K? Leave-one-out over the external corpus, where relevance means same root-cause family."
       >
@@ -106,7 +137,7 @@ export default async function EvalsPage() {
       </Group>
 
       <Group
-        step={4}
+        step={5}
         title="Investigation — model quality"
         lead="What the model produced, scored against authored labels. This group measures the model alone: whether the system would have let any of it happen is the next group's question."
       >
@@ -145,7 +176,7 @@ export default async function EvalsPage() {
       </Group>
 
       <Group
-        step={5}
+        step={6}
         title="Action policy — system safety"
         lead="The deterministic gate between a model recommendation and an approvable action. This is business logic, not a model, so anything below 100% on the authored suite is a defect rather than a limitation."
       >
@@ -171,6 +202,37 @@ export default async function EvalsPage() {
               title: "The policy replay reconstructs citations",
               detail:
                 "The recorded run stored each case's action type but not the evidence ids the model cited, so the replay has each recommendation cite the entire registry — the most generous input available. Eligibility there is an upper bound, not the exact historical result.",
+            },
+          ]}
+        />
+      </Group>
+
+      <Group
+        step={7}
+        title="Native label capture"
+        lead="Not a result — a mechanism. Three attempts to recover paraphrases automatically failed, and the last of them showed why: the labels were borrowed from a dataset answering a different question."
+      >
+        <Caveats
+          items={[
+            {
+              title: "Why borrowed supervision did not transfer",
+              detail:
+                "The pairwise classifier improved ranking (50% to 74.2% held-out ordering) but positive/hard-negative separation stayed negative and the development threshold did not transfer. Its service_conflict coefficient came out positive, which is domain nonsense. That is what labels at the wrong granularity look like — it cannot establish that discriminative modelling fails, only that those labels were insufficient.",
+            },
+            {
+              title: "What operator review captures instead",
+              detail:
+                "Every confirm or reject records the runtime's own question: given this ticket and this candidate as they existed at decision time, do they belong together? The candidate state, its members, the deterministic signals and 26 pairwise features are stored immutably alongside the decision, so a label stays reconstructable after the incident has moved on.",
+            },
+            {
+              title: "The sample is deliberately not random",
+              detail:
+                "Reviews exist only where the structural gate found a candidate plausible and automation declined. Near-duplicates and hard conflicts never reach an operator. The base rate of this data therefore carries no information about correlation in general, and anything trained on it has to account for that.",
+            },
+            {
+              title: "Nothing is retrained automatically",
+              detail:
+                "The exporter reports how many labels exist and declines to call them model-ready. A supervised fallback should wait for enough independent labels to support a grouped train/dev/test split with hard negatives across several services and mechanisms. A handful of clicked examples is not a dataset.",
             },
           ]}
         />
