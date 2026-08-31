@@ -201,6 +201,11 @@ Two deterministic baselines, both rule-driven with no model or embeddings anywhe
   incidents using time decay, service and issue agreement, IDF-weighted word overlap and
   shared identifiers. Weights and thresholds in
   [app/correlation/rules.py](apps/api/app/correlation/rules.py).
+- **`deterministic-correlation-v2`** — the live default. Identical scoring to v1 — same
+  weights, same thresholds, same time decay — with one changed semantic: how a recomputed
+  cluster is reconciled onto a durable candidate. See
+  [safe reconciliation](#safe-reconciliation-deterministic-correlation-v2) below. v1 stays
+  selectable and reproduces its own defect on demand.
 - **`semantic-correlation-v1`** — the same correlation with one extra signal: cosine
   similarity between ticket embeddings. Same candidate generation, same guardrails, so
   the two are directly comparable. Opt-in everywhere; deterministic stays the default.
@@ -275,10 +280,81 @@ running system. "Incremental" here means feeding it a window rather than all his
 engine already processes chronologically and only offers a ticket to candidates that are
 still open.
 
-**Live mode is `deterministic-correlation-v1`**, chosen on measurement rather than
-preference: on the authored online set it scores 8/8 against semantic's 7/8, runs in about
-6 ms against 635 ms, and needs no embedding call — so no embedding failure mode exists at
-intake. Semantic remains available for batch comparison.
+**Live mode is deterministic**, chosen on measurement rather than preference: on the
+authored online set it scores 8/8 against semantic's 7/8, runs in about 6 ms against
+635 ms, and needs no embedding call — so no embedding failure mode exists at intake.
+Semantic remains available for batch comparison. Reconciliation runs
+`deterministic-correlation-v2`; the scoring is v1's, unchanged.
+
+### Safe reconciliation (`deterministic-correlation-v2`)
+
+`correlate()` is stateless — every intake re-derives clusters from the window and knows
+nothing about what is already persisted. Intake then has to decide which durable candidate
+a fresh cluster *is*, and it answers that by membership overlap. That much is right: a
+candidate an operator is already looking at should keep its identity as it grows.
+
+Under v1 the same overlap silently answered a second question — *whether the arriving
+ticket belongs there at all*. It does not follow, and operator review is what made the gap
+visible. Measured on the M19 acceptance run:
+
+```
+durable candidate  = {A, B, C}    C attached by an operator through review
+recomputed cluster = {C, D}       legitimate on its own terms, 0.6369
+```
+
+The cluster overlapped the candidate at C, so every member of it was assigned to the
+candidate. D joined A and B having scored **0.4054** and **0.4577** against them — the
+members it was actually joining — against a 0.60 threshold. A performance complaint became
+part of a sign-in incident, and no operator was asked.
+
+Nothing about the operator's decision was wrong and nothing about the cluster was wrong.
+Identity reconciliation was being allowed to imply membership.
+
+**v2 changes exactly one thing.** An arriving ticket may join an existing durable candidate
+only if it clears the engine's own attachment rule against that candidate's
+*automatically established* members. Identity reconciliation by overlap is unchanged. No
+weight, threshold or time-decay parameter differs between v1 and v2.
+
+Operator-confirmed members are deliberately excluded from that comparison, and the
+distinction is worth being exact about, because it is not "human decisions are
+second-class data":
+
+- A confirmed ticket stays a **full member** of the incident — evidence, timeline,
+  candidate metadata, investigations. Nothing is removed.
+- What it does not do is **vouch for a stranger**. The operator answered one question about
+  one ticket; that answer is not evidence about a future ticket, in either direction.
+
+Measurement forced that design. Requiring complete linkage against the *full* durable
+membership closes the false merge but breaks the honest case — a genuine later report
+scored 0.5366 against the widened membership and would have been refused, purely because
+the confirmed paraphrase is worded unlike everything else. Judged against the automatic
+core, both come out right:
+
+| arriving ticket | vs automatic core `{A, B}` | outcome |
+|---|---|---|
+| unrelated performance complaint | min **0.4054** | refused, sent to review |
+| genuine later sign-in report | min **0.6256** | attached |
+
+So a confirmation neither smuggles a stranger in nor freezes the incident. Membership
+provenance comes from `correlation_reviews`, so this needed no schema change.
+
+**Why the evals did not catch it.** The authored online set runs `correlate()` directly
+over a seed plus an arriving ticket — no database, no durable candidate, no reconciliation.
+It measures the engine, and the defect was in the seam between the engine and persistence.
+v1 and v2 score identically there by construction, which is a statement about the set's
+coverage rather than evidence that v2 is safe; the PostgreSQL intake and reconciliation
+suites are what actually cover it.
+
+**Known consequence.** A refused ticket stays standalone in the window, where the stateless
+engine can still cluster it with a confirmed paraphrase. A later genuine report can then
+land within `CANDIDATE_MARGIN` of two groupings and be called *ambiguous* instead of
+attaching. That is the existing ambiguity guard declining to invent certainty — the ticket
+goes to an operator rather than into the wrong incident — but it is a weaker outcome than
+attaching, and it is reproduced in
+[test_reconciliation_v2.py](apps/api/tests/test_reconciliation_v2.py).
+
+v1 remains selectable (`correlation_reconciliation=v1`) and its test reproduces the false
+merge, so the fix stays demonstrable rather than merely asserted.
 
 **A candidate appears on the second compatible report, not the first.** One report is a
 singleton, which is a valid operational state shown as "uncorrelated" rather than hidden.

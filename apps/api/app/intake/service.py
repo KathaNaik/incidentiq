@@ -31,9 +31,15 @@ from sqlalchemy.exc import IntegrityError
 
 from app.correlation import CorrelationTicket, correlate
 from app.correlation.models import CandidateIncident
-from app.correlation.rules import CORRELATION_VERSION
+from app.correlation.reconcile import Admission, admits
+from app.correlation.rules import CORRELATION_VERSION, CORRELATION_VERSION_V2
 from app.db.engine import get_engine, sessionmaker_for
-from app.db.models import CandidateIncidentRow, CorrelationDecisionRow, TicketRow
+from app.db.models import (
+    CandidateIncidentRow,
+    CorrelationDecisionRow,
+    CorrelationReviewRow,
+    TicketRow,
+)
 from app.intake.models import (
     CorrelationDecision,
     CorrelationOutcome,
@@ -48,6 +54,7 @@ from app.intake.rules import (
     CANDIDATE_MARGIN,
     FUTURE_TOLERANCE,
     LIVE_CORRELATION_MODE,
+    LIVE_RECONCILIATION,
     REPLAY_WINDOW,
     RESERVED_SOURCES,
 )
@@ -80,11 +87,13 @@ class TicketIntake:
         known_services: frozenset[str] = frozenset(),
         strategy: str = LIVE_CORRELATION_MODE,
         similarity_factory=None,
+        reconciliation: str = LIVE_RECONCILIATION,
     ) -> None:
         self._engine = engine or get_engine()
         self._session = sessionmaker_for(self._engine)
         self._known_services = known_services
         self._strategy = strategy
+        self._reconciliation = reconciliation
         # A factory, not a provider: nothing is constructed — and certainly nothing
         # embedded — unless a candidate actually passes fallback eligibility.
         self._similarity_factory = similarity_factory
@@ -264,7 +273,7 @@ class TicketIntake:
                     ticket_id=ticket_id,
                     candidate_id=None,
                     outcome=CorrelationOutcome.UNCORRELATED,
-                    correlation_version=result.version,
+                    correlation_version=self._version(result),
                     score=None,
                     confidence=None,
                     created_new_candidate=False,
@@ -286,7 +295,7 @@ class TicketIntake:
                     ticket_id=ticket_id,
                     candidate_id=None,
                     outcome=CorrelationOutcome.AMBIGUOUS,
-                    correlation_version=result.version,
+                    correlation_version=self._version(result),
                     score=group.score,
                     confidence=group.confidence.value,
                     created_new_candidate=False,
@@ -304,6 +313,32 @@ class TicketIntake:
 
             row, created_new = self._upsert_candidate(session, group)
 
+            # v2: the cluster said which candidate this *is*; it did not say the arriving
+            # ticket belongs in it. When the candidate already exists, its durable
+            # membership can differ from the cluster — an operator confirmation is the
+            # reliable way that happens — and the ticket must clear the attachment rule
+            # against the members it would actually be joining. A new candidate needs no
+            # check: there, the cluster is the membership.
+            if self._reconciliation == "v2" and not created_new:
+                admission = self._admits(session, row, group, window, ticket_id)
+                if not admission.admitted:
+                    decision = CorrelationDecision(
+                        ticket_id=ticket_id,
+                        candidate_id=None,
+                        outcome=CorrelationOutcome.UNCORRELATED,
+                        correlation_version=self._version(result),
+                        score=None,
+                        confidence=None,
+                        created_new_candidate=False,
+                        reason=(
+                            f"did not qualify for {row.id}: {admission.reason}"
+                        ),
+                        **staging.get("fields", {}),
+                    )
+                    arriving.candidate_id = None
+                    self._record(decision, session=session)
+                    return decision, None, window
+
             for member_id in group.ticket_ids:
                 member = session.get(TicketRow, member_id)
                 if member is not None:
@@ -318,7 +353,7 @@ class TicketIntake:
                     if created_new
                     else CorrelationOutcome.ATTACHED
                 ),
-                correlation_version=result.version,
+                correlation_version=self._version(result),
                 score=group.score,
                 confidence=group.confidence.value,
                 created_new_candidate=created_new,
@@ -438,6 +473,47 @@ class TicketIntake:
         session.add(row)
         session.flush()
         return row, True
+
+    def _version(self, result) -> str:
+        """The version stamped on a v2 decision.
+
+        Only the deterministic version is renamed. A hybrid run keeps its own version
+        string — reconciliation is orthogonal to which signals produced the cluster, and
+        rewriting the hybrid version here would make M16's artifacts unreadable.
+        """
+        if self._reconciliation == "v2" and result.version == CORRELATION_VERSION:
+            return CORRELATION_VERSION_V2
+        return result.version
+
+    def _admits(
+        self, session, row: CandidateIncidentRow, group, window, ticket_id: str
+    ) -> Admission:
+        """Whether the arriving ticket earned membership of an existing candidate.
+
+        Judged against the candidate's *automatically established* members. Tickets an
+        operator attached through review stay members — they are simply not asked to
+        vouch for a ticket the operator never saw. `correlation_reviews` already records
+        who placed what, so this needs no schema of its own.
+        """
+        confirmed = set(
+            session.scalars(
+                select(CorrelationReviewRow.ticket_id).where(
+                    CorrelationReviewRow.candidate_id == row.id,
+                    CorrelationReviewRow.status == "confirmed",
+                )
+            ).all()
+        )
+        members = [
+            _to_correlation_ticket(member)
+            for member in session.scalars(
+                select(TicketRow).where(TicketRow.candidate_id == row.id)
+            ).all()
+            if member.id != ticket_id and member.id not in confirmed
+        ]
+        arriving = next((t for t in window if t.id == ticket_id), None)
+        if arriving is None:  # pragma: no cover - window always contains the arrival
+            raise IntakeError(f"{ticket_id} missing from its own correlation window")
+        return admits(arriving, members, window)
 
     def _recompute(self, session, row: CandidateIncidentRow, group: CandidateIncident) -> None:
         """Derives metadata from members. Never increments a counter.

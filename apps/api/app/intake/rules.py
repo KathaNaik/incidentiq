@@ -36,6 +36,11 @@ INTAKE_VERSION = "intake-v1"
 # the default.
 LIVE_CORRELATION_MODE = "deterministic"
 
+# Which reconciliation strategy live intake runs. v2 after the regression set, the
+# authored online set and the PostgreSQL intake suite all passed; v1 stays selectable so
+# the false merge it allows remains reproducible. See `app/correlation/reconcile.py`.
+LIVE_RECONCILIATION = "v2"
+
 # Enough history to rebuild the candidates a new ticket might join. Four times the idle
 # window: a candidate open for another 90 minutes may have started well before that.
 REPLAY_WINDOW = timedelta(minutes=CANDIDATE_IDLE_MINUTES * 4)

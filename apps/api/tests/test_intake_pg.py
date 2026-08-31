@@ -22,7 +22,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL") or get_settings().database_url
 if not DATABASE_URL:  # pragma: no cover - environment dependent
     pytest.skip("no DATABASE_URL", allow_module_level=True)
 
-from app.correlation.rules import CORRELATION_VERSION  # noqa: E402
+from app.correlation.rules import CORRELATION_VERSION_V2  # noqa: E402
 from app.db.engine import get_engine  # noqa: E402
 from app.db.models import CandidateIncidentRow, CorrelationDecisionRow, TicketRow  # noqa: E402
 from app.db.ticket_store import SqlRepository  # noqa: E402
@@ -290,7 +290,9 @@ def test_the_decision_records_why(intake) -> None:
     intake.submit(request("EXT-A", *AUTH, minutes=0))
     second = intake.submit(request("EXT-B", *AUTH_DUP, minutes=6))
 
-    assert second.correlation.correlation_version == CORRELATION_VERSION
+    # v2 is the live reconciliation strategy; the engine and its thresholds are the
+    # ones M5 measured, so only the reconciliation half of the version moved.
+    assert second.correlation.correlation_version == CORRELATION_VERSION_V2
     assert second.correlation.score is not None
     assert second.correlation.confidence in ("low", "medium", "high")
     assert second.correlation.reason
@@ -350,7 +352,7 @@ def test_membership_and_decisions_survive_a_restart(intake) -> None:
 
     assert len(members) == 2
     assert decision is not None
-    assert decision.correlation_version == CORRELATION_VERSION
+    assert decision.correlation_version == CORRELATION_VERSION_V2
     assert decision.triage_version == TRIAGE_VERSION
     assert decision.outcome == "created_candidate"
 

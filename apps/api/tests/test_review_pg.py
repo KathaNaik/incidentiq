@@ -303,25 +303,18 @@ def test_the_decision_carries_the_northstar_label(intake, reviews) -> None:
 # --- the defect this milestone exposed ------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Confirming a low-overlap paraphrase makes it a durable member of the candidate. "
-        "_upsert_candidate then reconciles any later grouping onto an existing candidate "
-        "by membership *overlap*, so a ticket that clusters with the paraphrase alone "
-        "inherits the whole incident without ever clearing linkage against its other "
-        "members. Measured: the different-mechanism ticket scores 0.405 against the "
-        "original members and is correctly refused, but attaches at 0.639 once the "
-        "paraphrase is confirmed. Fixing this changes deterministic-correlation-v1 "
-        "attach semantics, which six milestones of evaluations depend on."
-    ),
-    strict=True,
-)
-def test_confirming_does_not_widen_the_candidate(intake, reviews) -> None:
+def test_confirming_does_not_widen_the_candidate(reviews) -> None:
     """An operator confirming one pair must not silently admit a third ticket.
 
     The operator answered exactly one question: is this paraphrase the same incident?
     Nothing in that decision authorises a different failure mechanism to join.
+
+    This was a strict xfail when M19 first exposed it — under v1 the different-mechanism
+    ticket scored 0.405 against the members it would be joining and attached anyway at
+    0.639, inheriting the incident through the confirmed paraphrase. Closed by
+    deterministic-correlation-v2; the full matrix lives in `test_reconciliation_v2.py`.
     """
+    intake = TicketIntake(known_services=SERVICES, reconciliation="v2")
     candidate_id = seed_incident(intake)
     submit(intake, *PARAPHRASE, minutes=22)
     reviews.confirm(reviews.pending()[0].id, reason="same_symptoms")

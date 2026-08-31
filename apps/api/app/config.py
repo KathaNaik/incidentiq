@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     # the comparison can be run against a live API rather than only offline.
     live_correlation_strategy: Literal["deterministic", "hybrid"] = "deterministic"
 
+    # How a recomputed cluster is reconciled onto a durable candidate. Orthogonal to the
+    # strategy above: that picks the *signals*, this decides whether membership overlap
+    # alone may grant an arriving ticket membership. v1 is kept selectable so the false
+    # merge it allows stays reproducible.
+    correlation_reconciliation: Literal["v1", "v2"] = "v2"
+
 
 @lru_cache
 def get_settings() -> Settings:

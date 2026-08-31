@@ -116,13 +116,21 @@ def _idle_minutes(candidate: _OpenCandidate, now: datetime) -> float:
     return (now - candidate.last_seen).total_seconds() / 60.0
 
 
-def _attaches(scores: list[PairwiseScore]) -> bool:
-    """The three conditions, in the order they are cheapest to reason about."""
+def attaches(scores: Sequence[PairwiseScore]) -> bool:
+    """The three conditions, in the order they are cheapest to reason about.
+
+    Public because reconciliation asks the same question of a *durable* candidate that
+    clustering asks of an open one. Two copies of this rule would be two places for the
+    answer to drift.
+    """
     if min(score.content_score for score in scores) < CONTENT_LINK_MIN:
         return False
     if max(score.time_score for score in scores) < TIME_LINK_MIN:
         return False
     return min(score.score for score in scores) >= LINK_THRESHOLD
+
+
+_attaches = attaches
 
 
 def _build_result(

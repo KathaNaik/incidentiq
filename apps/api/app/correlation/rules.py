@@ -27,6 +27,12 @@ from app.triage.models import IssueType
 CORRELATION_VERSION = "deterministic-correlation-v1"
 SEMANTIC_CORRELATION_VERSION = "semantic-correlation-v1"
 
+# v2 changes no weight and no threshold. It changes *reconciliation*: which durable
+# candidate a recomputed cluster belongs to is still decided by membership overlap, but
+# an arriving ticket now has to earn its membership against that candidate rather than
+# inherit it. See `reconcile.py` for the rule and the defect it closes.
+CORRELATION_VERSION_V2 = "deterministic-correlation-v2"
+
 # --- component weights (content weights sum to 1.0) -------------------------------
 W_TIME = 0.35
 W_SERVICE = 0.40
