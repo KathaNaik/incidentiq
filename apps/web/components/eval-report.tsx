@@ -1,4 +1,5 @@
 import { Badge } from "@/components/badge";
+import { Disclosure } from "@/components/disclosure";
 import type { EvalMetric, EvalReport } from "@/lib/api";
 import { formatTimestamp } from "@/lib/format";
 
@@ -84,13 +85,13 @@ export function EvalReportSection({
         </div>
       )}
 
-      <div className="space-y-2">
-        <h3 className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
-          Failures ({report.failures.length})
-        </h3>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Each failure carries the rules that fired, so the reason for the miss is
-          visible rather than inferred.
+      <Disclosure
+        summary="Failures"
+        hint={`${report.failures.length} case${report.failures.length === 1 ? "" : "s"}`}
+      >
+        <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
+          Each failure carries the rules that fired, so the reason for the miss is visible
+          rather than inferred.
         </p>
         <ul className="space-y-3">
           {report.failures.map((failure) => (
@@ -129,7 +130,7 @@ export function EvalReportSection({
             </li>
           ))}
         </ul>
-      </div>
+      </Disclosure>
     </section>
   );
 }

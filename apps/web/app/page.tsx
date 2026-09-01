@@ -4,13 +4,15 @@ import { ApiError } from "@/components/api-error";
 import { ApiStatus } from "@/components/api-status";
 import { Badge } from "@/components/badge";
 import { DemoReset } from "@/components/demo-reset";
+import { GuidedTour } from "@/components/guided-tour";
+import { HowItWorks } from "@/components/how-it-works";
 import { IncidentQueue } from "@/components/incident-queue";
 import {
   load,
   fetchActions,
-  fetchCandidates,
   fetchCorrelationReviews,
   fetchIncidents,
+  fetchRuntimeCandidates,
   fetchServices,
   fetchTickets,
 } from "@/lib/api";
@@ -28,13 +30,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function DashboardPage() {
   const result = await load(async () => {
-    const [incidents, tickets, services, correlation] = await Promise.all([
+    const [incidents, tickets, services, candidates] = await Promise.all([
       fetchIncidents(),
       fetchTickets(),
       fetchServices(),
-      fetchCandidates("deterministic"),
+      // Durable state, not a recomputation. See fetchRuntimeCandidates.
+      fetchRuntimeCandidates(),
     ]);
-    return { incidents, tickets, services, correlation };
+    return { incidents, tickets, services, candidates };
   });
 
   // Action state lives in process memory and is empty until somebody walks the workflow.
@@ -56,7 +59,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const { incidents, tickets, services, correlation } = result.data;
+  const { incidents, tickets, services, candidates } = result.data;
   const rows = actions.ok ? actions.data : [];
   const pendingReviews = reviews.ok ? reviews.data : [];
 
@@ -67,24 +70,30 @@ export default async function DashboardPage() {
     (a) => a.status === "succeeded" || a.status === "failed",
   );
 
+  // Built from counts already fetched. Nothing here costs an extra request.
+  const attention = [
+    pendingReviews.length > 0 && {
+      text: `${pendingReviews.length} report${pendingReviews.length === 1 ? "" : "s"} need a correlation decision`,
+      href: "/reviews",
+      cta: "Review",
+    },
+    awaitingApproval.length > 0 && {
+      text: `${awaitingApproval.length} proposed fix${awaitingApproval.length === 1 ? "" : "es"} awaiting approval`,
+      href: "/incidents",
+      cta: "Open incidents",
+    },
+  ].filter(Boolean) as { text: string; href: string; cta: string }[];
+
   return (
     <div className="space-y-8">
-      <Header />
-      <ApiStatus />
+      <div className="space-y-2">
+        <Header />
+        <ApiStatus />
+      </div>
 
-      <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatTile label="Open tickets" value={openTickets.length} />
-        <StatTile label="Active incidents" value={activeIncidents.length} />
-        <StatTile
-          label="Candidate incidents"
-          value={correlation.candidates.length}
-          hint="proposed by correlation"
-        />
-        <StatTile
-          label="Awaiting approval"
-          value={awaitingApproval.length}
-          tone={awaitingApproval.length > 0 ? "warn" : "neutral"}
-        />
+      {/* Metrics first: the question a dashboard answers is "what needs attention", and
+          that is a row of numbers, not a paragraph. */}
+      <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Needs review"
           value={pendingReviews.length}
@@ -93,28 +102,66 @@ export default async function DashboardPage() {
           href="/reviews"
         />
         <StatTile
-          label="Executed this session"
-          value={executed.length}
-          hint="simulated"
+          label="Awaiting approval"
+          value={awaitingApproval.length}
+          hint="blocked on a human"
+          tone={awaitingApproval.length > 0 ? "warn" : "neutral"}
+        />
+        <StatTile label="Open reports" value={openTickets.length} />
+        <StatTile
+          label="Proposed incidents"
+          value={candidates.length}
+          hint="grouped by correlation"
         />
       </section>
 
+      {attention.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
+            Needs attention
+          </h2>
+          <ul className="divide-y divide-neutral-200 rounded border border-amber-400 dark:divide-neutral-800 dark:border-amber-800">
+            {attention.map((item) => (
+              <li key={item.text} className="flex flex-wrap items-center gap-2 p-3">
+                <span className="text-sm">{item.text}</span>
+                <Link
+                  href={item.href}
+                  className="ml-auto text-sm underline underline-offset-2"
+                >
+                  {item.cta}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <IncidentQueue
-        candidates={correlation.candidates}
-        version={correlation.version}
+        candidates={candidates}
+        version={candidates[0]?.correlation_version ?? "deterministic-correlation-v2"}
         services={serviceNames(services)}
         actions={rows}
       />
+
+      <GuidedTour
+        pendingReviews={pendingReviews.length}
+        awaitingApproval={awaitingApproval.length}
+        executed={executed.length}
+        hasIncident={candidates.length > 0}
+        firstIncidentId={candidates[0]?.id ?? null}
+      />
+
+      <HowItWorks />
 
       {activeIncidents.length > 0 && (
         <section className="space-y-3">
           <div>
             <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
-              Declared incidents
+              Pre-loaded demo incidents
             </h2>
             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-              Incident–ticket links in the fixture set are declared by hand. The queue
-              above is what correlation inferred.
+              Authored by hand so the demo starts with history. These were not produced by
+              correlation — the queue above is what the system worked out for itself.
             </p>
           </div>
           <ul className="divide-y divide-neutral-200 rounded border border-neutral-300 dark:divide-neutral-800 dark:border-neutral-700">
@@ -192,9 +239,9 @@ function Header() {
     <header className="space-y-1">
       <h1 className="text-xl font-semibold">Operations</h1>
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Fragmented tickets, correlated into candidate incidents, investigated against
-        evidence, and gated behind deterministic policy and a human. Every count below is
-        derived from records the API returned.
+        Scattered reports, grouped into incidents, investigated against evidence, and
+        gated behind a human before anything runs. Every number on this page is counted
+        from real records — nothing here is a placeholder.
       </p>
     </header>
   );

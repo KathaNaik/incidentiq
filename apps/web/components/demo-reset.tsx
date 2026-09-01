@@ -5,19 +5,26 @@ import { useState } from "react";
 import { resetDemoState } from "@/lib/api";
 
 /**
- * Clears in-memory action state so the walkthrough can be run again.
+ * Clears workflow state so the walkthrough can be run again.
  *
- * Deliberately visible and deliberately labelled. Action state lives in process memory,
- * so once the hero rollback has been approved and executed the next run opens on a
- * finished action; the alternative to this button is restarting the API mid-demo.
+ * Renders only in local development. The API has always refused this outside
+ * development, so in production it was a visible button that could only ever return 403 —
+ * an offer the deployment cannot honour, which is worse than no button.
  *
- * It is not administration tooling: it clears actions and audit events and nothing else,
- * and the API refuses it outside development regardless of what this renders.
+ * It is not administration tooling: it clears actions, approvals, executions and audit
+ * events, and nothing else. Reports, incidents, correlation state and recorded
+ * investigation runs survive it.
  */
+const IS_LOCAL = process.env.NODE_ENV !== "production";
+
 export function DemoReset() {
   const [state, setState] = useState<
     { kind: "idle" } | { kind: "busy" } | { kind: "done"; message: string } | { kind: "error"; message: string }
   >({ kind: "idle" });
+
+  // After the hooks, never before: bailing out early would call a different number of
+  // hooks between renders.
+  if (!IS_LOCAL) return null;
 
   async function reset() {
     setState({ kind: "busy" });
@@ -50,8 +57,9 @@ export function DemoReset() {
           {state.kind === "busy" ? "Resetting…" : "Reset workflow state"}
         </button>
         <span className="text-xs text-neutral-500">
-          Clears in-memory actions, approvals and audit events. Fixtures, evaluation
-          artifacts and recorded runs are files on disk and are not touched.
+          Clears actions, approvals, executions and audit events from the database.
+          Reports, incidents, correlation state and recorded investigation runs are not
+          touched.
         </span>
       </div>
       {state.kind === "done" && (

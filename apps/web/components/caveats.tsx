@@ -1,3 +1,4 @@
+import { Disclosure } from "@/components/disclosure";
 /**
  * Caveats, shown next to the numbers they qualify.
  *
@@ -5,13 +6,19 @@
  * These are the things that would materially change how a reader should read a score,
  * and they belong beside the score rather than in a footnote nobody opens.
  */
-export function Caveats({ items }: { items: { title: string; detail: string }[] }) {
+export function Caveats({
+  items,
+  summary = "Caveats and methodology",
+}: {
+  items: { title: string; detail: string }[];
+  summary?: string;
+}) {
+  // The caveats are the honest part of this page and are never removed — but they are
+  // several paragraphs each, and a reader scanning results should reach the next result
+  // before the next qualification. Titles alone are enough to know whether to open one.
   return (
-    <div className="rounded border border-amber-300 p-3 dark:border-amber-900">
-      <p className="text-xs font-medium tracking-wide text-amber-800 uppercase dark:text-amber-500">
-        Read with these caveats
-      </p>
-      <ul className="mt-2 space-y-1.5 text-sm">
+    <Disclosure summary={summary} hint={`${items.length}`}>
+      <ul className="space-y-1.5 text-sm">
         {items.map((item) => (
           <li key={item.title}>
             <span className="font-medium">{item.title}.</span>{" "}
@@ -19,7 +26,7 @@ export function Caveats({ items }: { items: { title: string; detail: string }[] 
           </li>
         ))}
       </ul>
-    </div>
+    </Disclosure>
   );
 }
 

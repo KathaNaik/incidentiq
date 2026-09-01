@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/badge";
+import { Disclosure } from "@/components/disclosure";
 import {
   CONFIRM_REASONS,
   REJECT_REASONS,
@@ -26,6 +27,11 @@ import { formatTimestamp } from "@/lib/format";
  * Everything shown here comes from the review's stored snapshot, never from current
  * state. The operator must be looking at exactly what the decision will be recorded
  * against, or the label describes a pairing nobody actually judged.
+ *
+ * The default card carries only what the decision needs: the two things being compared,
+ * why automation stopped, and the two answers. Full report text, every candidate member,
+ * the feature vector and the snapshot fingerprint are one disclosure away — an operator
+ * deciding does not need them, and an engineer auditing does.
  */
 export function CorrelationReviewCard({
   review,
@@ -92,154 +98,237 @@ export function CorrelationReviewCard({
     return <Decided review={review} />;
   }
 
+  const signals = review.correlation_snapshot.reasons;
+  const score = review.correlation_snapshot.deterministic_score;
+
   return (
-    <section className="space-y-4 rounded border border-neutral-300 p-4 dark:border-neutral-700">
-      <header className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="warn">Needs review</Badge>
-          <span className="font-mono text-xs text-neutral-500">{review.id}</span>
-        </div>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Automatic correlation could not decide this one. It is not a near-duplicate and
-          it is not a clear conflict.
-        </p>
+    <section className="space-y-3 rounded border border-neutral-300 p-4 dark:border-neutral-700">
+      <header className="flex flex-wrap items-center gap-2">
+        <Badge tone="warn">Needs review</Badge>
+        {score !== null && (
+          <span className="font-mono text-xs text-neutral-500 tabular-nums">
+            score {score.toFixed(2)} / 0.60 needed
+          </span>
+        )}
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1">
+      {/* The question, as two sides of one comparison. Titles and one line of body: enough
+          to judge, without making an operator read four full ticket descriptions first. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="min-w-0">
           <h4 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
             Incoming report
           </h4>
-          <p className="text-sm font-medium">{ticket.title}</p>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          <p className="mt-1 text-sm font-medium">{ticket.title}</p>
+          <p className="mt-0.5 line-clamp-2 text-sm text-neutral-600 dark:text-neutral-400">
             {ticket.description}
           </p>
-          <p className="font-mono text-xs text-neutral-500">
-            {ticket.id} · {formatTimestamp(ticket.created_at)}
+          <p className="mt-1 text-xs text-neutral-500">
+            {formatTimestamp(ticket.created_at)}
             {ticket.service_id ? ` · ${ticket.service_id}` : ""}
           </p>
         </div>
 
-        <div className="space-y-1">
+        <div className="min-w-0">
           <h4 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
-            Proposed incident — {candidate.ticket_count} report
-            {candidate.ticket_count === 1 ? "" : "s"}
+            Possible incident
           </h4>
-          <p className="text-sm font-medium">{candidate.title}</p>
-          <ul className="space-y-1">
-            {candidate.members.map((member) => (
-              <li key={member.id} className="text-sm">
-                <span className="text-neutral-600 dark:text-neutral-400">
-                  {member.title}
+          <p className="mt-1 text-sm font-medium">{candidate.title}</p>
+          <p className="mt-0.5 line-clamp-2 text-sm text-neutral-600 dark:text-neutral-400">
+            {candidate.members[0]?.title}
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            {candidate.ticket_count} report
+            {candidate.ticket_count === 1 ? "" : "s"}
+            {candidate.service_id ? ` · ${candidate.service_id}` : ""}
+          </p>
+        </div>
+      </div>
+
+      {signals.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+            Why IncidentIQ is unsure
+          </h4>
+          <ul className="mt-1 space-y-0.5">
+            {signals.map((reason) => (
+              <li
+                key={reason}
+                className="flex gap-1.5 text-sm text-neutral-600 dark:text-neutral-400"
+              >
+                <span aria-hidden className="text-neutral-400 dark:text-neutral-600">
+                  {/low|conflict|below/i.test(reason) ? "△" : "✓"}
                 </span>
-                <span className="ml-1 font-mono text-xs text-neutral-500">
-                  {member.id} · {formatTimestamp(member.created_at)}
-                </span>
+                <span>{reason}</span>
               </li>
             ))}
           </ul>
         </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          type="button"
+          onClick={() => decide("confirm")}
+          disabled={busy !== null}
+          className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          {busy === "confirm" ? "Attaching…" : "Same incident"}
+        </button>
+        <button
+          type="button"
+          onClick={() => decide("reject")}
+          disabled={busy !== null}
+          className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
+        >
+          {busy === "reject" ? "Recording…" : "Different incident"}
+        </button>
+
+        <label htmlFor={`reason-${review.id}`} className="sr-only">
+          Reason
+        </label>
+        <select
+          id={`reason-${review.id}`}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          className="rounded border border-neutral-300 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-700"
+        >
+          <option value="">Reason (optional)</option>
+          <optgroup label="If same incident">
+            {CONFIRM_REASONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="If different incident">
+            {REJECT_REASONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </optgroup>
+        </select>
       </div>
 
-      <Signals review={review} />
-
-      <div className="space-y-3 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor={`reason-${review.id}`} className="text-sm">
-            Reason
-          </label>
-          <select
-            id={`reason-${review.id}`}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            className="rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm dark:border-neutral-700"
-          >
-            <option value="">Not given</option>
-            <optgroup label="If same incident">
-              {CONFIRM_REASONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="If different incident">
-              {REJECT_REASONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
-
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder="Optional note — what made this clear to you?"
-          rows={2}
-          maxLength={1000}
-          className="w-full rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm dark:border-neutral-700"
-        />
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => decide("confirm")}
-            disabled={busy !== null}
-            className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            {busy === "confirm" ? "Attaching…" : "Same incident"}
-          </button>
-          <button
-            type="button"
-            onClick={() => decide("reject")}
-            disabled={busy !== null}
-            className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
-          >
-            {busy === "reject" ? "Recording…" : "Different incident"}
-          </button>
-        </div>
-
-        {error && (
-          <p className="text-sm text-red-700 dark:text-red-400" role="alert">
-            {error}
-          </p>
-        )}
-
-        <p className="text-xs text-neutral-500">
-          Recorded against a fixed demo operator — this prototype has no authentication.
-          The decision is pinned to the candidate exactly as shown above; if it changes
-          first, this review goes stale rather than applying your answer to a different
-          grouping.
+      {error && (
+        <p className="text-sm text-red-700 dark:text-red-400" role="alert">
+          {error}
         </p>
-      </div>
+      )}
+
+      <Details review={review} note={note} onNote={setNote} />
     </section>
   );
 }
 
-/** Why automatic correlation stopped short, in its own words. */
-function Signals({ review }: { review: CorrelationReview }) {
-  const { reasons, deterministic_score } = review.correlation_snapshot;
-  if (reasons.length === 0 && deterministic_score === null) return null;
+/**
+ * Everything an engineer needs to audit the decision, and nothing an operator needs to
+ * make it.
+ *
+ * Full ticket text, every candidate member, the exact feature vector, the fingerprint the
+ * decision is pinned to, and the version metadata all live here. None of it was deleted;
+ * it stopped being the first thing on the page.
+ */
+function Details({
+  review,
+  note,
+  onNote,
+}: {
+  review: CorrelationReview;
+  note: string;
+  onNote: (value: string) => void;
+}) {
+  const ticket = review.ticket_snapshot;
+  const candidate = review.candidate_snapshot;
+  const features = Object.entries(review.feature_snapshot);
 
   return (
-    <div className="space-y-1 rounded bg-neutral-50 p-3 dark:bg-neutral-900">
-      <h4 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
-        What the deterministic pass found
-      </h4>
-      {deterministic_score !== null && (
-        <p className="font-mono text-xs text-neutral-600 dark:text-neutral-400">
-          score {deterministic_score.toFixed(4)}
-        </p>
-      )}
-      <ul className="list-inside list-disc space-y-0.5">
-        {reasons.map((reason) => (
-          <li key={reason} className="text-sm text-neutral-600 dark:text-neutral-400">
-            {reason}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Disclosure
+      summary="Evidence and provenance"
+      hint={`${candidate.members.length} reports · ${features.length} features`}
+    >
+      <div className="space-y-4">
+        <div>
+          <h5 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+            Add a note
+          </h5>
+          <textarea
+            value={note}
+            onChange={(event) => onNote(event.target.value)}
+            placeholder="What made this clear to you? Optional, stored with the decision."
+            rows={2}
+            maxLength={1000}
+            className="mt-1 w-full rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm dark:border-neutral-700"
+          />
+        </div>
+
+        <div>
+          <h5 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+            Incoming report in full
+          </h5>
+          <p className="mt-1 text-sm font-medium">{ticket.title}</p>
+          <p className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-400">
+            {ticket.description}
+          </p>
+          <p className="mt-1 font-mono text-xs text-neutral-500">
+            {ticket.id}
+            {ticket.external_id ? ` · ${ticket.external_id}` : ""} ·{" "}
+            {formatTimestamp(ticket.created_at)} · triage {ticket.triage_version}
+          </p>
+        </div>
+
+        <div>
+          <h5 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+            Candidate reports ({candidate.members.length})
+          </h5>
+          <ul className="mt-1 space-y-2">
+            {candidate.members.map((member) => (
+              <li key={member.id}>
+                <p className="text-sm font-medium">{member.title}</p>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  {member.description}
+                </p>
+                <p className="font-mono text-xs text-neutral-500">
+                  {member.id} · {formatTimestamp(member.created_at)}
+                  {member.issue_type ? ` · ${member.issue_type}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h5 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+            Correlation features
+          </h5>
+          <div className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+            {features.map(([name, value]) => (
+              <p
+                key={name}
+                className="flex justify-between gap-2 font-mono text-xs text-neutral-600 dark:text-neutral-400"
+              >
+                <span>{name}</span>
+                <span className="tabular-nums">{value}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h5 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+            Decision provenance
+          </h5>
+          <p className="mt-1 font-mono text-xs break-all text-neutral-500">
+            review {review.id} · snapshot {review.candidate_fingerprint}
+          </p>
+          <p className="font-mono text-xs text-neutral-500">
+            {review.correlation_version} · {review.review_policy_version} ·{" "}
+            {review.feature_schema}
+          </p>
+        </div>
+      </div>
+    </Disclosure>
   );
 }
 

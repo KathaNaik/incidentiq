@@ -60,6 +60,7 @@ export default async function EvalsPage() {
       <Group
         step={1}
         title="Triage"
+        conclusion="Rules classify service, issue type and priority, and abstain rather than guess. No model needed."
         lead="Service, issue type and priority predicted from ticket text by phrase rules. Deterministic — no model, no embeddings."
       >
         <Suite
@@ -72,6 +73,7 @@ export default async function EvalsPage() {
       <Group
         step={2}
         title="Correlation"
+        conclusion="Precision-first by design: 8/8 on the baseline slice, 4/4 hard conflicts, zero false merges — and 0/2 on paraphrases, which is the gap operator review exists to close."
         lead="Tickets grouped into candidate incidents by time, service, issue type, weighted word overlap and shared identifiers. Precision is preferred over recall: a false merge invents an incident that is not happening."
       >
         <Suite
@@ -87,6 +89,7 @@ export default async function EvalsPage() {
       <Group
         step={3}
         title="Correlation safety — reconciliation"
+        conclusion="Membership overlap was letting identity reconciliation imply membership. deterministic-correlation-v2 fixes it without changing a single weight or threshold."
         lead="A defect operator review exposed, and the versioned fix for it. No weight or threshold changed; only which question membership overlap is allowed to answer."
       >
         <Caveats
@@ -118,6 +121,7 @@ export default async function EvalsPage() {
       <Group
         step={4}
         title="Historical retrieval"
+        conclusion="Strong on the authored set, and the external benchmark is easy enough that its score should not be read as evidence of real-world recall."
         lead="Given a current incident, how often does a past incident with the same root cause appear in the top K? Leave-one-out over the external corpus, where relevance means same root-cause family."
       >
         <Suite
@@ -139,6 +143,7 @@ export default async function EvalsPage() {
       <Group
         step={5}
         title="Investigation — model quality"
+        conclusion="v2 bought remediation recall (0% → 100%) at the cost of unsupported recommendations (0% → 18.8%). Neither number means anything read alone."
         lead="What the model produced, scored against authored labels. This group measures the model alone: whether the system would have let any of it happen is the next group's question."
       >
         {investigationV1.ok && investigationV2.ok && (
@@ -178,6 +183,7 @@ export default async function EvalsPage() {
       <Group
         step={6}
         title="Action policy — system safety"
+        conclusion="Deterministic business logic, so anything below 100% is a defect rather than a limitation. It blocks unsupported actions — not bad diagnoses."
         lead="The deterministic gate between a model recommendation and an approvable action. This is business logic, not a model, so anything below 100% on the authored suite is a defect rather than a limitation."
       >
         <Suite
@@ -210,6 +216,7 @@ export default async function EvalsPage() {
       <Group
         step={7}
         title="Native label capture"
+        conclusion="Three attempts to recover paraphrases automatically failed. Borrowed labels answered a different question; operator decisions answer the runtime’s own."
         lead="Not a result — a mechanism. Three attempts to recover paraphrases automatically failed, and the last of them showed why: the labels were borrowed from a dataset answering a different question."
       >
         <Caveats
@@ -245,11 +252,14 @@ function Group({
   step,
   title,
   lead,
+  conclusion,
   children,
 }: {
   step: number;
   title: string;
   lead: string;
+  /** What this experiment proved, in one sentence. The thing a reader came for. */
+  conclusion?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -263,6 +273,11 @@ function Group({
         </div>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{lead}</p>
       </div>
+      {conclusion && (
+        <p className="border-l-2 border-neutral-400 pl-3 text-sm font-medium dark:border-neutral-600">
+          {conclusion}
+        </p>
+      )}
       {children}
     </section>
   );

@@ -1,5 +1,6 @@
+import Link from "next/link";
+
 import { ApiError } from "@/components/api-error";
-import { Badge } from "@/components/badge";
 import { CorrelationReviewCard } from "@/components/correlation-review";
 import { fetchCorrelationReviews, load } from "@/lib/api";
 
@@ -33,14 +34,18 @@ export default async function ReviewsPage() {
       <header className="space-y-2">
         <h1 className="text-xl font-semibold">Correlation review</h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Reports that automatic correlation could not place. Each one asks a single
-          question — is this the same incident? — against the candidate exactly as it
-          stood when the question was raised.
+          Two reports can describe one outage in words that share almost nothing —{" "}
+          <em>&ldquo;invalid assertion after redirect&rdquo;</em> and{" "}
+          <em>&ldquo;stuck at the login screen&rdquo;</em>. Correlation refuses to guess on
+          those, because a false merge sends people chasing a problem that is not
+          happening. So it asks.
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Badge>review-policy-v1</Badge>
-          <Badge tone="info">northstar-correlation-labels-v1</Badge>
-        </div>
+        <p className="text-xs text-neutral-500">
+          Each decision is pinned to the exact candidate snapshot shown. If that candidate
+          changes first, the review refreshes rather than applying your answer to a
+          different grouping. Decisions are recorded against a fixed demo operator — this
+          prototype has no authentication.
+        </p>
       </header>
 
       <section className="space-y-4">
@@ -51,10 +56,21 @@ export default async function ReviewsPage() {
         {!pending.ok && <ApiError error={pending.error} />}
 
         {pending.ok && pending.data.length === 0 && (
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Nothing to review. Automatic correlation placed every report it has seen, or
-            refused it outright — both are finished answers, not a backlog.
-          </p>
+          <div className="rounded border border-dashed border-neutral-300 p-6 dark:border-neutral-700">
+            <p className="text-sm font-medium">Nothing to review</p>
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              Every report so far was either clear enough to place automatically or clearly
+              unrelated. Both are finished answers, not a backlog.
+            </p>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              To see this queue work, submit a report on the{" "}
+              <Link className="underline underline-offset-2" href="/tickets">
+                reports page
+              </Link>{" "}
+              that describes an existing incident in different words — say{" "}
+              <em>&ldquo;people sign in and then just wait on a blank screen&rdquo;</em>.
+            </p>
+          </div>
         )}
 
         {pending.ok &&
@@ -78,11 +94,14 @@ export default async function ReviewsPage() {
 
       <footer className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
         <p className="text-xs text-neutral-500">
-          Decisions export as training data with{" "}
-          <code>scripts/export_correlation_labels.py</code>. No model is retrained
-          automatically, and the export is deliberately not a random sample — reviews
-          exist only where automation declined, so the base rate here carries no
-          information about correlation in general.
+          Why the answers are kept: three attempts to recover these cases automatically
+          failed, and the last one showed why — the training labels came from a dataset
+          answering a different question. Operator decisions answer the runtime&rsquo;s own
+          question, so they are exported as training data
+          (<code>scripts/export_correlation_labels.py</code>). No model is retrained
+          automatically, and the sample is deliberately not random: reviews exist only
+          where automation declined, so the base rate carries no information about
+          correlation in general.
         </p>
       </footer>
     </div>

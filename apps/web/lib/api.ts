@@ -472,6 +472,36 @@ export async function fetchCorrelationEvaluation(
   return getJson<EvalReport>(`/evals/correlation?version=${version}`);
 }
 
+/**
+ * The candidate incidents that actually exist, as intake persisted them.
+ *
+ * Distinct from `fetchCandidates`, which re-runs the batch engine over every stored
+ * ticket and returns a fresh grouping. That recomputation is the right thing for the
+ * correlation explorer and for comparing versions, and the wrong thing for an operations
+ * dashboard: it can propose a grouping the running system never made, so the dashboard
+ * would show an incident nobody can open and a count that disagrees with every other
+ * page.
+ */
+export type RuntimeCandidate = {
+  id: string;
+  title: string;
+  status: string;
+  service_id: string | null;
+  issue_type: string | null;
+  ticket_count: number;
+  first_seen: string;
+  last_seen: string;
+  score: number;
+  confidence: "high" | "medium" | "low";
+  distinct_reporters: number | null;
+  correlation_version: string;
+  ticket_ids: string[];
+};
+
+export async function fetchRuntimeCandidates(): Promise<RuntimeCandidate[]> {
+  return getJson<RuntimeCandidate[]>("/intake/candidates");
+}
+
 export async function fetchCandidates(
   mode: CorrelationMode = "deterministic",
 ): Promise<CorrelationResult> {

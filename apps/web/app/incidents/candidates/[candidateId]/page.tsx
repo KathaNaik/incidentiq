@@ -4,9 +4,11 @@ import { Suspense } from "react";
 
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
+import { Disclosure } from "@/components/disclosure";
 import { IncidentTimeline } from "@/components/incident-timeline";
 import { InvestigationPanel } from "@/components/investigation-panel";
 import { InvestigationPending } from "@/components/investigation-pending";
+import { ProvenanceBadge } from "@/components/provenance";
 import { Section } from "@/components/section";
 import { SimilarIncidents } from "@/components/similar-incidents";
 import {
@@ -19,6 +21,7 @@ import {
   fetchLatestInvestigation,
   type CandidateIncident,
   type CorrelationMode,
+  type PairwiseScore,
   type Ticket,
 } from "@/lib/api";
 import { formatTimestamp, serviceLabel, serviceNames } from "@/lib/format";
@@ -86,8 +89,19 @@ export default async function CandidatePage({
         mode={mode}
       />
 
+      {/* The investigation first. An operator opening an incident asks "what happened and
+          what should I do", not "how was this group formed" — the grouping rationale is
+          how they audit the answer, which is a different question and a later one. */}
+      <Suspense fallback={<InvestigationSection pending />}>
+        <StoredInvestigation
+          candidateId={candidateId}
+          serviceId={candidate.service_id}
+          tickets={members}
+        />
+      </Suspense>
+
       <Section
-        step={1}
+        step={2}
         title="Correlated reports"
         subtitle={`${members.length} tickets that correlation believes describe one underlying problem.`}
       >
@@ -99,11 +113,25 @@ export default async function CandidatePage({
       </Section>
 
       <Section
-        step={2}
+        step={3}
         title="Why these were grouped"
-        subtitle="Deterministic correlation signals, with their weights. No model was involved in this decision."
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <ProvenanceBadge kind="rules" />
+            <span>
+              {candidate.supporting_signals.length} supporting signal
+              {candidate.supporting_signals.length === 1 ? "" : "s"} ·{" "}
+              {candidate.conflicting_signals.length} conflicting ·{" "}
+              {candidate.member_pairs.length} pairwise comparison
+              {candidate.member_pairs.length === 1 ? "" : "s"}
+            </span>
+          </span>
+        }
       >
-        <div className="rounded border border-neutral-300 p-4 dark:border-neutral-700">
+        <Disclosure
+          summary="Correlation signals and pairwise scores"
+          hint={`${candidate.supporting_signals.length + candidate.conflicting_signals.length} signals`}
+        >
           <ul className="space-y-1 text-sm">
             {candidate.supporting_signals.map((signal) => (
               <li key={`s-${signal.component}-${signal.detail}`}>
@@ -127,54 +155,14 @@ export default async function CandidatePage({
             )}
           </ul>
 
-          <details className="mt-3">
-            <summary className="cursor-pointer text-xs font-medium tracking-wide text-neutral-500 uppercase">
-              Pairwise scores ({candidate.member_pairs.length})
-            </summary>
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-neutral-500">
-                  <tr>
-                    <th className="py-1 pr-4 font-medium">Pair</th>
-                    <th className="py-1 pr-4 font-medium">Score</th>
-                    <th className="py-1 pr-4 font-medium">Content</th>
-                    <th className="py-1 pr-4 font-medium">Time</th>
-                    <th className="py-1 font-medium">Apart</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidate.member_pairs.map((pair) => (
-                    <tr
-                      key={`${pair.ticket_a}-${pair.ticket_b}`}
-                      className="border-t border-neutral-200 dark:border-neutral-800"
-                    >
-                      <td className="py-1 pr-4 font-mono text-xs">
-                        {pair.ticket_a} · {pair.ticket_b}
-                      </td>
-                      <td className="py-1 pr-4 tabular-nums">{pair.score}</td>
-                      <td className="py-1 pr-4 tabular-nums">{pair.content_score}</td>
-                      <td className="py-1 pr-4 tabular-nums">{pair.time_score}</td>
-                      <td className="py-1 tabular-nums">{pair.minutes_apart} min</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        </div>
+          <PairwiseTable pairs={candidate.member_pairs} />
+        </Disclosure>
       </Section>
 
       <Suspense fallback={<PrecedentPending />}>
         <Precedent candidateId={candidateId} mode={mode} />
       </Suspense>
 
-      <Suspense fallback={<InvestigationSection pending />}>
-        <StoredInvestigation
-          candidateId={candidateId}
-          serviceId={candidate.service_id}
-          tickets={members}
-        />
-      </Suspense>
     </div>
   );
 }
@@ -246,6 +234,45 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** The full pairwise matrix. Debugging depth, preserved verbatim, one level down. */
+function PairwiseTable({ pairs }: { pairs: PairwiseScore[] }) {
+  if (pairs.length === 0) return null;
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full text-sm">
+        <caption className="sr-only">
+          Pairwise correlation scores between every member of this incident
+        </caption>
+        <thead className="text-left text-xs text-neutral-500">
+          <tr>
+            <th className="py-1 pr-4 font-medium">Pair</th>
+            <th className="py-1 pr-4 font-medium">Score</th>
+            <th className="py-1 pr-4 font-medium">Content</th>
+            <th className="py-1 pr-4 font-medium">Time</th>
+            <th className="py-1 font-medium">Apart</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pairs.map((pair) => (
+            <tr
+              key={`${pair.ticket_a}-${pair.ticket_b}`}
+              className="border-t border-neutral-200 dark:border-neutral-800"
+            >
+              <td className="py-1 pr-4 font-mono text-xs">
+                {pair.ticket_a} · {pair.ticket_b}
+              </td>
+              <td className="py-1 pr-4 tabular-nums">{pair.score}</td>
+              <td className="py-1 pr-4 tabular-nums">{pair.content_score}</td>
+              <td className="py-1 pr-4 tabular-nums">{pair.time_score}</td>
+              <td className="py-1 tabular-nums">{pair.minutes_apart} min</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function TicketRow({ ticket }: { ticket: Ticket }) {
   return (
     <li className="p-3">
@@ -264,7 +291,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
           <span className="text-xs text-neutral-500">· {ticket.reported_by}</span>
         )}
       </div>
-      <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+      <p className="mt-1 line-clamp-1 text-sm text-neutral-600 dark:text-neutral-400">
         {ticket.description}
       </p>
     </li>
@@ -284,7 +311,7 @@ async function Precedent({
 
   return (
     <Section
-      step={3}
+      step={4}
       title="Historical precedent"
       subtitle="Past incidents that resembled this one. Matching is on symptoms only — a historical cause is a fact about that incident, never a finding about this one."
     >
@@ -309,7 +336,7 @@ async function Precedent({
 
 function PrecedentPending() {
   return (
-    <Section step={3} title="Historical precedent">
+    <Section step={4} title="Historical precedent">
       <div className="rounded border border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700">
         Searching the historical corpus…
       </div>
@@ -378,9 +405,17 @@ function InvestigationSection({
 }) {
   return (
     <Section
-      step={4}
+      step={1}
       title="AI investigation"
-      subtitle="Observed evidence and model hypothesis are kept visually separate. Every citation is validated against the evidence registry before it reaches this page."
+      subtitle={
+        <span className="flex flex-wrap items-center gap-2">
+          <ProvenanceBadge kind="ai" />
+          <span>
+            Every citation is validated against the evidence registry before it appears
+            here.
+          </span>
+        </span>
+      }
     >
       {pending ? <InvestigationPending /> : children}
     </Section>

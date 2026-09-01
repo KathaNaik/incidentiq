@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { Badge } from "@/components/badge";
+import { Disclosure } from "@/components/disclosure";
+import { ProvenanceBadge } from "@/components/provenance";
 import {
   approveAction,
   executeAction,
@@ -43,6 +45,32 @@ const EVENT_LABELS: Record<string, string> = {
  * Button visibility follows the action's server-side status, but it is not the control
  * — the API refuses illegal transitions regardless of what this component renders.
  */
+/** One policy predicate, with the evidence ids it was decided on. */
+function PolicyCheck({
+  reason,
+}: {
+  reason: { check: string; passed: boolean; detail: string; evidence_ids: string[] };
+}) {
+  return (
+    <li>
+      <span
+        className={
+          reason.passed
+            ? "text-green-700 dark:text-green-500"
+            : "text-amber-700 dark:text-amber-500"
+        }
+      >
+        {reason.passed ? "✓" : "✗"}
+      </span>{" "}
+      <span className="font-mono text-xs text-neutral-500">{reason.check}</span>{" "}
+      {reason.detail}
+      {reason.evidence_ids.length > 0 && (
+        <span className="text-xs text-neutral-500"> [{reason.evidence_ids.join(", ")}]</span>
+      )}
+    </li>
+  );
+}
+
 export function RemediationWorkflow({
   result: investigation,
   serviceId,
@@ -149,38 +177,37 @@ export function RemediationWorkflow({
               risk {policy.effective_risk}
             </Badge>
           </div>
-          <p className="mt-1 text-xs text-neutral-500">
-            {policy.reasons.filter((r) => r.passed).length}/{policy.reasons.length}{" "}
-            checks passed · {policy.required_approvals} human approval required.{" "}
-            <strong>This is application code, not a second AI opinion.</strong> Each
-            check is a predicate over typed records, and the risk level is assigned here
-            rather than taken from the model.
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+            <ProvenanceBadge kind="rules" />
+            <span>
+              {policy.reasons.filter((r) => r.passed).length}/{policy.reasons.length}{" "}
+              checks passed · {policy.required_approvals} human approval required
+            </span>
           </p>
-          <ul className="mt-2 space-y-1 text-sm">
-            {policy.reasons.map((reason) => (
-              <li key={reason.check}>
-                <span
-                  className={
-                    reason.passed
-                      ? "text-green-700 dark:text-green-500"
-                      : "text-amber-700 dark:text-amber-500"
-                  }
-                >
-                  {reason.passed ? "✓" : "✗"}
-                </span>{" "}
-                <span className="font-mono text-xs text-neutral-500">
-                  {reason.check}
-                </span>{" "}
-                {reason.detail}
-                {reason.evidence_ids.length > 0 && (
-                  <span className="text-xs text-neutral-500">
-                    {" "}
-                    [{reason.evidence_ids.join(", ")}]
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {policy.reasons.some((reason) => !reason.passed) && (
+            <ul className="mt-2 space-y-1 text-sm">
+              {policy.reasons
+                .filter((reason) => !reason.passed)
+                .map((reason) => (
+                  <PolicyCheck key={reason.check} reason={reason} />
+                ))}
+            </ul>
+          )}
+
+          {/* Failures are what a reader needs; a wall of passing predicates is what they
+              need only when auditing. Both are here, in that order. */}
+          <div className="mt-2">
+            <Disclosure
+              summary="All policy checks"
+              hint={`${policy.reasons.length} predicates`}
+            >
+              <ul className="space-y-1 text-sm">
+                {policy.reasons.map((reason) => (
+                  <PolicyCheck key={reason.check} reason={reason} />
+                ))}
+              </ul>
+            </Disclosure>
+          </div>
         </div>
       )}
 
@@ -229,12 +256,14 @@ export function RemediationWorkflow({
 
       {action?.execution && (
         <div className="rounded border border-green-300 p-3 dark:border-green-900">
-          <p className="text-sm font-medium">
-            {action.execution.succeeded ? "✓" : "✗"} {action.execution.summary}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <ProvenanceBadge kind="simulated" />
+            <p className="text-sm font-medium">
+              {action.execution.succeeded ? "✓" : "✗"} {action.execution.summary}
+            </p>
+          </div>
           <p className="mt-1 text-xs text-neutral-500">
-            Simulated — no infrastructure was contacted.{" "}
-            {formatTimestamp(action.execution.executed_at)}
+            No infrastructure was contacted. {formatTimestamp(action.execution.executed_at)}
           </p>
           <ul className="mt-2 space-y-0.5 text-sm text-neutral-700 dark:text-neutral-300">
             {action.execution.details.map((detail) => (
@@ -298,23 +327,41 @@ function AuditTimeline({ events }: { events: AuditEvent[] }) {
         Audit trail
       </h4>
       <p className="mt-1 text-xs text-neutral-500">
-        AI recommends → system evaluates policy → human approves → system executes.
-        Append-only; nothing here is edited or removed.
+        Append-only. {events.length} event{events.length === 1 ? "" : "s"}
+        {events.length > 3 ? " — most recent shown" : ""}.
       </p>
       <ol className="mt-2 space-y-1 text-sm">
-        {events.map((event) => (
-          <li key={event.id} className="flex flex-wrap gap-2">
-            <span className="font-mono text-xs text-neutral-500">
-              {new Date(event.occurred_at).toISOString().slice(11, 19)}
-            </span>
-            <Badge tone={event.actor_type === "human" ? "info" : "neutral"}>
-              {ACTOR_LABELS[event.actor_type] ?? event.actor_type}
-            </Badge>
-            <span>{EVENT_LABELS[event.event_type] ?? event.event_type}</span>
-            <span className="text-xs text-neutral-500">{event.actor_id}</span>
-          </li>
+        {events.slice(-3).map((event) => (
+          <AuditRow key={event.id} event={event} />
         ))}
       </ol>
+
+      {events.length > 3 && (
+        <div className="mt-2">
+          <Disclosure summary="Full audit trail" hint={`${events.length} events`}>
+            <ol className="space-y-1 text-sm">
+              {events.map((event) => (
+                <AuditRow key={event.id} event={event} />
+              ))}
+            </ol>
+          </Disclosure>
+        </div>
+      )}
     </div>
+  );
+}
+
+function AuditRow({ event }: { event: AuditEvent }) {
+  return (
+    <li className="flex flex-wrap gap-2">
+      <span className="font-mono text-xs text-neutral-500">
+        {new Date(event.occurred_at).toISOString().slice(11, 19)}
+      </span>
+      <Badge tone={event.actor_type === "human" ? "info" : "neutral"}>
+        {ACTOR_LABELS[event.actor_type] ?? event.actor_type}
+      </Badge>
+      <span>{EVENT_LABELS[event.event_type] ?? event.event_type}</span>
+      <span className="text-xs text-neutral-500">{event.actor_id}</span>
+    </li>
   );
 }

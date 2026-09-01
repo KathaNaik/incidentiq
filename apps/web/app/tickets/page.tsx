@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ApiError } from "@/components/api-error";
 import { Badge } from "@/components/badge";
+import { Disclosure } from "@/components/disclosure";
 import { TicketIntakeForm } from "@/components/ticket-intake-form";
 import {
   load,
@@ -62,9 +63,13 @@ export default async function TicketsPage() {
     <div className="space-y-8">
       <Header />
 
-      <TicketIntakeForm
-        services={services.map((service) => ({ id: service.id, name: service.name }))}
-      />
+      {/* The queue is what an operator came for; submitting is what a reviewer trying the
+          demo came for. Collapsed keeps both reachable without either dominating. */}
+      <Disclosure summary="Submit a report" hint="try the intake API">
+        <TicketIntakeForm
+          services={services.map((service) => ({ id: service.id, name: service.name }))}
+        />
+      </Disclosure>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-baseline gap-2">

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/badge";
 import { PolicyProbe } from "@/components/policy-probe";
+import { Disclosure } from "@/components/disclosure";
 import { TemporalEvidence } from "@/components/temporal-evidence";
 import { RemediationWorkflow } from "@/components/remediation-workflow";
 import type { EvidenceItem, InvestigationResult } from "@/lib/api";
@@ -43,34 +44,21 @@ export function Investigation({
   // thing, so two sections.
   const observed = evidence.filter((item) => item.kind !== "temporal");
 
+  const temporalCount = evidence.length - observed.length;
+  const cited = new Set(
+    output.hypotheses.flatMap((h) => h.supporting_evidence_ids),
+  );
+
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
-          AI investigation
-        </h2>
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          A language model was given the {evidence.length} pieces of evidence below and
-          asked what they support — {observed.length} observations plus{" "}
-          {evidence.length - observed.length} temporal relationships the application
-          computed for it. It cites evidence by id, and any citation it invented would
-          have been rejected before reaching this page.
-        </p>
-      </div>
-
-      {/* ---- observed evidence: facts, not conclusions ---- */}
-      <details className="rounded border border-neutral-300 p-4 dark:border-neutral-700">
-        <summary className="cursor-pointer text-sm font-medium">
-          Observed evidence ({observed.length})
-        </summary>
-        <ul className="mt-3 space-y-2">
-          {observed.map((item) => (
-            <EvidenceRow key={item.id} item={item} />
-          ))}
-        </ul>
-      </details>
-
-      <TemporalEvidence evidence={evidence} />
+      {/* Conclusion first, evidence after. The model's answer is what an operator opened
+          the page for; the 23 records behind it are how they check it. Both matter, in
+          that order. */}
+      <p className="text-xs text-neutral-500">
+        {observed.length} observations · {temporalCount} temporal relationships ·{" "}
+        {cited.size} citation{cited.size === 1 ? "" : "s"}, all validated against the
+        evidence registry
+      </p>
 
       {/* ---- model output: clearly a hypothesis ---- */}
       {output.abstain ? (
@@ -143,6 +131,22 @@ export function Investigation({
           {output.recommended_next_step.rationale}
         </p>
       </div>
+
+      {/* Temporal relationships stay visible rather than collapsed: the chain from a
+          deployment to the first symptom is the strongest thing this product derives, and
+          it is what makes the hypothesis checkable at a glance. */}
+      <TemporalEvidence evidence={evidence} />
+
+      <Disclosure
+        summary="Observed evidence"
+        hint={`${observed.length} records the model was given`}
+      >
+        <ul className="space-y-2">
+          {observed.map((item) => (
+            <EvidenceRow key={item.id} item={item} />
+          ))}
+        </ul>
+      </Disclosure>
 
       <RemediationWorkflow
         result={result}

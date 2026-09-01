@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/badge";
-import type { CandidateIncident, IncidentAction } from "@/lib/api";
+import type { IncidentAction, RuntimeCandidate } from "@/lib/api";
 import { formatTimestamp, serviceLabel } from "@/lib/format";
 
 type Tone = "neutral" | "info" | "warn" | "danger";
@@ -31,7 +31,7 @@ export function IncidentQueue({
   services,
   actions,
 }: {
-  candidates: CandidateIncident[];
+  candidates: RuntimeCandidate[];
   version: string;
   services: Map<string, string>;
   actions: IncidentAction[];
@@ -53,8 +53,14 @@ export function IncidentQueue({
           Incident queue
         </h2>
         <span className="text-xs text-neutral-500">
-          candidates proposed by {version} — proposals for a human to confirm, not
-          declared incidents
+          groups the system proposed from the reports it received — open one to
+          investigate it
+        </span>
+        <span
+          className="font-mono text-[11px] text-neutral-400 dark:text-neutral-600"
+          title="The correlation version that produced these groupings"
+        >
+          {version}
         </span>
       </div>
 
@@ -72,10 +78,10 @@ export function IncidentQueue({
             <thead className="border-b border-neutral-300 text-left text-xs text-neutral-500 dark:border-neutral-700">
               <tr>
                 <th className="px-3 py-2 font-medium">Service</th>
-                <th className="px-3 py-2 font-medium">Signature</th>
+                <th className="px-3 py-2 font-medium">Type</th>
                 <th className="px-3 py-2 font-medium">Reports</th>
                 <th className="px-3 py-2 font-medium">First seen</th>
-                <th className="px-3 py-2 font-medium">Correlation</th>
+                <th className="px-3 py-2 font-medium">Agreement</th>
                 <th className="px-3 py-2 font-medium">Workflow</th>
               </tr>
             </thead>
@@ -103,7 +109,8 @@ export function IncidentQueue({
                       {candidate.distinct_reporters !== null && (
                         <span className="text-xs text-neutral-500">
                           {" "}
-                          / {candidate.distinct_reporters} reporters
+                          / {candidate.distinct_reporters}{" "}
+                          {candidate.distinct_reporters === 1 ? "reporter" : "reporters"}
                         </span>
                       )}
                     </td>
@@ -122,8 +129,11 @@ export function IncidentQueue({
                       >
                         {candidate.confidence}
                       </Badge>
-                      <span className="ml-1 text-xs text-neutral-500 tabular-nums">
-                        {candidate.score}
+                      <span
+                        className="ml-1 text-xs text-neutral-500 tabular-nums"
+                        title="Mean agreement between the reports in this group, 0 to 1. Higher means they look more alike."
+                      >
+                        {candidate.score.toFixed(2)} / 1.00
                       </span>
                     </td>
                     <td className="px-3 py-2">
@@ -131,7 +141,7 @@ export function IncidentQueue({
                         <Badge tone={state.tone}>{state.label}</Badge>
                       ) : (
                         <span className="text-xs text-neutral-500">
-                          not investigated
+                          not investigated yet
                         </span>
                       )}
                     </td>

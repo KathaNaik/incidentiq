@@ -44,25 +44,36 @@ export function ApiStatus() {
     unreachable: "bg-red-500",
   }[status.kind];
 
+  // Healthy is the overwhelmingly common case and carries no decision, so it gets one
+  // line. Failure is the case worth space, and only then does this expand into an
+  // explanation somebody can act on.
+  if (status.kind !== "unreachable") {
+    return (
+      <p className="flex items-center gap-2 text-xs text-neutral-500">
+        <span className={`inline-block h-1.5 w-1.5 rounded-full ${indicator}`} />
+        {status.kind === "checking" ? "Checking API…" : `API healthy · ${status.service}`}
+      </p>
+    );
+  }
+
   return (
-    <div className="rounded border border-neutral-300 p-4 text-sm dark:border-neutral-700">
+    <div
+      className="rounded border border-red-300 p-4 text-sm dark:border-red-900"
+      role="alert"
+    >
       <div className="flex items-center gap-2 font-medium">
         <span className={`inline-block h-2 w-2 rounded-full ${indicator}`} />
-        <span>
-          {status.kind === "checking" && "Checking API…"}
-          {status.kind === "reachable" && `API reachable — ${status.service}`}
-          {status.kind === "unreachable" && "API unreachable"}
-        </span>
+        <span>API unreachable</span>
       </div>
       <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-        <code>GET {API_BASE_URL}/health</code>
-        {status.kind === "unreachable" && ` — ${status.reason}`}
+        <code>GET {API_BASE_URL}/health</code> — {status.reason}
       </p>
-      {status.kind === "unreachable" && IS_LOCAL && (
+      {IS_LOCAL && (
         <p className="mt-1 text-neutral-600 dark:text-neutral-400">
-          Start the backend with <code>uv run uvicorn app.main:app --reload --port 8001</code>{" "}
-          in <code>apps/api</code>, or run <code>vercel dev</code> from the repository root
-          to start both services together.
+          Start the backend with{" "}
+          <code>uv run uvicorn app.main:app --reload --port 8001</code> in{" "}
+          <code>apps/api</code>, or run <code>vercel dev</code> from the repository root to
+          start both services together.
         </p>
       )}
     </div>
