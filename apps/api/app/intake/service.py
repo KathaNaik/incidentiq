@@ -505,7 +505,7 @@ class TicketIntake:
 
         row = CandidateIncidentRow(
             id=group.id,
-            correlation_version=CORRELATION_VERSION,
+            correlation_version=self._version(),
             status="active",
             title=_title(group),
             service_id=group.service_id,
@@ -525,13 +525,28 @@ class TicketIntake:
         session.flush()
         return row, True
 
-    def _version(self, result) -> str:
-        """The version stamped on a v2 decision.
+    @property
+    def _live_version(self) -> str:
+        """The deterministic version this intake actually runs."""
+        return (
+            CORRELATION_VERSION_V2
+            if self._reconciliation == "v2"
+            else CORRELATION_VERSION
+        )
+
+    def _version(self, result=None) -> str:
+        """The version to stamp on a decision or a candidate row.
 
         Only the deterministic version is renamed. A hybrid run keeps its own version
         string — reconciliation is orthogonal to which signals produced the cluster, and
         rewriting the hybrid version here would make M16's artifacts unreadable.
+
+        Called with no result where none exists — the candidate row, and the failure path
+        — because a row stamped with a version this build does not run is worse than no
+        version at all. It is what the dashboard shows.
         """
+        if result is None:
+            return self._live_version
         if self._reconciliation == "v2" and result.version == CORRELATION_VERSION:
             return CORRELATION_VERSION_V2
         return result.version

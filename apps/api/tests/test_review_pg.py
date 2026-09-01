@@ -332,3 +332,86 @@ def test_confirming_does_not_widen_the_candidate(reviews) -> None:
             select(TicketRow.id).where(TicketRow.candidate_id == candidate_id)
         ).all()
         assert len(members) == 3
+
+
+# --- the authored demo, end to end -------------------------------------------------------
+
+
+@pytest.mark.pg
+def test_seeding_asks_about_the_reports_correlation_could_not_place(clean) -> None:
+    """A fresh deployment should open with the questions, not an empty queue.
+
+    The authored SSO incident is five reports a human calls one outage, worded so they
+    barely overlap: "invalid assertion", "via Okta", "login loop", "401 after re-auth",
+    "synthetic check". Deterministic correlation groups two of them and holds back on the
+    rest, which is correct — it prefers a missed link to a false merge.
+
+    The other three are the product's whole argument for operator review, and before this
+    they were invisible: reviews were only ever raised from the runtime intake path, so
+    the queue stayed empty until somebody hand-typed a paraphrase.
+    """
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    seeded = subprocess.run(
+        ["uv", "run", "python", "scripts/seed_tickets.py"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert seeded.returncode == 0, seeded.stderr
+
+    reviews = ReviewService()
+    pending = reviews.pending()
+    asked_about = {review.ticket_snapshot["id"] for review in pending}
+
+    # The three members of the authored incident that correlation did not group.
+    assert {"TKT-4102", "TKT-4104", "TKT-4105"} <= asked_about
+
+    # Every one is asked against the incident it actually belongs to.
+    for review in pending:
+        if review.ticket_snapshot["id"] in {"TKT-4102", "TKT-4104", "TKT-4105"}:
+            assert review.candidate_id == "cand-TKT-4101"
+
+    # Confirming them reconstructs the incident a human declared by hand.
+    #
+    # Re-reading the queue between decisions, the way an operator does. Each confirm
+    # changes the candidate and so invalidates the other open questions; the queue
+    # re-asks them against the new state, and the refreshed review is the one to answer.
+    targets = {"TKT-4102", "TKT-4104", "TKT-4105"}
+    session = sessionmaker_for(get_engine())
+
+    def still_unplaced() -> set[str]:
+        with session() as s:
+            return {
+                row.id
+                for row in s.scalars(
+                    select(TicketRow).where(TicketRow.id.in_(targets))
+                ).all()
+                if row.candidate_id is None
+            }
+
+    # Bounded, and does not stop on an empty read: a refreshed question is created while
+    # the previous read is being served, so it first appears on the read after that.
+    for _ in range(len(targets) * 4):
+        if not still_unplaced():
+            break
+        open_now = [
+            review
+            for review in reviews.pending()
+            if review.ticket_snapshot["id"] in targets
+        ]
+        if open_now:
+            reviews.confirm(open_now[0].id, reason="same_symptoms")
+
+    assert not still_unplaced(), f"never got to answer: {still_unplaced()}"
+
+    session = sessionmaker_for(get_engine())
+    with session() as s:
+        members = set(
+            s.scalars(
+                select(TicketRow.id).where(TicketRow.candidate_id == "cand-TKT-4101")
+            ).all()
+        )
+    assert {"TKT-4101", "TKT-4102", "TKT-4103", "TKT-4104", "TKT-4105"} <= members

@@ -524,3 +524,20 @@ def test_the_live_default_is_still_deterministic() -> None:
 
     assert LIVE_CORRELATION_MODE == "deterministic"
     assert Settings().live_correlation_strategy == "deterministic"
+
+
+def test_a_candidate_records_the_version_that_created_it(intake) -> None:
+    """The dashboard shows this string, so it must name the strategy that actually ran.
+
+    It was hardcoded to the v1 constant while every decision recorded v2, which made the
+    operations dashboard claim the system was running a version it was not.
+    """
+    intake.submit(request("EXT-V1", *AUTH, minutes=0))
+    result = intake.submit(request("EXT-V2", *AUTH_DUP, minutes=6))
+
+    repository = SqlRepository(load_dataset(get_settings().fixtures_dir))
+    candidates = [c for c in repository.candidates() if c.id == result.correlation.candidate_id]
+
+    assert candidates, "the second compatible report should have formed a candidate"
+    assert candidates[0].correlation_version == CORRELATION_VERSION_V2
+    assert candidates[0].correlation_version == result.correlation.correlation_version

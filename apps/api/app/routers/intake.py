@@ -156,6 +156,7 @@ def _candidate_view(repository, row) -> dict:
         "last_seen": row.last_seen.isoformat(),
         "score": row.score,
         "confidence": row.confidence,
+        "distinct_reporters": row.distinct_reporters,
         "correlation_version": row.correlation_version,
         "ticket_ids": [t.id for t in repository.candidate_tickets(row.id)],
     }

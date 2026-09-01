@@ -288,7 +288,17 @@ class ReviewService:
     # --- reads ---------------------------------------------------------------------------
 
     def pending(self) -> list[CorrelationReview]:
-        return self._list(ReviewStatus.PENDING)
+        """Reviews an operator can actually answer right now.
+
+        Staleness is evaluated during the read, so some rows selected as pending turn out
+        not to be. Returning those would put questions in the queue that raise a conflict
+        the moment anybody answers them — and show them in the UI under "Waiting".
+        """
+        return [
+            review
+            for review in self._list(ReviewStatus.PENDING)
+            if review.status is ReviewStatus.PENDING
+        ]
 
     def all_reviews(self) -> list[CorrelationReview]:
         return self._list(None)
@@ -311,19 +321,62 @@ class ReviewService:
         return self._refresh(row) if row is not None else None
 
     def _refresh(self, row: CorrelationReviewRow) -> CorrelationReview:
-        """Marks a pending review stale when its candidate no longer matches."""
+        """Marks a pending review stale when its candidate no longer matches, and asks
+        the question again against the state that replaced it.
+
+        Staleness on its own is only half an answer. Three reports of one outage produce
+        three reviews against the same candidate; confirming the first changes the
+        membership, which correctly invalidates the other two — and without a refresh the
+        operator is left holding two dead items and two reports that never get placed. The
+        queue dead-ends exactly when it is working.
+
+        The refreshed review is a genuinely new question: new snapshot, new features, new
+        fingerprint, against the candidate as it now stands. Nothing is carried over from
+        the stale one, because the whole point of marking it stale was that its inputs no
+        longer describe reality.
+        """
         if row.status != ReviewStatus.PENDING.value:
             return _to_domain(row)
         if self._current_fingerprint(row.candidate_id) == row.candidate_fingerprint:
             return _to_domain(row)
 
+        stale = _to_domain(row)
         with self._session.begin() as session:
             fresh = session.get(CorrelationReviewRow, row.id, with_for_update=True)
             if fresh is not None and fresh.status == ReviewStatus.PENDING.value:
                 fresh.status = ReviewStatus.STALE.value
                 session.flush()
-                return _to_domain(fresh)
-        return _to_domain(row)
+                stale = _to_domain(fresh)
+
+        self._reask(stale)
+        return stale
+
+    def _reask(self, stale: CorrelationReview) -> None:
+        """Re-raises a stale review against current state, if it still applies.
+
+        Deliberately quiet about failure. A refreshed question is a convenience; losing it
+        must never take the operator's original decision or the ticket with it. If the
+        ticket has since been placed, or the candidate closed, the gate simply declines
+        and nothing is raised.
+        """
+        try:
+            with self._session() as session:
+                ticket = session.get(TicketRow, stale.ticket_id)
+                if ticket is None or ticket.candidate_id is not None:
+                    return  # already placed; there is nothing left to ask
+                window = [
+                    _correlation_ticket(row)
+                    for row in session.scalars(
+                        select(TicketRow).where(
+                            TicketRow.created_at <= ticket.created_at
+                        ).order_by(TicketRow.created_at, TicketRow.id)
+                    ).all()
+                ]
+            self.create_for_intake(
+                stale.ticket_id, window, candidate_ids=[stale.candidate_id]
+            )
+        except Exception:  # noqa: BLE001 - a refreshed question is never worth an error
+            return
 
     def _current_fingerprint(self, candidate_id: str) -> str | None:
         with self._session() as session:

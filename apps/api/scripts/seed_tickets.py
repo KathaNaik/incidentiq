@@ -152,6 +152,37 @@ def main() -> int:
                 if ticket_id in by_id:
                     by_id[ticket_id].candidate_id = group.id
 
+        # Counts come from actual membership, not from the seeded grouping.
+        #
+        # Seeding only re-correlates authored reports, but a candidate on a live database
+        # can also hold reports submitted through the API — including ones an operator
+        # attached by hand. Taking the count from the group would quietly undercount those
+        # and leave the dashboard disagreeing with the membership underneath it.
+        session.flush()
+        for candidate in session.scalars(select(CandidateIncidentRow)).all():
+            members = session.scalars(
+                select(TicketRow).where(TicketRow.candidate_id == candidate.id)
+            ).all()
+            if not members:
+                continue
+            candidate.ticket_count = len(members)
+            candidate.first_seen = min(m.created_at for m in members)
+            candidate.last_seen = max(m.created_at for m in members)
+
+    # Ask about the reports correlation could not place on its own.
+    #
+    # Without this, the review queue on a fresh deployment is empty and stays empty until
+    # somebody hand-types a paraphrase — which hides the product's actual answer to its
+    # own hardest case. The authored SSO incident is exactly that case: five reports a
+    # human calls one outage, described in vocabulary that barely overlaps, of which
+    # deterministic correlation groups two. The other three are plausible-but-undecided,
+    # which is what review exists for.
+    #
+    # No new eligibility rule is introduced. This calls the same ReviewService the runtime
+    # intake path calls, so the gate that decides "worth an operator's time" is the one
+    # that was measured, and hard conflicts are still refused silently.
+    reviews_opened = _open_reviews_for_seeded()
+
     with session_scope() as session:
         total = len(session.scalars(select(TicketRow)).all())
         candidates = session.scalars(select(CandidateIncidentRow)).all()
@@ -164,6 +195,7 @@ def main() -> int:
     print(f"seeded in {time.perf_counter() - started:.2f}s")
     print(f"  tickets: {total} total, {uncorrelated} uncorrelated")
     print(f"  candidates: {len(candidates)}")
+    print(f"  reviews awaiting an operator: {reviews_opened}")
     for candidate in sorted(candidates, key=lambda c: c.first_seen):
         print(
             f"    {candidate.id}  {candidate.title}  "
@@ -171,6 +203,57 @@ def main() -> int:
         )
     get_engine().dispose()
     return 0
+
+
+def _open_reviews_for_seeded() -> int:
+    """Raises a review for each seeded report that plausibly belongs to a candidate.
+
+    Idempotent like the rest of seeding: a review is keyed by ticket, candidate and the
+    candidate's membership fingerprint, so re-running finds the existing one rather than
+    asking the same question twice.
+
+    Failures here are reported, not raised. Seeding operational input must not fail
+    because a supplementary question could not be recorded.
+    """
+    from app.review import ReviewService
+    from app.review.service import ReviewError
+
+    service = ReviewService()
+    opened = 0
+
+    with session_scope() as session:
+        window = [
+            CorrelationTicket(
+                id=row.id,
+                title=row.title,
+                description=row.description,
+                created_at=row.created_at,
+                service_id=row.service_id,
+                reported_by=row.reported_by,
+            )
+            for row in session.scalars(
+                select(TicketRow)
+                .where(TicketRow.source == TicketSource.NORTHSTAR.value)
+                .order_by(TicketRow.created_at, TicketRow.id)
+            ).all()
+        ]
+        unplaced = [
+            row.id
+            for row in session.scalars(
+                select(TicketRow).where(
+                    TicketRow.source == TicketSource.NORTHSTAR.value,
+                    TicketRow.candidate_id.is_(None),
+                )
+            ).all()
+        ]
+
+    for ticket_id in unplaced:
+        try:
+            opened += len(service.create_for_intake(ticket_id, window))
+        except ReviewError as error:  # pragma: no cover - reported, never fatal
+            print(f"  note: could not raise a review for {ticket_id}: {error}")
+
+    return opened
 
 
 def _value(prediction) -> str | None:
