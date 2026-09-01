@@ -234,18 +234,44 @@ Port 8001 rather than the usual 8000, which is often already taken by another lo
 service. If 8001 is busy too, pass a different `--port` and point the frontend at it via
 `NEXT_PUBLIC_API_BASE_URL`.
 
-## Run the frontend
+## Run the whole stack
+
+One command, both services, the same routing as production:
 
 ```bash
-cd apps/web
-npm install
-cp .env.example .env.local   # only needed if the API is not on http://localhost:8001
-npm run dev
+vercel dev
 ```
 
-The app serves on <http://localhost:3000>. The Dashboard calls the backend's `/health`
-from the browser and reports whether the API is reachable — with the backend stopped it
-shows an explicit "API unreachable" state rather than pretending.
+This serves the Next.js app and the FastAPI container together on one origin, so the
+browser calls `/api/*` locally exactly as it does in production — the same routing, the
+same relative URLs, no CORS. Everything is on <http://localhost:3000>.
+
+It needs a running Docker daemon, because the backend is a container service. Without one
+`vercel dev` starts the web service and then reports
+`No dev server available for service "api"`; use the two-terminal path below instead.
+
+### Running the two services separately
+
+Useful when you want a debugger on the API, uvicorn's reload, or the backend without
+Docker. It is a debugging path, not the primary one — the services are on different
+origins, so it exercises CORS rather than the same-origin routing production uses.
+
+```bash
+# terminal 1
+cd apps/api && uv run uvicorn app.main:app --reload --port 8001
+
+# terminal 2
+cd apps/web && npm install && npm run dev
+```
+
+The web app defaults to `http://localhost:8001` in development, so no configuration is
+needed. `NEXT_PUBLIC_API_BASE_URL` overrides it — that is also how a local *production*
+build (`npm run build && npm start`) is pointed back at a local API, since a production
+bundle otherwise uses the deployed same-origin path.
+
+The Dashboard calls the backend's `/health` from the browser and reports whether the API
+is reachable — with the backend stopped it shows an explicit "API unreachable" state
+rather than pretending.
 
 | Page | What it is for |
 |---|---|
@@ -329,13 +355,29 @@ database's connection limit.
 
 ### Same-origin routing
 
-The browser calls `/api/*` and the platform rewrites it to the backend service, so
-production needs no CORS and preview deployments route correctly with no per-environment
-configuration. The API mounts itself under `/api` (`INCIDENTIQ_API_PATH_PREFIX`) because
-the platform passes the original path through; mounting is used rather than a platform
-path-rewrite because a mount is deterministic and testable locally. Server components need
-an absolute origin, so they use `VERCEL_URL`; `NEXT_PUBLIC_API_BASE_URL` overrides
-everything and is how a local production build is pointed back at a local API.
+Two top-level rewrites, in order: `/api/:path*` goes to the API service, everything else
+to the web service. Routing into a service is final, so the frontend catch-all cannot
+capture an API request. The API mounts itself under `/api`
+(`INCIDENTIQ_API_PATH_PREFIX`) because the platform passes the original path through;
+a mount is used rather than a platform path-rewrite because it is deterministic and
+testable locally.
+
+The browser therefore uses a relative `/api` — no hostname, no CORS, and previews route
+correctly with no per-environment configuration.
+
+Server components have no origin to resolve a relative URL against, so they use a
+**service binding**: `vercel.json` declares one from `web` to `api`, and the platform
+injects the API service's internal URL as `INCIDENTIQ_API_SERVICE_URL`. The value is
+deployment-aware, so a preview's frontend reaches that preview's backend, and the call
+skips the public request pipeline.
+
+**`VERCEL_URL` is deliberately not used**, and this was a real bug rather than a
+preference. It names the generated per-deployment hostname, which Deployment Protection
+guards with a 302 to an SSO page. Server-side fetches to it returned `<!DOCTYPE html>`,
+so every dashboard query failed with `Unexpected token '<', "<!DOCTYPE "... is not valid
+JSON` while browser calls through the stable alias kept working — and the hostname leaked
+into rendered markup. Nothing renders a generated deployment hostname now: the value the
+UI displays is always the browser-facing one.
 
 ### Public demo safety
 

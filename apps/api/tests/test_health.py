@@ -92,3 +92,25 @@ def test_an_unhandled_error_does_not_leak_its_message() -> None:
     assert "hunter2" not in response.text
     assert "postgresql" not in response.text
     assert body["reference"]
+
+
+def test_the_api_can_be_mounted_under_a_path_prefix() -> None:
+    """The deployed shape: the platform passes `/api/...` through unchanged.
+
+    Every route has to be reachable under the prefix, and the application must be
+    otherwise identical — this is a mount, not a second set of routes.
+    """
+    client = TestClient(create_app(Settings(api_path_prefix="/api")))
+
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/api/health").json()["service"] == "incidentiq-api"
+    # Unprefixed paths must not answer, or the two shapes would disagree about what the
+    # API's surface is.
+    assert client.get("/health").status_code == 404
+
+
+def test_no_prefix_is_the_local_shape() -> None:
+    client = TestClient(create_app(Settings()))
+
+    assert client.get("/health").status_code == 200
+    assert client.get("/api/health").status_code == 404

@@ -7,36 +7,63 @@
 /**
  * Where the API lives, which is not one answer.
  *
- * In production the web app and the API are two services in one Vercel deployment behind
- * a single origin: the platform rewrites `/api/*` to the backend, so the browser can use
- * a relative URL and never needs to know the backend's hostname. That is what keeps
- * preview deployments working without per-environment configuration, and why production
- * needs no CORS at all.
+ * In production the web app and the API are two services in one deployment behind a
+ * single origin. The browser therefore uses a relative `/api`, which the platform routes
+ * to the backend — no hostname, no CORS, and preview deployments work with no
+ * per-environment configuration.
  *
- * A server component has no origin to resolve a relative URL against — it is rendering
- * inside the deployment, not in a page — so it needs an absolute one. `VERCEL_URL` is the
- * deployment's own hostname and is not exposed to the browser.
+ * A server component has no origin to resolve a relative URL against, so it needs an
+ * absolute one. It uses the **service binding**: the platform injects the API service's
+ * internal URL, the value is deployment-aware, and the call skips the public request
+ * pipeline entirely.
  *
- * `NEXT_PUBLIC_API_BASE_URL` overrides everything, which is how a local production build
- * (`npm run build && npm start`) is pointed back at a local FastAPI.
+ * `VERCEL_URL` is deliberately not used. It names the generated per-deployment hostname,
+ * which Deployment Protection guards with a 302 to an SSO page — so a server-side fetch
+ * to it returns `<!DOCTYPE html>` and every JSON parse fails with "Unexpected token '<'".
+ * It also leaks that hostname into rendered markup.
+ *
+ * Resolved per call rather than once at module load, because a binding resolves at
+ * request time and is absent during the build.
  */
-function resolveApiBaseUrl(): string {
+const LOCAL_API = "http://localhost:8001";
+
+function serverApiBase(): string {
   const explicit = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (explicit) return explicit;
 
-  if (typeof window !== "undefined") {
-    // NODE_ENV is inlined at build time, so `next dev` keeps talking to a local API
-    // while a deployed bundle uses the same origin it was served from.
-    return process.env.NODE_ENV === "production" ? "/api" : "http://localhost:8001";
-  }
+  // Injected by the platform from the binding in vercel.json. Internal, deployment-aware,
+  // and not subject to Deployment Protection.
+  const binding = process.env.INCIDENTIQ_API_SERVICE_URL;
+  if (binding) return `${binding.replace(/\/$/, "")}/api`;
 
-  const deployment = process.env.VERCEL_URL;
-  if (deployment) return `https://${deployment}/api`;
+  // The stable production domain, not the per-deployment hostname. Used when a binding
+  // is unavailable, which is the case during a build.
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (production) return `https://${production}/api`;
 
-  return "http://localhost:8001";
+  return LOCAL_API;
 }
 
-export const API_BASE_URL = resolveApiBaseUrl();
+function browserApiBase(): string {
+  const explicit = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (explicit) return explicit;
+  // NODE_ENV is inlined at build time, so `next dev` keeps talking to a local API while a
+  // deployed bundle uses the origin it was served from.
+  return process.env.NODE_ENV === "production" ? "/api" : LOCAL_API;
+}
+
+/** The base every request is built from. */
+export function apiBaseUrl(): string {
+  return typeof window === "undefined" ? serverApiBase() : browserApiBase();
+}
+
+/**
+ * What the UI is allowed to *show* a visitor.
+ *
+ * Always the browser-facing value, even when rendered on the server: this ends up in
+ * markup, and an internal service URL is not something to publish.
+ */
+export const API_BASE_URL = browserApiBase();
 
 export type TicketStatus = "open" | "in_progress" | "resolved";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
@@ -382,7 +409,7 @@ export type EvalReport = {
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
     signal,
     cache: "no-store",
   });
@@ -507,7 +534,7 @@ export async function fetchLatestInvestigation(
   incidentId: string,
 ): Promise<LatestInvestigation | null> {
   const response = await fetch(
-    `${API_BASE_URL}/incidents/${encodeURIComponent(incidentId)}/investigations/latest`,
+    `${apiBaseUrl()}/incidents/${encodeURIComponent(incidentId)}/investigations/latest`,
     { cache: "no-store" },
   );
   if (response.status === 204) return null;
@@ -537,7 +564,7 @@ export async function runInvestigation(
   mode: CorrelationMode = "deterministic",
 ): Promise<InvestigationRunDetail> {
   const response = await fetch(
-    `${API_BASE_URL}/incidents/${encodeURIComponent(incidentId)}/investigations?mode=${mode}`,
+    `${apiBaseUrl()}/incidents/${encodeURIComponent(incidentId)}/investigations?mode=${mode}`,
     { method: "POST", cache: "no-store" },
   );
   const body = await response.json().catch(() => null);
@@ -549,7 +576,7 @@ export async function runInvestigation(
 }
 
 async function postJson<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
     method: "POST",
     cache: "no-store",
     ...(body === undefined
@@ -625,12 +652,17 @@ export async function load<T>(loader: () => Promise<T>): Promise<Loaded<T>> {
 }
 
 /**
- * Turns a thrown value into something an operator can act on.
+ * Turns a thrown value into something the reader can act on.
  *
- * A connection refused by a stopped backend arrives as the bare string "fetch failed",
- * which tells the reader nothing about what to do. Everything else is passed through
- * unchanged — the API's own error details are more specific than anything invented here,
- * and a stack trace is never surfaced either way.
+ * What "actionable" means differs by environment, which is why this branches. Locally,
+ * "fetch failed" almost always means the developer has not started the backend, and
+ * saying so saves them a diagnosis. In production the backend is a scale-to-zero service
+ * nobody starts by hand: naming a URL there exposes infrastructure, and telling a visitor
+ * it is "probably not running" is both unhelpful and usually wrong.
+ *
+ * An HTML body is called out specifically. It is what a request that landed somewhere
+ * other than the API looks like, and "Unexpected token '<'" describes the JSON parser's
+ * disappointment rather than the routing mistake that caused it.
  */
 function describeFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -638,11 +670,25 @@ function describeFailure(error: unknown): string {
     error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
   const network =
     /fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|network|socket hang up/i;
+  const html = /Unexpected token '<'|<!DOCTYPE/i;
+
+  const isLocal = process.env.NODE_ENV !== "production";
+
+  if (html.test(message)) {
+    return isLocal
+      ? `A request returned HTML instead of JSON. It reached something other than the API at ${API_BASE_URL}.`
+      : "Unable to load application data. Please retry.";
+  }
 
   if (network.test(message) || network.test(cause)) {
-    return `The API at ${API_BASE_URL} did not respond. It is probably not running.`;
+    return isLocal
+      ? `The API at ${API_BASE_URL} did not respond. Start it with \`uv run uvicorn app.main:app --reload --port 8001\` in apps/api, or run \`vercel dev\` from the repository root.`
+      : "Unable to load application data. Please retry.";
   }
-  return message || "Unknown error";
+
+  return isLocal
+    ? message || "Unknown error"
+    : "Unable to load application data. Please retry.";
 }
 
 export type PolicyReplayVersion = {
@@ -813,7 +859,7 @@ export async function fetchRuntimeTicket(id: string): Promise<RuntimeTicketView>
 export async function submitTicket(
   input: CreateTicketInput,
 ): Promise<{ result: TicketIntakeResult; replayed: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/tickets`, {
+  const response = await fetch(`${apiBaseUrl()}/tickets`, {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },

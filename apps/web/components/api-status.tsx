@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 
 import { API_BASE_URL, fetchHealth } from "@/lib/api";
 
+// The backend is a scale-to-zero service in production: nobody starts it, and telling a
+// visitor to run uvicorn would be advice they cannot act on and that misdescribes the
+// deployment. The instruction belongs only where it is true.
+const IS_LOCAL = process.env.NODE_ENV !== "production";
+
 type Status =
   | { kind: "checking" }
   | { kind: "reachable"; service: string }
@@ -53,10 +58,11 @@ export function ApiStatus() {
         <code>GET {API_BASE_URL}/health</code>
         {status.kind === "unreachable" && ` — ${status.reason}`}
       </p>
-      {status.kind === "unreachable" && (
+      {status.kind === "unreachable" && IS_LOCAL && (
         <p className="mt-1 text-neutral-600 dark:text-neutral-400">
           Start the backend with <code>uv run uvicorn app.main:app --reload --port 8001</code>{" "}
-          in <code>apps/api</code>.
+          in <code>apps/api</code>, or run <code>vercel dev</code> from the repository root
+          to start both services together.
         </p>
       )}
     </div>
