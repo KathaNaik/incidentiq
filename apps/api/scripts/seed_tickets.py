@@ -14,6 +14,7 @@ Provenance is preserved: these rows carry `source = northstar-authored`, so an a
 demo fixture is never mistaken for something an operator submitted through the API.
 """
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -27,7 +28,12 @@ from app.config import get_settings  # noqa: E402
 from app.correlation import CorrelationTicket, correlate  # noqa: E402
 from app.correlation.rules import CORRELATION_VERSION  # noqa: E402
 from app.db.engine import get_engine, session_scope  # noqa: E402
-from app.db.models import CandidateIncidentRow, CorrelationDecisionRow, TicketRow  # noqa: E402
+from app.db.models import (
+    CandidateIncidentRow,
+    CorrelationDecisionRow,
+    CorrelationReviewRow,
+    TicketRow,
+)  # noqa: E402
 from app.fixtures import load_dataset  # noqa: E402
 from app.intake.models import TicketSource  # noqa: E402
 from app.intake.service import _title  # noqa: E402
@@ -36,9 +42,20 @@ from app.triage.rules import TRIAGE_VERSION  # noqa: E402
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would be added and what would be preserved, then exit",
+    )
+    args = parser.parse_args()
+
     settings = get_settings()
     started = time.perf_counter()
     dataset = load_dataset(settings.fixtures_dir)
+
+    if args.dry_run:
+        return _dry_run(dataset)
 
     rows = []
     for ticket in dataset.tickets:
@@ -85,6 +102,12 @@ def main() -> int:
 
     # Candidates are rebuilt from the seeded tickets rather than merged into whatever
     # exists, so seeding twice cannot leave a candidate holding stale membership.
+    #
+    # With one exception, and it is the important one: a report an **operator** attached
+    # through review keeps its membership. Re-deriving it would silently discard a human
+    # decision, which is precisely what the seed contract forbids — and it began to matter
+    # the moment seeding started raising reviews about authored reports, because those
+    # reports are seeded ones and would be reset by the sweep below.
     with session_scope() as session:
         seeded_ids = [row["id"] for row in rows]
         session.execute(
@@ -92,10 +115,18 @@ def main() -> int:
                 CorrelationDecisionRow.ticket_id.in_(seeded_ids)
             )
         )
+        operator_placed = set(
+            session.scalars(
+                select(CorrelationReviewRow.ticket_id).where(
+                    CorrelationReviewRow.status == "confirmed"
+                )
+            ).all()
+        )
         for ticket in session.scalars(
             select(TicketRow).where(TicketRow.id.in_(seeded_ids))
         ):
-            ticket.candidate_id = None
+            if ticket.id not in operator_placed:
+                ticket.candidate_id = None
         session.flush()
         # Remove candidates left with no members at all.
         orphans = session.scalars(
@@ -201,6 +232,68 @@ def main() -> int:
             f"    {candidate.id}  {candidate.title}  "
             f"{candidate.ticket_count} tickets  {candidate.confidence}"
         )
+    get_engine().dispose()
+    return 0
+
+
+def _dry_run(dataset) -> int:
+    """What an additive seed would change, without changing anything.
+
+    Printed before a production seed so the operator sees the blast radius first. Reads
+    only; the counts of preserved runtime state are the point — an additive seed that
+    quietly dropped an operator's confirmed membership would be a much worse failure than
+    one that refused to run.
+    """
+    from app.db.models import (
+        ActionRow,
+        CandidateIncidentRow,
+        CorrelationDecisionRow,
+        CorrelationReviewRow,
+        InvestigationRunRow,
+    )
+
+    authored = {ticket.id for ticket in dataset.tickets}
+
+    with session_scope() as session:
+        present = {
+            row.id
+            for row in session.scalars(
+                select(TicketRow).where(TicketRow.id.in_(authored))
+            ).all()
+        }
+        runtime = session.scalars(
+            select(TicketRow).where(TicketRow.source != TicketSource.NORTHSTAR.value)
+        ).all()
+        confirmed = session.scalars(
+            select(CorrelationReviewRow).where(
+                CorrelationReviewRow.status == "confirmed"
+            )
+        ).all()
+        counts = {
+            "reviews": len(session.scalars(select(CorrelationReviewRow)).all()),
+            "correlation decisions": len(
+                session.scalars(select(CorrelationDecisionRow)).all()
+            ),
+            "investigation runs": len(session.scalars(select(InvestigationRunRow)).all()),
+            "actions": len(session.scalars(select(ActionRow)).all()),
+            "candidates": len(session.scalars(select(CandidateIncidentRow)).all()),
+        }
+
+    print("dry run — nothing was written\n")
+    print("would add")
+    print(f"  {len(authored - present):>4} authored tickets")
+    print(f"  {len(dataset.services):>4} services (upserted, unchanged if present)")
+    print(f"  {len(dataset.incidents):>4} incidents and {len(dataset.incident_tickets)} "
+          "declared links are served from fixtures, not written")
+    print("\nwould preserve")
+    print(f"  {len(runtime):>4} runtime/API-submitted tickets")
+    print(f"  {len(confirmed):>4} operator-confirmed review decisions")
+    for label, value in counts.items():
+        print(f"  {value:>4} {label}")
+    print(
+        "\nSeeding is additive: authored records are upserted by stable id, and candidate "
+        "membership is never reconstructed from the fixture list."
+    )
     get_engine().dispose()
     return 0
 

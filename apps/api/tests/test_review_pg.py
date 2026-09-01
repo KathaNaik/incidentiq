@@ -415,3 +415,52 @@ def test_seeding_asks_about_the_reports_correlation_could_not_place(clean) -> No
             ).all()
         )
     assert {"TKT-4101", "TKT-4102", "TKT-4103", "TKT-4104", "TKT-4105"} <= members
+
+
+@pytest.mark.pg
+def test_reseeding_preserves_an_operator_confirmed_membership(clean) -> None:
+    """A human decision must survive the seed that re-derives everything around it.
+
+    Seeding resets authored tickets' membership and re-correlates, which is correct for
+    records the engine placed. It was wrong for records an *operator* placed — and it
+    began to matter the moment seeding started raising reviews about authored reports,
+    because those reports are seeded ones and the sweep reset them. Confirmed decisions
+    were silently discarded on the next seed.
+    """
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+
+    def seed() -> None:
+        done = subprocess.run(
+            ["uv", "run", "python", "scripts/seed_tickets.py"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
+        assert done.returncode == 0, done.stderr
+
+    seed()
+    reviews = ReviewService()
+    pending = reviews.pending()
+    assert pending, "seeding should raise reviews for reports it could not place"
+
+    decision = reviews.confirm(pending[0].id, reason="same_symptoms")
+    assert decision.attached is True
+    placed, candidate = pending[0].ticket_id, decision.candidate["id"]
+
+    seed()  # the operation that used to destroy it
+
+    session = sessionmaker_for(get_engine())
+    with session() as s:
+        assert s.get(TicketRow, placed).candidate_id == candidate
+
+        # And the count still reflects reality rather than the fixture's declaration.
+        row = s.get(CandidateIncidentRow, candidate)
+        actual = len(
+            s.scalars(
+                select(TicketRow.id).where(TicketRow.candidate_id == candidate)
+            ).all()
+        )
+        assert row.ticket_count == actual
