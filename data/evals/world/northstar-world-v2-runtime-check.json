@@ -1,0 +1,166 @@
+{
+  "artifact": "northstar-world-v2-runtime-check",
+  "kind": "expanded authored-world regression",
+  "not_a_benchmark": "Authored and scored by the same author over a world designed before it was run. Useful for detecting change; not evidence of generalisation, and not a replacement for any historical eval.",
+  "world": {
+    "services": 8,
+    "tickets": 68,
+    "declared_incidents": 10,
+    "declared_incident_members": 41,
+    "isolated_reports": 14,
+    "boundary_reports": 10
+  },
+  "grouping": {
+    "candidates_persisted": 3,
+    "candidates_from_batch_engine": 3,
+    "tickets_in_a_candidate": 6,
+    "tickets_standalone": 62
+  },
+  "per_incident": [
+    {
+      "incident": "INC-1042",
+      "declared_members": 5,
+      "grouped_into_one_candidate": 2,
+      "candidate": "cand-TKT-4101",
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1043",
+      "declared_members": 3,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1044",
+      "declared_members": 5,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1045",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1046",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1047",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1048",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1049",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 0,
+      "candidate": null,
+      "unrelated_reports_in_that_candidate": []
+    },
+    {
+      "incident": "INC-1050",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 1,
+      "candidate": "cand-TKT-4262",
+      "unrelated_reports_in_that_candidate": [
+        "TKT-4409"
+      ]
+    },
+    {
+      "incident": "INC-1051",
+      "declared_members": 4,
+      "grouped_into_one_candidate": 2,
+      "candidate": "cand-TKT-4272",
+      "unrelated_reports_in_that_candidate": []
+    }
+  ],
+  "false_attachments_of_isolated_traffic": [],
+  "boundary_cases": [
+    {
+      "ticket": "TKT-4401",
+      "frozen_truth": "SAME",
+      "intended_incident": "INC-1044",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4402",
+      "frozen_truth": "DIFFERENT",
+      "intended_incident": "INC-1044",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4403",
+      "frozen_truth": "SAME",
+      "intended_incident": "INC-1045",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4404",
+      "frozen_truth": "AMBIGUOUS",
+      "intended_incident": null,
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4405",
+      "frozen_truth": "SAME",
+      "intended_incident": "INC-1047",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4406",
+      "frozen_truth": "DIFFERENT",
+      "intended_incident": "INC-1047",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4407",
+      "frozen_truth": "SAME",
+      "intended_incident": "INC-1048",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4408",
+      "frozen_truth": "SAME",
+      "intended_incident": "INC-1049",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    },
+    {
+      "ticket": "TKT-4409",
+      "frozen_truth": "DIFFERENT",
+      "intended_incident": "INC-1050",
+      "runtime_outcome": "attached",
+      "attached_to": "cand-TKT-4262"
+    },
+    {
+      "ticket": "TKT-4410",
+      "frozen_truth": "SAME",
+      "intended_incident": "INC-1051",
+      "runtime_outcome": "not attached",
+      "attached_to": null
+    }
+  ]
+}
