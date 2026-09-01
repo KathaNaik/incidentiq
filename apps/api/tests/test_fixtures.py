@@ -9,9 +9,12 @@ def test_shipped_northstar_dataset_loads(northstar_dir: Path) -> None:
     dataset = load_dataset(northstar_dir)
 
     assert dataset.name == "northstar-cloud"
-    assert len(dataset.services) == 3
-    assert len(dataset.incidents) == 2
-    assert 8 <= len(dataset.tickets) <= 12
+    # World v2. Ranges rather than exact counts: this asserts the shipped world is the
+    # expanded one and still coherent, not that nobody may ever add a report to it. The
+    # per-incident structure is checked in test_northstar_world.py.
+    assert len(dataset.services) == 8
+    assert len(dataset.incidents) == 10
+    assert 55 <= len(dataset.tickets) <= 75
 
 
 def test_dataset_not_marked_synthetic_is_rejected(

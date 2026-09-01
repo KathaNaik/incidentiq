@@ -2,13 +2,169 @@
   "dataset": "northstar-cloud",
   "synthetic": true,
   "records": [
-    { "incident_id": "INC-1042", "ticket_id": "TKT-4101" },
-    { "incident_id": "INC-1042", "ticket_id": "TKT-4102" },
-    { "incident_id": "INC-1042", "ticket_id": "TKT-4103" },
-    { "incident_id": "INC-1042", "ticket_id": "TKT-4104" },
-    { "incident_id": "INC-1042", "ticket_id": "TKT-4105" },
-    { "incident_id": "INC-1043", "ticket_id": "TKT-4111" },
-    { "incident_id": "INC-1043", "ticket_id": "TKT-4112" },
-    { "incident_id": "INC-1043", "ticket_id": "TKT-4113" }
+    {
+      "incident_id": "INC-1042",
+      "ticket_id": "TKT-4101"
+    },
+    {
+      "incident_id": "INC-1042",
+      "ticket_id": "TKT-4102"
+    },
+    {
+      "incident_id": "INC-1042",
+      "ticket_id": "TKT-4103"
+    },
+    {
+      "incident_id": "INC-1042",
+      "ticket_id": "TKT-4104"
+    },
+    {
+      "incident_id": "INC-1042",
+      "ticket_id": "TKT-4105"
+    },
+    {
+      "incident_id": "INC-1043",
+      "ticket_id": "TKT-4111"
+    },
+    {
+      "incident_id": "INC-1043",
+      "ticket_id": "TKT-4112"
+    },
+    {
+      "incident_id": "INC-1043",
+      "ticket_id": "TKT-4113"
+    },
+    {
+      "incident_id": "INC-1044",
+      "ticket_id": "TKT-4201"
+    },
+    {
+      "incident_id": "INC-1044",
+      "ticket_id": "TKT-4202"
+    },
+    {
+      "incident_id": "INC-1044",
+      "ticket_id": "TKT-4203"
+    },
+    {
+      "incident_id": "INC-1044",
+      "ticket_id": "TKT-4204"
+    },
+    {
+      "incident_id": "INC-1044",
+      "ticket_id": "TKT-4205"
+    },
+    {
+      "incident_id": "INC-1045",
+      "ticket_id": "TKT-4211"
+    },
+    {
+      "incident_id": "INC-1045",
+      "ticket_id": "TKT-4212"
+    },
+    {
+      "incident_id": "INC-1045",
+      "ticket_id": "TKT-4213"
+    },
+    {
+      "incident_id": "INC-1045",
+      "ticket_id": "TKT-4214"
+    },
+    {
+      "incident_id": "INC-1046",
+      "ticket_id": "TKT-4221"
+    },
+    {
+      "incident_id": "INC-1046",
+      "ticket_id": "TKT-4222"
+    },
+    {
+      "incident_id": "INC-1046",
+      "ticket_id": "TKT-4223"
+    },
+    {
+      "incident_id": "INC-1046",
+      "ticket_id": "TKT-4224"
+    },
+    {
+      "incident_id": "INC-1047",
+      "ticket_id": "TKT-4231"
+    },
+    {
+      "incident_id": "INC-1047",
+      "ticket_id": "TKT-4232"
+    },
+    {
+      "incident_id": "INC-1047",
+      "ticket_id": "TKT-4233"
+    },
+    {
+      "incident_id": "INC-1047",
+      "ticket_id": "TKT-4234"
+    },
+    {
+      "incident_id": "INC-1048",
+      "ticket_id": "TKT-4241"
+    },
+    {
+      "incident_id": "INC-1048",
+      "ticket_id": "TKT-4242"
+    },
+    {
+      "incident_id": "INC-1048",
+      "ticket_id": "TKT-4243"
+    },
+    {
+      "incident_id": "INC-1048",
+      "ticket_id": "TKT-4244"
+    },
+    {
+      "incident_id": "INC-1049",
+      "ticket_id": "TKT-4251"
+    },
+    {
+      "incident_id": "INC-1049",
+      "ticket_id": "TKT-4252"
+    },
+    {
+      "incident_id": "INC-1049",
+      "ticket_id": "TKT-4253"
+    },
+    {
+      "incident_id": "INC-1049",
+      "ticket_id": "TKT-4254"
+    },
+    {
+      "incident_id": "INC-1050",
+      "ticket_id": "TKT-4261"
+    },
+    {
+      "incident_id": "INC-1050",
+      "ticket_id": "TKT-4262"
+    },
+    {
+      "incident_id": "INC-1050",
+      "ticket_id": "TKT-4263"
+    },
+    {
+      "incident_id": "INC-1050",
+      "ticket_id": "TKT-4264"
+    },
+    {
+      "incident_id": "INC-1051",
+      "ticket_id": "TKT-4271"
+    },
+    {
+      "incident_id": "INC-1051",
+      "ticket_id": "TKT-4272"
+    },
+    {
+      "incident_id": "INC-1051",
+      "ticket_id": "TKT-4273"
+    },
+    {
+      "incident_id": "INC-1051",
+      "ticket_id": "TKT-4274"
+    }
   ]
 }

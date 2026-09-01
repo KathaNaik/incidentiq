@@ -16,6 +16,31 @@
       "id": "svc-connector",
       "name": "Connector API",
       "description": "Scheduled and on-demand syncs that pull customer warehouse data into Northstar."
+    },
+    {
+      "id": "svc-api",
+      "name": "Public API",
+      "description": "Customer-facing REST API and gateway: request routing, rate limiting, and webhook delivery to customer endpoints."
+    },
+    {
+      "id": "svc-billing",
+      "name": "Billing",
+      "description": "Subscriptions, invoicing, and reconciliation of payment-provider webhooks against account state."
+    },
+    {
+      "id": "svc-notifications",
+      "name": "Notifications",
+      "description": "Transactional email and in-product alerts: invitations, password resets, and delivery to the upstream mail provider."
+    },
+    {
+      "id": "svc-search",
+      "name": "Search",
+      "description": "Full-text indexing and query for documents, reports, and workspace objects."
+    },
+    {
+      "id": "svc-files",
+      "name": "File Processing",
+      "description": "Upload intake, format conversion, scanning, and the worker pipeline that makes uploaded files available."
     }
   ]
 }

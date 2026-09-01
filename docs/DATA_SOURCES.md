@@ -137,15 +137,30 @@ adapted copies does. That distinction is why the dataset stays out of the reposi
 - **License:** Same as this repository.
 - **Status:** In use. Synthetic, and labeled as such by the API (`GET /dataset`) and in a
   banner on every page of the web app.
-- **Location:** `data/demo/northstar_cloud/` — 3 services, 11 tickets, 2 incidents, 8
-  declared incident↔ticket links.
+- **Location:** `data/demo/northstar_cloud/` — 8 services, 68 tickets, 10 incidents, 41
+  declared incident↔ticket links, plus 10 deployments, 35 health observations and 12 error
+  records. The design that produced it is frozen in
+  [NORTHSTAR_WORLD_V2.md](NORTHSTAR_WORLD_V2.md), written before any record was authored
+  so the intended grouping could not drift toward whatever the algorithm happened to
+  score well.
 - **Independence:** the external corpora are never merged into these files. Northstar is
   what the product demonstrates; ITSM and Polaris are reference and benchmark data that
   live in separate, uncommitted directories and are not served by the API.
 
-Northstar Cloud is a fictional demo organization. Its fixtures — today services, tickets,
-incidents, and the links between them; later deployments, service-health signals, runbooks,
-and actions — are authored by us and checked in.
+Northstar Cloud is a fictional demo organization. Its fixtures — services, tickets,
+incidents and the links between them, deployments, service-health sequences, error
+observations and runbooks — are authored by us and checked in.
+
+The world spans three operational waves: the original authentication incident, a busy
+morning of five overlapping incidents across five services, and an afternoon of three more.
+Causal shapes vary deliberately — four incidents involve no deployment at all, one has a
+deployment that arrives *after* symptoms began, and two are clean deployment attributions.
+It also contains 14 ordinary support reports that belong to no incident and 10 boundary
+cases whose intended grouping lives only in the design document.
+
+Growing this world expanded **product context**, not evaluation authority. No historical
+eval artifact changed, and the single runtime pass over the expanded world is recorded
+separately as an *expanded authored-world regression* rather than as a benchmark.
 
 **These fixtures are not derived from Polaris or any other external dataset.** Renaming or
 lightly editing external records into Northstar Cloud data is prohibited: it would be both a

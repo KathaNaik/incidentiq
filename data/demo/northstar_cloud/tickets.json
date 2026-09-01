@@ -109,6 +109,576 @@
       "created_at": "2026-08-25T16:03:00Z",
       "status": "open",
       "reported_by": "customer-success"
+    },
+    {
+      "id": "TKT-4308",
+      "title": "Forgot my password",
+      "description": "I cannot remember my password and would like to reset it. The email on the account is my work address.",
+      "created_at": "2026-08-26T08:31:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "user.eriksen",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4201",
+      "title": "Sign-in is crawling this morning",
+      "description": "Several customers have written in to say the sign-in step takes half a minute or more, and a few of them get thrown out to a timeout page before it finishes. When it does complete they land in the right place, so it does not look like anything is actually broken \u2014 just very slow.",
+      "created_at": "2026-08-26T08:52:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "support.rivera",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4202",
+      "title": "Customer's team keeps having to re-attempt login",
+      "description": "Meridian's ops team is on a call with me now. They say roughly half their attempts to get into the console hang and they give up and hit the button again. Second or third attempt usually works. They are asking whether they should tell their staff to wait.",
+      "created_at": "2026-08-26T09:04:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "cs.okonkwo",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4211",
+      "title": "Today's figures have stopped moving",
+      "description": "I have had the campaign overview open since eight and the totals have not changed once. Normally they tick up every few minutes. Yesterday's numbers are all there and look right, it is just today that seems frozen.",
+      "created_at": "2026-08-26T09:05:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "marketing.osei",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4401",
+      "title": "Console hangs on the loading spinner after I enter my credentials",
+      "description": "I put my email and password in, it accepts them, and then the page just shows the spinner. I left it for two minutes and gave up. No error message at any point.",
+      "created_at": "2026-08-26T09:10:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "user.saarinen",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4301",
+      "title": "Cannot save changes to the SSO role mapping",
+      "description": "I am trying to update which identity provider group maps to our billing-admin role. The form accepts my changes but when I press save it comes back with a permissions error and the mapping is unchanged. Signing in itself is working normally for me and everyone else I have asked.",
+      "created_at": "2026-08-26T09:12:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "admin.ferreira",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4203",
+      "title": "Auth p95 latency climbing since 08:40, nothing shipped",
+      "description": "Our p95 on the sign-in path has gone from about 400ms to over 20 seconds since roughly 08:40. I checked the release board and there is no change to this service today or yesterday. Upstream identity provider response times look like they started climbing just before we did.",
+      "created_at": "2026-08-26T09:15:00Z",
+      "status": "open",
+      "priority": "critical",
+      "reported_by": "sre.delacruz",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4402",
+      "title": "Had to sign in again partway through the morning",
+      "description": "I was working in the console and it dropped me back to the login page around quarter past nine. Signed straight back in with no trouble. Is there a session length setting I can change?",
+      "created_at": "2026-08-26T09:18:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "user.nakagawa",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4204",
+      "title": "It works on the second try",
+      "description": "Trying to get into the dashboard. First attempt just sits there and eventually gives up. If I hit sign in again it usually lets me through. Not sure if this is my connection but two other people on my team said the same thing this morning.",
+      "created_at": "2026-08-26T09:22:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "dana.whitfield",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4212",
+      "title": "Events accepted but not showing downstream",
+      "description": "We are posting events and getting 200s back from the ingest endpoint, so from our side everything is fine. None of it is turning up in the dashboards though. Checked our own queue and it is draining normally, so I think the delay is on your side after intake.",
+      "created_at": "2026-08-26T09:24:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "de.lindqvist",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4205",
+      "title": "Enterprise account asking if we are having an outage",
+      "description": "Halvorsen Group's IT lead has emailed asking whether there is a known problem with logging in \u2014 they have had staff complaining since the start of the working day. I need something I can tell them. Are we aware of anything?",
+      "created_at": "2026-08-26T09:28:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "am.brennan",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4403",
+      "title": "Weekly summary is showing Tuesday's figures",
+      "description": "The summary I circulate on Wednesday mornings has come out with the same numbers I sent on Tuesday. I have rebuilt it once and it produced the same thing.",
+      "created_at": "2026-08-26T09:33:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "reporting.duval",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4213",
+      "title": "Morning report went out with yesterday's totals",
+      "description": "The scheduled summary that goes to the leadership list at nine has gone out again with the same numbers as yesterday's edition. Two of the directors have already replied asking whether it is a mistake.",
+      "created_at": "2026-08-26T09:38:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "exec.assist.moreau",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4231",
+      "title": "Payment confirmations arriving late",
+      "description": "Confirmations that normally land within a few seconds of a card being charged are taking fifteen or twenty minutes to come through today. The money is moving \u2014 I can see it at the provider \u2014 it is our side catching up slowly.",
+      "created_at": "2026-08-26T09:40:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "finops.okafor",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4302",
+      "title": "Numbers look far too low on my dashboard",
+      "description": "My revenue tile is showing a fraction of what I expected. I have been staring at this for ten minutes. Someone on my team suggested the date range might be off \u2014 it does say last month at the top but I did not knowingly change it.",
+      "created_at": "2026-08-26T09:41:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "joanna.pell",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4214",
+      "title": "Funnel chart is missing the last few hours",
+      "description": "The conversion funnel drops off a cliff at about seven this morning and then there is nothing. I do not think we genuinely had zero signups for three hours \u2014 the signup emails are definitely going out.",
+      "created_at": "2026-08-26T09:50:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "pm.ashworth",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4232",
+      "title": "Card was charged but the invoice still says pending",
+      "description": "I upgraded our plan about half an hour ago. My bank shows the charge went through. In the billing section of the account it still says payment pending and the extra seats have not been enabled.",
+      "created_at": "2026-08-26T09:58:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "chen.workspace",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4251",
+      "title": "Password reset mail taking about twenty minutes",
+      "description": "Two customers this morning have told me the reset link took a long time to arrive. One said twenty minutes, the other closer to half an hour. Both did eventually get it and both links worked.",
+      "created_at": "2026-08-26T10:05:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "support.rivera",
+      "service_id": "svc-notifications"
+    },
+    {
+      "id": "TKT-4233",
+      "title": "Receiving the same webhook several times",
+      "description": "We are getting duplicate deliveries on the subscription.updated hook \u2014 same payload, same id, four or five copies spread over a few minutes. We deduplicate on our end so nothing is broken for us, but you probably want to know.",
+      "created_at": "2026-08-26T10:10:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "integrations.baptiste",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4405",
+      "title": "We were billed twice for the same seat upgrade",
+      "description": "There are two identical charges on our card for the seat increase we made this morning, a few minutes apart. We only pressed the button once.",
+      "created_at": "2026-08-26T10:14:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "customer.rutledge",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4252",
+      "title": "Never received the invitation",
+      "description": "My colleague added me to the workspace about forty minutes ago and said I would get an email. Nothing has arrived, including in junk. She has resent it twice.",
+      "created_at": "2026-08-26T10:19:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "hazel.brightwater",
+      "service_id": "svc-notifications"
+    },
+    {
+      "id": "TKT-4234",
+      "title": "Subscription status lagging behind the provider",
+      "description": "Third ticket this morning where the customer's plan in our account page does not match what the payment provider says. It catches up eventually. Customers are understandably nervous when they have paid and the product still shows the old limits.",
+      "created_at": "2026-08-26T10:22:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "support.nakamura",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4303",
+      "title": "Wrong tax rate applied to one invoice",
+      "description": "Invoice INV-88214 for the Danish subsidiary has been issued at our standard domestic rate rather than the reverse-charge treatment. Only this one account is affected as far as I can tell \u2014 the other EU invoices this cycle look correct.",
+      "created_at": "2026-08-26T10:26:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "finops.okafor",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4406",
+      "title": "Disputing a charge from last quarter",
+      "description": "We are querying an invoice from June that we do not believe reflects what we agreed at renewal. Our account manager suggested raising it here so there is a record. Happy to send the correspondence.",
+      "created_at": "2026-08-26T10:30:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "customer.aldana",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4253",
+      "title": "Alert notifications delayed, nothing bouncing",
+      "description": "Our own alerting is coming through late \u2014 I got a page for something that fired eighteen minutes earlier. Delivery queue depth is up and climbing. No bounces or rejections, so the provider is accepting them and just not moving them along.",
+      "created_at": "2026-08-26T10:34:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "sre.delacruz",
+      "service_id": "svc-notifications"
+    },
+    {
+      "id": "TKT-4408",
+      "title": "One of our admins never got her invite",
+      "description": "I added Priya as a workspace admin about half an hour ago. She has not received the invitation email. Everyone else I have added this week got theirs straight away.",
+      "created_at": "2026-08-26T10:40:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "admin.ferreira",
+      "service_id": "svc-notifications"
+    },
+    {
+      "id": "TKT-4241",
+      "title": "Requests are failing with server errors",
+      "description": "Started seeing failures against the v2 endpoints about ten minutes ago. Not all of them \u2014 maybe a third. The ones that fail come back as a server error rather than anything about our request. We have not changed our client.",
+      "created_at": "2026-08-26T10:44:00Z",
+      "status": "open",
+      "priority": "critical",
+      "reported_by": "apiuser.holloway",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4254",
+      "title": "Onboarding emails arriving out of order",
+      "description": "A customer onboarding today got the day-two tips email before the welcome email. Both eventually arrived. It looks like things are queueing up and coming out in whatever order they clear.",
+      "created_at": "2026-08-26T10:48:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "cs.okonkwo",
+      "service_id": "svc-notifications"
+    },
+    {
+      "id": "TKT-4307",
+      "title": "Customer says they get no notifications at all",
+      "description": "Checked this one \u2014 they have every notification category switched off in their profile preferences, including the ones they say they want. Walking them through turning them back on. Recording it in case others do the same thing.",
+      "created_at": "2026-08-26T10:52:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "support.nakamura",
+      "service_id": "svc-notifications"
+    },
+    {
+      "id": "TKT-4242",
+      "title": "Integration retry loop, roughly one call in three fails",
+      "description": "Our sync job has been retrying since just before eleven. Pattern is fairly consistent: two succeed, one fails, retry usually gets through. It is slowing the whole run down and we are close to our processing window.",
+      "created_at": "2026-08-26T10:57:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "partner.dev.silva",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4407",
+      "title": "Integration is flaky this morning",
+      "description": "Some of our calls simply do not come back \u2014 the connection sits open and then times out on our side. It is intermittent enough that a retry usually works, but it is making the run unpredictable.",
+      "created_at": "2026-08-26T11:02:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "partner.dev.silva",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4304",
+      "title": "Getting 401 on every call since we rotated keys",
+      "description": "We rotated our API credentials yesterday evening as part of our own security review. Since then every request comes back unauthorised. I suspect we are still sending the old key from one of our services but I wanted to check nothing is wrong on your end.",
+      "created_at": "2026-08-26T11:06:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "apiuser.mendes",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4243",
+      "title": "Error rate spike lines up with this morning's release",
+      "description": "Gateway error rate went from baseline to about thirty percent at 10:34. The 5.2.0 rollout completed at 10:30. Health was clean before that. I have not rolled anything back yet \u2014 flagging it so somebody can look at the change.",
+      "created_at": "2026-08-26T11:09:00Z",
+      "status": "open",
+      "priority": "critical",
+      "reported_by": "sre.delacruz",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4244",
+      "title": "Customer's webhook endpoint getting 500s from us",
+      "description": "Northwind are reporting that our outbound calls to their platform are returning server errors intermittently. They have shown me their access log and the failures are on our side of the handshake, not theirs.",
+      "created_at": "2026-08-26T11:20:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "ce.abubakar",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4309",
+      "title": "Question about proration when adding seats mid-cycle",
+      "description": "If we add four seats two weeks into our billing month, are we charged the full month for those seats or only the remainder? Finance has asked me to confirm before I make the change.",
+      "created_at": "2026-08-26T11:44:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "procurement.singh",
+      "service_id": "svc-billing"
+    },
+    {
+      "id": "TKT-4310",
+      "title": "Do you support SCIM alongside SAML?",
+      "description": "We are evaluating Northstar for about six hundred users. We already use SAML for sign-in with our provider but we would also want automatic deprovisioning. Is SCIM available and on which plans?",
+      "created_at": "2026-08-26T12:18:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "prospect.villanueva",
+      "service_id": "svc-auth"
+    },
+    {
+      "id": "TKT-4311",
+      "title": "What are the rate limits on the reporting endpoints?",
+      "description": "Planning a nightly backfill and I would rather not get throttled halfway through. Is the limit per key or per organisation, and does it differ for the reporting routes?",
+      "created_at": "2026-08-26T12:47:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "apiuser.holloway",
+      "service_id": "svc-api"
+    },
+    {
+      "id": "TKT-4312",
+      "title": "Saved report has disappeared",
+      "description": "The quarterly board view I use is not in my saved reports any more. I may well have deleted it myself while tidying up last week. Is there any way to recover it or should I rebuild it?",
+      "created_at": "2026-08-26T13:09:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "user.oyelaran",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4221",
+      "title": "Dashboard is completely blank",
+      "description": "Opened my usual pipeline board after lunch and there is nothing on it. Not an error, not a zero \u2014 the tiles are just empty white space where the charts should be. The page header and the filters are all there.",
+      "created_at": "2026-08-26T13:35:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "salesops.tran",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4222",
+      "title": "Charts empty but the export has the data",
+      "description": "Every widget on the revenue view is blank. Out of curiosity I ran the CSV export from the same saved report and it came back with the full dataset, current up to a few minutes ago. So the numbers exist, the page just is not drawing them.",
+      "created_at": "2026-08-26T13:52:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "analyst.varga",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4404",
+      "title": "Our numbers look wrong on the overview page",
+      "description": "Something is off with the overview. The figures do not match what I would expect for this time of day. I have not changed any of the settings.",
+      "created_at": "2026-08-26T13:58:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "user.hartmann",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4223",
+      "title": "Reload fixes it for some people and not others",
+      "description": "Collecting reports about empty dashboards. Two customers say a hard refresh brought everything back. A third has refreshed repeatedly and still gets nothing. Same workspace, same saved view, different results per person.",
+      "created_at": "2026-08-26T14:04:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "support.rivera",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4224",
+      "title": "Widgets spin forever",
+      "description": "All four charts on my team's board have been showing the loading spinner for about twenty minutes. They never resolve into anything. If I switch to the table view underneath, the rows are there.",
+      "created_at": "2026-08-26T14:12:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "priya.raghunathan",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4261",
+      "title": "New documents are not coming up in search",
+      "description": "I uploaded four policy documents this afternoon and none of them appear when I search for them by name. I can open them fine from the folder, so they are definitely there.",
+      "created_at": "2026-08-26T14:32:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "content.mbeki",
+      "service_id": "svc-search"
+    },
+    {
+      "id": "TKT-4305",
+      "title": "Search is not finding what I expect",
+      "description": "If I type a customer name with a hyphen in it I get no results, but the same name without the hyphen finds everything. Is there a particular way I am supposed to enter these?",
+      "created_at": "2026-08-26T14:38:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "user.aldridge",
+      "service_id": "svc-search"
+    },
+    {
+      "id": "TKT-4262",
+      "title": "Can find old files but not today's",
+      "description": "Searching for a file I put in this morning returns nothing. Searching for one from last week works immediately. Same folder, same permissions, same search box.",
+      "created_at": "2026-08-26T14:44:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "user.fitzgerald",
+      "service_id": "svc-search"
+    },
+    {
+      "id": "TKT-4409",
+      "title": "Cannot see a folder a colleague shared with me",
+      "description": "A colleague says she shared the Q3 planning folder with me yesterday. It does not show up when I search for it and it is not in my shared list either. She can see it on her side.",
+      "created_at": "2026-08-26T14:50:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "user.mbatha",
+      "service_id": "svc-search"
+    },
+    {
+      "id": "TKT-4263",
+      "title": "Search returning stale results for recent objects",
+      "description": "Several customers reporting the same thing \u2014 anything created in the last couple of hours is invisible to search while older material is fine. Queries themselves come back quickly, so it does not look like a performance problem.",
+      "created_at": "2026-08-26T14:56:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "support.nakamura",
+      "service_id": "svc-search"
+    },
+    {
+      "id": "TKT-4264",
+      "title": "Index lag is growing, queries are healthy",
+      "description": "Indexing lag has gone from seconds to well over an hour since about half past two. Query latency is completely normal. Whatever is wrong is on the write path into the index, not the read path.",
+      "created_at": "2026-08-26T15:08:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "de.lindqvist",
+      "service_id": "svc-search"
+    },
+    {
+      "id": "TKT-4271",
+      "title": "Upload finishes and then nothing happens",
+      "description": "I uploaded a contract twenty minutes ago. The progress bar completed and it says the file is there, but it never becomes openable \u2014 it just sits showing as being prepared.",
+      "created_at": "2026-08-26T15:25:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "user.castellanos",
+      "service_id": "svc-files"
+    },
+    {
+      "id": "TKT-4306",
+      "title": "Upload rejected as unsupported",
+      "description": "Tried to attach a Pages document and it refused it, telling me the format is not supported. Converting it to PDF worked fine. Should I be able to upload Pages files?",
+      "created_at": "2026-08-26T15:31:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "user.brennan.k",
+      "service_id": "svc-files"
+    },
+    {
+      "id": "TKT-4272",
+      "title": "Files stuck in processing for over an hour",
+      "description": "I have five separate reports now of uploads that completed but never finished processing. Earliest was around a quarter past three. No error is shown to the customer, it just stays in the pending state indefinitely.",
+      "created_at": "2026-08-26T15:38:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "support.rivera",
+      "service_id": "svc-files"
+    },
+    {
+      "id": "TKT-4410",
+      "title": "Progress bar sits at 99 percent",
+      "description": "The upload gets to ninety-nine percent and stays there. I have left one running for twenty-five minutes now. Cancelling and starting again gets to the same place and stops.",
+      "created_at": "2026-08-26T15:44:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "user.iyer",
+      "service_id": "svc-files"
+    },
+    {
+      "id": "TKT-4273",
+      "title": "Document never becomes available after upload",
+      "description": "Uploaded a scanned agreement for signature. The upload itself worked \u2014 I can see it listed \u2014 but it has been unavailable to open or send for the last half hour. Tried again with a second copy and that one is stuck too.",
+      "created_at": "2026-08-26T15:50:00Z",
+      "status": "open",
+      "priority": "medium",
+      "reported_by": "marlow.decker",
+      "service_id": "svc-files"
+    },
+    {
+      "id": "TKT-4274",
+      "title": "Processing queue depth climbing with no errors",
+      "description": "Queue depth on the file pipeline has been going up steadily since about ten past three and nothing is coming out the other end. The workers are up and responding to health checks. Nothing is being logged as failed, items are just not completing.",
+      "created_at": "2026-08-26T16:02:00Z",
+      "status": "open",
+      "priority": "high",
+      "reported_by": "ops.engineer.tavares",
+      "service_id": "svc-files"
+    },
+    {
+      "id": "TKT-4313",
+      "title": "Scheduled export arrives at the wrong hour",
+      "description": "Our export is set for 07:00 but it lands at 02:00 for the team in Singapore. I think it is going out on UTC rather than each recipient's local time. Can that be configured per recipient?",
+      "created_at": "2026-08-26T16:22:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "exec.assist.moreau",
+      "service_id": "svc-analytics"
+    },
+    {
+      "id": "TKT-4314",
+      "title": "Preview looks wrong in Safari",
+      "description": "Document previews render with overlapping text in Safari but look fine in Chrome. Not urgent, just awkward when sharing my screen with a customer.",
+      "created_at": "2026-08-26T16:51:00Z",
+      "status": "open",
+      "priority": "low",
+      "reported_by": "user.dalgleish",
+      "service_id": "svc-files"
     }
   ]
 }

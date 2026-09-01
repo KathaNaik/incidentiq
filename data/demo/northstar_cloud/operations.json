@@ -4,20 +4,20 @@
   "note": "Synthetic operational telemetry for the fictional Northstar Cloud. Authored for IncidentIQ \u2014 not derived from any external dataset, and not a feed from any real monitoring system. Every record here is fabricated, and the provenance string on each says so wherever it is displayed. Health is an authored SEQUENCE of observations rather than a single snapshot: answering 'was the service healthy before that deployment?' needs a before as well as an after, and every timestamp here was written by hand rather than generated at runtime.",
   "deployments": [
     {
-      "id": "DEP-2041",
-      "service_id": "svc-auth",
-      "version": "4.12.0",
-      "deployed_at": "2026-08-24T08:52:00Z",
-      "status": "succeeded",
-      "change_summary": "Refactored SAML assertion validation and tightened certificate chain checks."
-    },
-    {
       "id": "DEP-2042",
       "service_id": "svc-analytics",
       "version": "9.3.1",
       "deployed_at": "2026-08-20T11:00:00Z",
       "status": "succeeded",
       "change_summary": "Dashboard rendering performance work; no query-layer changes."
+    },
+    {
+      "id": "DEP-2041",
+      "service_id": "svc-auth",
+      "version": "4.12.0",
+      "deployed_at": "2026-08-24T08:52:00Z",
+      "status": "succeeded",
+      "change_summary": "Refactored SAML assertion validation and tightened certificate chain checks."
     },
     {
       "id": "DEP-2043",
@@ -34,6 +34,54 @@
       "deployed_at": "2026-08-25T04:15:00Z",
       "status": "succeeded",
       "change_summary": "Connector retry backoff tuning."
+    },
+    {
+      "id": "DEP-2045",
+      "service_id": "svc-notifications",
+      "version": "1.9.4",
+      "deployed_at": "2026-08-26T07:10:00Z",
+      "status": "succeeded",
+      "change_summary": "Template rendering cleanup and copy updates for invitation emails."
+    },
+    {
+      "id": "DEP-2046",
+      "service_id": "svc-search",
+      "version": "3.1.0",
+      "deployed_at": "2026-08-26T08:20:00Z",
+      "status": "succeeded",
+      "change_summary": "Query parser update adding phrase-match support."
+    },
+    {
+      "id": "DEP-2047",
+      "service_id": "svc-api",
+      "version": "5.2.0",
+      "deployed_at": "2026-08-26T10:30:00Z",
+      "status": "succeeded",
+      "change_summary": "Gateway refactor consolidating upstream client pooling and timeout handling."
+    },
+    {
+      "id": "DEP-2049",
+      "service_id": "svc-billing",
+      "version": "4.4.0",
+      "deployed_at": "2026-08-26T12:05:00Z",
+      "status": "succeeded",
+      "change_summary": "Invoice PDF layout update for reverse-charge line items."
+    },
+    {
+      "id": "DEP-2048",
+      "service_id": "svc-search",
+      "version": "3.1.1",
+      "deployed_at": "2026-08-26T14:55:00Z",
+      "status": "succeeded",
+      "change_summary": "Adds indexing lag metric and queue-depth logging."
+    },
+    {
+      "id": "DEP-2050",
+      "service_id": "svc-api",
+      "version": "5.2.1",
+      "deployed_at": "2026-08-26T16:40:00Z",
+      "status": "succeeded",
+      "change_summary": "Documentation and OpenAPI schema corrections. No runtime change."
     }
   ],
   "health": [
@@ -45,6 +93,16 @@
         "sign-in success rate 99.4%",
         "SAML assertion validation nominal",
         "latency p95 180ms"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-24T09:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "query success rate 99.8%",
+        "dashboard render p95 1.2s",
+        "no elevated error rate"
       ]
     },
     {
@@ -65,26 +123,6 @@
         "sign-in success rate 8%",
         "assertion validation failing for all issuers",
         "token exchange rejections climbing"
-      ]
-    },
-    {
-      "service_id": "svc-analytics",
-      "observed_at": "2026-08-24T09:10:00Z",
-      "status": "healthy",
-      "signals": [
-        "query success rate 99.8%",
-        "dashboard render p95 1.2s",
-        "no elevated error rate"
-      ]
-    },
-    {
-      "service_id": "svc-analytics",
-      "observed_at": "2026-08-25T14:10:00Z",
-      "status": "healthy",
-      "signals": [
-        "query success rate 99.7%",
-        "data freshness lag 26h (baseline 1h)",
-        "no elevated error rate"
       ]
     },
     {
@@ -116,6 +154,257 @@
         "queue depth 4,200 and climbing",
         "no worker heartbeat for 38 minutes"
       ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-25T14:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "query success rate 99.7%",
+        "data freshness lag 26h (baseline 1h)",
+        "no elevated error rate"
+      ]
+    },
+    {
+      "service_id": "svc-auth",
+      "observed_at": "2026-08-26T08:35:00Z",
+      "status": "healthy",
+      "signals": [
+        "sign-in p95 410ms",
+        "token exchange nominal"
+      ]
+    },
+    {
+      "service_id": "svc-auth",
+      "observed_at": "2026-08-26T08:47:00Z",
+      "status": "degraded",
+      "signals": [
+        "sign-in p95 12.4s",
+        "upstream identity provider p95 9.8s"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-26T08:55:00Z",
+      "status": "healthy",
+      "signals": [
+        "ingestion lag 4s",
+        "query p95 310ms"
+      ]
+    },
+    {
+      "service_id": "svc-connector",
+      "observed_at": "2026-08-26T09:00:00Z",
+      "status": "healthy",
+      "signals": [
+        "sync lag 40s"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-26T09:12:00Z",
+      "status": "degraded",
+      "signals": [
+        "ingestion lag 22m",
+        "consumer group behind by 1.4M events"
+      ]
+    },
+    {
+      "service_id": "svc-auth",
+      "observed_at": "2026-08-26T09:20:00Z",
+      "status": "degraded",
+      "signals": [
+        "sign-in p95 21.7s",
+        "retry rate 38%"
+      ]
+    },
+    {
+      "service_id": "svc-billing",
+      "observed_at": "2026-08-26T09:30:00Z",
+      "status": "healthy",
+      "signals": [
+        "webhook queue depth 12",
+        "provider p95 240ms"
+      ]
+    },
+    {
+      "service_id": "svc-billing",
+      "observed_at": "2026-08-26T09:47:00Z",
+      "status": "degraded",
+      "signals": [
+        "webhook queue depth 1840",
+        "provider p95 6.1s"
+      ]
+    },
+    {
+      "service_id": "svc-notifications",
+      "observed_at": "2026-08-26T09:52:00Z",
+      "status": "healthy",
+      "signals": [
+        "delivery queue depth 30",
+        "provider accept latency 190ms"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-26T09:55:00Z",
+      "status": "degraded",
+      "signals": [
+        "ingestion lag 51m",
+        "query p95 340ms"
+      ]
+    },
+    {
+      "service_id": "svc-auth",
+      "observed_at": "2026-08-26T10:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "sign-in p95 465ms",
+        "upstream identity provider recovered"
+      ]
+    },
+    {
+      "service_id": "svc-notifications",
+      "observed_at": "2026-08-26T10:11:00Z",
+      "status": "degraded",
+      "signals": [
+        "delivery queue depth 4200",
+        "provider accept latency 5.4s"
+      ]
+    },
+    {
+      "service_id": "svc-api",
+      "observed_at": "2026-08-26T10:15:00Z",
+      "status": "healthy",
+      "signals": [
+        "error rate 0.2%",
+        "p95 180ms"
+      ]
+    },
+    {
+      "service_id": "svc-billing",
+      "observed_at": "2026-08-26T10:25:00Z",
+      "status": "degraded",
+      "signals": [
+        "webhook queue depth 2610",
+        "duplicate delivery rate elevated"
+      ]
+    },
+    {
+      "service_id": "svc-api",
+      "observed_at": "2026-08-26T10:38:00Z",
+      "status": "degraded",
+      "signals": [
+        "error rate 18%",
+        "upstream timeouts rising"
+      ]
+    },
+    {
+      "service_id": "svc-api",
+      "observed_at": "2026-08-26T10:52:00Z",
+      "status": "critical",
+      "signals": [
+        "error rate 31%",
+        "p95 4.2s"
+      ]
+    },
+    {
+      "service_id": "svc-api",
+      "observed_at": "2026-08-26T11:30:00Z",
+      "status": "degraded",
+      "signals": [
+        "error rate 12%"
+      ]
+    },
+    {
+      "service_id": "svc-notifications",
+      "observed_at": "2026-08-26T11:30:00Z",
+      "status": "healthy",
+      "signals": [
+        "delivery queue depth 41",
+        "provider recovered"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-26T13:30:00Z",
+      "status": "healthy",
+      "signals": [
+        "ingestion lag 6s",
+        "cache hit ratio 0.94"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-26T13:41:00Z",
+      "status": "degraded",
+      "signals": [
+        "empty payload ratio 0.31",
+        "ingestion lag 7s"
+      ]
+    },
+    {
+      "service_id": "svc-search",
+      "observed_at": "2026-08-26T14:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "index lag 3s",
+        "query p95 120ms"
+      ]
+    },
+    {
+      "service_id": "svc-analytics",
+      "observed_at": "2026-08-26T14:15:00Z",
+      "status": "degraded",
+      "signals": [
+        "empty payload ratio 0.28",
+        "underlying query path nominal"
+      ]
+    },
+    {
+      "service_id": "svc-search",
+      "observed_at": "2026-08-26T14:26:00Z",
+      "status": "degraded",
+      "signals": [
+        "index lag 14m",
+        "queue depth 22000"
+      ]
+    },
+    {
+      "service_id": "svc-search",
+      "observed_at": "2026-08-26T15:00:00Z",
+      "status": "degraded",
+      "signals": [
+        "index lag 41m",
+        "query p95 118ms"
+      ]
+    },
+    {
+      "service_id": "svc-files",
+      "observed_at": "2026-08-26T15:10:00Z",
+      "status": "healthy",
+      "signals": [
+        "queue depth 8",
+        "worker heartbeat nominal"
+      ]
+    },
+    {
+      "service_id": "svc-files",
+      "observed_at": "2026-08-26T15:22:00Z",
+      "status": "degraded",
+      "signals": [
+        "queue depth 340",
+        "completions stalled at 0/min"
+      ]
+    },
+    {
+      "service_id": "svc-files",
+      "observed_at": "2026-08-26T16:05:00Z",
+      "status": "degraded",
+      "signals": [
+        "queue depth 690",
+        "workers responding to health checks"
+      ]
     }
   ],
   "errors": [
@@ -136,6 +425,14 @@
       "sample_message": "token exchange rejected"
     },
     {
+      "service_id": "svc-analytics",
+      "code": "ERR_EXPORT_TRUNCATED",
+      "count": 6,
+      "first_seen": "2026-08-24T16:05:00Z",
+      "last_seen": "2026-08-24T16:44:00Z",
+      "sample_message": "export stopped at row limit"
+    },
+    {
       "service_id": "svc-connector",
       "code": "ERR_SYNC_STALLED",
       "count": 214,
@@ -144,12 +441,68 @@
       "sample_message": "sync worker heartbeat missed; job left in running state"
     },
     {
+      "service_id": "svc-auth",
+      "code": "ERR_IDP_LATENCY",
+      "first_seen": "2026-08-26T08:40:00Z",
+      "last_seen": "2026-08-26T10:05:00Z",
+      "count": 2140,
+      "sample_message": "upstream identity provider did not respond within 10000ms"
+    },
+    {
       "service_id": "svc-analytics",
-      "code": "ERR_EXPORT_TRUNCATED",
-      "count": 6,
-      "first_seen": "2026-08-24T16:05:00Z",
-      "last_seen": "2026-08-24T16:44:00Z",
-      "sample_message": "export stopped at row limit"
+      "code": "ERR_INGESTION_LAG",
+      "first_seen": "2026-08-26T09:00:00Z",
+      "last_seen": "2026-08-26T10:20:00Z",
+      "count": 860,
+      "sample_message": "consumer group lag exceeded threshold: 1412903 events behind"
+    },
+    {
+      "service_id": "svc-billing",
+      "code": "ERR_WEBHOOK_RETRY",
+      "first_seen": "2026-08-26T09:35:00Z",
+      "last_seen": "2026-08-26T10:40:00Z",
+      "count": 3180,
+      "sample_message": "webhook delivery attempt 4 for evt_9f2a: provider timeout"
+    },
+    {
+      "service_id": "svc-notifications",
+      "code": "ERR_DELIVERY_DELAY",
+      "first_seen": "2026-08-26T09:58:00Z",
+      "last_seen": "2026-08-26T11:25:00Z",
+      "count": 980,
+      "sample_message": "message queued 902s awaiting provider acceptance"
+    },
+    {
+      "service_id": "svc-api",
+      "code": "ERR_API_5XX_SPIKE",
+      "first_seen": "2026-08-26T10:34:00Z",
+      "last_seen": "2026-08-26T11:35:00Z",
+      "count": 7420,
+      "sample_message": "unhandled upstream timeout while proxying request"
+    },
+    {
+      "service_id": "svc-analytics",
+      "code": "ERR_CACHE_EMPTY_PAYLOAD",
+      "first_seen": "2026-08-26T13:32:00Z",
+      "last_seen": "2026-08-26T14:30:00Z",
+      "count": 1204,
+      "sample_message": "widget payload assembled with zero series after cache read"
+    },
+    {
+      "service_id": "svc-search",
+      "code": "ERR_INDEX_BACKLOG",
+      "first_seen": "2026-08-26T14:20:00Z",
+      "last_seen": "2026-08-26T15:20:00Z",
+      "count": 1540,
+      "sample_message": "index write queue depth 22418 exceeds soft limit"
+    },
+    {
+      "service_id": "svc-files",
+      "code": "ERR_PROCESSING_STALL",
+      "first_seen": "2026-08-26T15:15:00Z",
+      "last_seen": "2026-08-26T16:10:00Z",
+      "count": 412,
+      "sample_message": "worker holds lease on job for 1800s without progress"
     }
   ]
 }

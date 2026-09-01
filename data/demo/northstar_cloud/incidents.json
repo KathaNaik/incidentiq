@@ -9,7 +9,9 @@
       "severity": "sev1",
       "detected_at": "2026-08-24T09:05:00Z",
       "created_at": "2026-08-24T09:07:00Z",
-      "affected_service_ids": ["svc-auth"]
+      "affected_service_ids": [
+        "svc-auth"
+      ]
     },
     {
       "id": "INC-1043",
@@ -18,7 +20,98 @@
       "severity": "sev2",
       "detected_at": "2026-08-25T13:10:00Z",
       "created_at": "2026-08-25T13:15:00Z",
-      "affected_service_ids": ["svc-connector", "svc-analytics"]
+      "affected_service_ids": [
+        "svc-connector",
+        "svc-analytics"
+      ]
+    },
+    {
+      "id": "INC-1044",
+      "title": "Sign-in latency from upstream identity provider degradation",
+      "severity": "sev2",
+      "status": "resolved",
+      "detected_at": "2026-08-26T08:47:00Z",
+      "created_at": "2026-08-26T08:47:00Z",
+      "affected_service_ids": [
+        "svc-auth"
+      ]
+    },
+    {
+      "id": "INC-1045",
+      "title": "Analytics ingestion backlog delaying dashboard data",
+      "severity": "sev2",
+      "status": "investigating",
+      "detected_at": "2026-08-26T09:12:00Z",
+      "created_at": "2026-08-26T09:12:00Z",
+      "affected_service_ids": [
+        "svc-analytics"
+      ]
+    },
+    {
+      "id": "INC-1047",
+      "title": "Delayed billing webhooks during payment provider latency",
+      "severity": "sev2",
+      "status": "investigating",
+      "detected_at": "2026-08-26T09:47:00Z",
+      "created_at": "2026-08-26T09:47:00Z",
+      "affected_service_ids": [
+        "svc-billing"
+      ]
+    },
+    {
+      "id": "INC-1049",
+      "title": "Notification delivery delays at the upstream mail provider",
+      "severity": "sev3",
+      "status": "resolved",
+      "detected_at": "2026-08-26T10:11:00Z",
+      "created_at": "2026-08-26T10:11:00Z",
+      "affected_service_ids": [
+        "svc-notifications"
+      ]
+    },
+    {
+      "id": "INC-1048",
+      "title": "Elevated API error rate following the 5.2.0 release",
+      "severity": "sev1",
+      "status": "identified",
+      "detected_at": "2026-08-26T10:38:00Z",
+      "created_at": "2026-08-26T10:38:00Z",
+      "affected_service_ids": [
+        "svc-api"
+      ]
+    },
+    {
+      "id": "INC-1046",
+      "title": "Dashboard widgets rendering empty from cache layer",
+      "severity": "sev2",
+      "status": "investigating",
+      "detected_at": "2026-08-26T13:41:00Z",
+      "created_at": "2026-08-26T13:41:00Z",
+      "affected_service_ids": [
+        "svc-analytics"
+      ]
+    },
+    {
+      "id": "INC-1050",
+      "title": "Search index backlog leaving new objects unsearchable",
+      "severity": "sev2",
+      "status": "investigating",
+      "detected_at": "2026-08-26T14:26:00Z",
+      "created_at": "2026-08-26T14:26:00Z",
+      "affected_service_ids": [
+        "svc-search"
+      ]
+    },
+    {
+      "id": "INC-1051",
+      "title": "File processing workers accepting uploads without completing them",
+      "severity": "sev2",
+      "status": "investigating",
+      "detected_at": "2026-08-26T15:22:00Z",
+      "created_at": "2026-08-26T15:22:00Z",
+      "affected_service_ids": [
+        "svc-files"
+      ]
     }
   ]
 }
